@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.ExecutableGenerators
@@ -7,8 +9,11 @@ import java.lang.reflect.Method
 
 data class Result(val returned: Any?, val threw: Throwable?, val stdout: String, val stderr: String)
 data class TestStep(
-    val runnerID: Int, val executable: Executable, val type: Type,
-    val solution: Result, val submission: Result
+    val runnerID: Int,
+    val executable: Executable,
+    val type: Type,
+    val solution: Result,
+    val submission: Result
 ) {
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD }
     enum class Differs { STDOUT, STDERR, RETURN, THREW }
@@ -47,6 +52,7 @@ class TestRunner(
         }
     }
 
+    @Suppress("ComplexMethod")
     fun run(solutionExecutable: Executable, type: TestStep.Type? = null): TestStep {
         val submissionExecutable = submission.submissionExecutables[solutionExecutable]
             ?: error("couldn't find a submission method that should exist")
