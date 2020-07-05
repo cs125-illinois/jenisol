@@ -2,9 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
-import edu.illinois.cs.cs125.jenisol.core.generators.MethodGenerators
 import edu.illinois.cs.cs125.jenisol.core.generators.ParameterGeneratorFactory
-import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
@@ -62,24 +60,29 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     } else {
         setOf()
     }
+    val solutionExecutables = solutionConstructors + solutionMethods
 
     val emptyConstructor = solutionConstructors.size == 1 && solutionConstructors.first().parameters.isEmpty()
     val emptyMethod = solutionMethods.size == 1 && solutionMethods.first().parameters.isEmpty()
 
-    val initializer: Set<Method> = if (emptyConstructor) {
+    val initializer: Executable? = if (emptyConstructor) {
         solution.superclass.declaredMethods.filter { it.isInitializer() }.also {
             check(it.size <= 1) { "Solution parent class ${solution.superclass.name} has multiple initializers" }
         }.firstOrNull()?.let {
             Initializer.validate(it)
-            setOf(it)
-        } ?: setOf()
+            it
+        }
+    } else {
+        null
+    }
+
+    private val initializers = if (initializer != null) {
+        setOf(initializer)
     } else {
         setOf()
     }
-    val hasInitializer = initializer.isNotEmpty()
-
     val parameterGeneratorFactory: ParameterGeneratorFactory =
-        ParameterGeneratorFactory(solutionMethods + solutionConstructors + initializer, solution)
+        ParameterGeneratorFactory(solutionMethods + solutionConstructors + initializers, solution)
 
     fun receiverCount(settings: Settings) = if (onlyStatic || (emptyConstructor && !emptyMethod)) {
         1
@@ -89,28 +92,28 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         settings.receiverCount
     }
 
-    fun compare(step: PairRunner.Step) {
+    fun compare(step: TestStep) {
         val solution = step.solution
         val submission = step.submission
 
         if (solution.stdout.isNotBlank() && solution.stdout != submission.stdout) {
-            step.differs.add(PairRunner.Step.Differs.STDOUT)
+            step.differs.add(TestStep.Differs.STDOUT)
         }
         if (solution.stderr.isNotBlank() && solution.stderr != submission.stderr) {
-            step.differs.add(PairRunner.Step.Differs.STDERR)
+            step.differs.add(TestStep.Differs.STDERR)
         }
 
-        if (step.type == PairRunner.Step.Type.METHOD) {
+        if (step.type == TestStep.Type.METHOD) {
             if (solution.returned != null && submission.returned != null && solution.returned::class.java.isArray) {
                 if (!solution.returned.asArray().contentDeepEquals(submission.returned.asArray())) {
-                    step.differs.add(PairRunner.Step.Differs.RETURN)
+                    step.differs.add(TestStep.Differs.RETURN)
                 }
             } else if (solution.returned != submission.returned) {
-                step.differs.add(PairRunner.Step.Differs.RETURN)
+                step.differs.add(TestStep.Differs.RETURN)
             }
         }
         if (solution.threw != submission.threw) {
-            step.differs.add(PairRunner.Step.Differs.THREW)
+            step.differs.add(TestStep.Differs.THREW)
         }
     }
 
@@ -137,16 +140,23 @@ class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
 )
 
 class Submission(val solution: Solution, val submission: Class<*>) {
-    val submissionConstructors = solution.solutionConstructors.map { constructor ->
-        constructor to (submission.findConstructor(constructor) ?: throw ClassDesignError(submission, constructor))
-    }.toMap()
-    val submissionMethods = solution.solutionMethods.map { method ->
-        method to (submission.findMethod(method) ?: throw ClassDesignError(submission, method))
+    val submissionExecutables = solution.solutionExecutables.map { solutionExecutable ->
+        when (solutionExecutable) {
+            is Constructor<*> -> submission.findConstructor(solutionExecutable)
+            is Method -> submission.findMethod(solutionExecutable)
+            else -> error("Encountered unexpected executable type: $solutionExecutable")
+        }?.let { executable ->
+            solutionExecutable to executable
+        } ?: throw ClassDesignError(submission, solutionExecutable)
+    }.toMap().toMutableMap().also {
+        if (solution.initializer != null) {
+            it[solution.initializer] = solution.initializer
+        }
     }.toMap()
 
-    fun MutableList<PairRunner>.readyCount() = filter { it.ready }.count()
+    fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
 
-    fun test(settings: Solution.Settings = Solution.Settings()): List<PairRunner.Step> {
+    fun test(settings: Solution.Settings = Solution.Settings()): List<TestStep> {
         val testSettings = Solution.Settings.DEFAULTS merge settings
 
         val random = if (settings.seed == -1) {
@@ -157,12 +167,16 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         val receiverCount = solution.receiverCount(settings)
         val methodGenerators = solution.parameterGeneratorFactory.get(random, testSettings)
-        val receiverGenerator = ReceiverGenerator(this, methodGenerators)
+        val constructors = sequence {
+            while (true) {
+                yieldAll(solution.solutionConstructors.toList().shuffled(random))
+            }
+        }
 
-        val runners: MutableList<PairRunner> = mutableListOf()
+        val runners: MutableList<TestRunner> = mutableListOf()
         for (i in 0 until testSettings.testCount) {
             if (runners.readyCount() < receiverCount) {
-                PairRunner(runners.size, this, methodGenerators, receiverGenerator).also { runner ->
+                TestRunner(runners.size, this, methodGenerators, constructors).also { runner ->
                     runner.next()
                     runners.add(runner)
                 }
@@ -170,93 +184,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 runners.shuffled(random).first().next()
             }
         }
-        return runners.map { it.steps }.flatten()
+        return runners.map { it.testSteps }.flatten()
     }
 }
-
-data class Result(val returned: Any?, val threw: Throwable?, val stdout: String, val stderr: String)
-
-class PairRunner(
-    val runnerID: Int,
-    val submission: Submission,
-    val methodGenerators: MethodGenerators,
-    val receiverGenerator: ReceiverGenerator
-) {
-
-    data class ReceiverPair(var solution: Any?, var submission: Any?)
-    data class Step(val runnerID: Int, val solution: Result, val submission: Result, val type: Type) {
-        enum class Type { CONSTRUCTOR, INITIALIZER, METHOD }
-        enum class Differs { STDOUT, STDERR, RETURN, THREW }
-
-        val differs: MutableSet<Differs> = mutableSetOf()
-        val succeeded: Boolean
-            get() = differs.isEmpty()
-        val failed: Boolean
-            get() = !succeeded
-    }
-
-    val methodIterator = submission.solution.solutionMethods.cycle()
-    val steps: MutableList<Step> = mutableListOf()
-
-    val ready: Boolean
-        get() = steps.isEmpty() || steps.all { it.succeeded }
-
-    val receivers: ReceiverPair by lazy {
-        if (submission.solution.onlyStatic) {
-            ReceiverPair(null, null)
-        } else {
-            steps.find { it.type == Step.Type.CONSTRUCTOR && it.succeeded }?.let {
-                check(it.solution.returned != null) { "Constructor returned null" }
-                check(it.submission.returned != null) { "Constructor returned null" }
-                ReceiverPair(it.solution.returned, it.submission.returned)
-            } ?: error("Couldn't find a receiver pair")
-        }
-    }
-
-    var created = false
-    fun next(): Boolean {
-        if (!submission.solution.onlyStatic && !created) {
-            steps.addAll(receiverGenerator.generate(runnerID))
-            created = true
-            return ready
-        }
-
-        val solutionMethod = methodIterator.first()
-        val submissionMethod = submission.submissionMethods[solutionMethod] ?: error(
-            "Answerable couldn't find a submission method that should exist"
-        )
-
-        val generator = methodGenerators[solutionMethod]
-            ?: error("Couldn't find a parameter generator that should exist")
-        val parameters = generator.generate()
-
-        val solutionResult = submission.solution.captureOutput {
-            unwrapMethodInvocationException {
-                solutionMethod.invoke(receivers.solution, *parameters.solution)
-            }
-        }
-        val submissionResult = submission.solution.captureOutput {
-            unwrapMethodInvocationException {
-                submissionMethod.invoke(receivers.submission, *parameters.submission)
-            }
-        }
-
-        Step(runnerID, solutionResult, submissionResult, Step.Type.METHOD).also { step ->
-            submission.solution.compare(step)
-            steps.add(step)
-            if (step.succeeded) {
-                generator.next()
-            } else {
-                generator.prev()
-            }
-        }
-        return ready
-    }
-}
-
-@Suppress("unused")
-fun List<PairRunner.Step>.succeeded() = all { it.succeeded }
-fun List<PairRunner.Step>.failed() = any { it.failed }
 
 fun solution(klass: Class<*>) = Solution(klass)
 
@@ -265,7 +195,8 @@ fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
 fun Executable.fullName() = "$name(${parameters.joinToString(", ") { it.type.name }})"
 
 fun Class<*>.findMethod(method: Method) = this.declaredMethods.find {
-    it?.parameterTypes?.contentEquals(method.parameterTypes) ?: false
+    (it?.parameterTypes?.contentEquals(method.parameterTypes) ?: false) &&
+        (it?.returnType?.equals(method.returnType) ?: false)
 }
 
 fun Class<*>.findConstructor(constructor: Constructor<*>) = this.declaredConstructors.find {

@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.jenisol.core
 import io.github.classgraph.ClassGraph
 import io.kotlintest.matchers.collections.shouldNotContainAll
 import io.kotlintest.shouldBe
+import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
@@ -69,17 +70,23 @@ fun Class<*>.test() {
                     submission(correct.loadClass()).test()
                 }
             allClasses
-                .filter { it.simpleName.startsWith("Incorrect") }
+                .filter { it.simpleName.startsWith("Incorrect") || it.simpleName.startsWith("Design") }
                 .apply {
                     check(isNotEmpty()) { "No incorrect examples for ${testName()}" }
                 }.forEach { incorrect ->
-                    submission(incorrect.loadClass()).test().also { results ->
-                        results.failed() shouldBe true
-                        results.filter { it.failed }
-                            .map { it.type }
-                            .distinct() shouldNotContainAll setOf(
-                            PairRunner.Step.Type.CONSTRUCTOR, PairRunner.Step.Type.INITIALIZER
-                        )
+                    if (incorrect.simpleName.startsWith("Design")) {
+                        shouldThrow<ClassDesignError> {
+                            submission(incorrect.loadClass())
+                        }
+                    } else {
+                        submission(incorrect.loadClass()).test().also { results ->
+                            results.failed() shouldBe true
+                            results.filter { it.failed }
+                                .map { it.type }
+                                .distinct() shouldNotContainAll setOf(
+                                TestStep.Type.CONSTRUCTOR, TestStep.Type.INITIALIZER
+                            )
+                        }
                     }
                 }
         }

@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package edu.illinois.cs.cs125.jenisol.core.generators
 
 import edu.illinois.cs.cs125.jenisol.core.EdgeType
@@ -128,13 +130,14 @@ class ParameterGeneratorFactory(private val executables: Set<Executable>, soluti
         }
         .toMap()
         .let {
-            MethodGenerators(it)
+            ExecutableGenerators(it)
         }
 }
 
-class MethodGenerators(private val map: Map<Executable, MethodGenerator>) : Map<Executable, MethodGenerator> by map
+class ExecutableGenerators(private val map: Map<Executable, ExecutableGenerator>) :
+    Map<Executable, ExecutableGenerator> by map
 
-interface MethodGenerator {
+interface ExecutableGenerator {
     fun generate(): ParametersGenerator.Value
     fun next()
     fun prev()
@@ -151,29 +154,31 @@ class MethodParametersGeneratorGenerator(target: Executable) {
             .filter { field ->
                 FixedParameters.validate(field).compareBoxed(parameterTypes)
             }.also {
-                check(it.size <= 1) { "Multiple @${FixedParameters.name} annotations match method ${target.name}" }
+                check(it.size <= 1) {
+                    "Multiple @${FixedParameters.name} annotations match method ${target.name}"
+                }
             }.firstOrNull()?.let { field ->
-            val values = field.get(null)
-            check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
-            check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
-            try {
-                @Suppress("UNCHECKED_CAST")
-                values as Collection<ParameterGroup>
-            } catch (e: ClassCastException) {
-                error("@${FixedParameters.name} field does not contain a collection of parameter groups")
-            }
-            values.forEach {
-                val solutionParameters = it.deepCopy()
-                val submissionParameters = it.deepCopy()
-                check(solutionParameters !== submissionParameters) {
-                    "@${FixedParameters.name} field produces referentially equal copies"
+                val values = field.get(null)
+                check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
+                check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    values as Collection<ParameterGroup>
+                } catch (e: ClassCastException) {
+                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
                 }
-                check(solutionParameters == submissionParameters) {
-                    "@${FixedParameters.name} field does not produce equal copies"
+                values.forEach {
+                    val solutionParameters = it.deepCopy()
+                    val submissionParameters = it.deepCopy()
+                    check(solutionParameters !== submissionParameters) {
+                        "@${FixedParameters.name} field produces referentially equal copies"
+                    }
+                    check(solutionParameters == submissionParameters) {
+                        "@${FixedParameters.name} field does not produce equal copies"
+                    }
                 }
+                values
             }
-            values
-        }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
@@ -198,7 +203,7 @@ class ConfiguredParametersGenerator(
     private val random: Random = Random,
     overrideFixed: Collection<ParameterGroup>? = null,
     private val overrideRandom: Method? = null
-) : MethodGenerator {
+) : ExecutableGenerator {
     private val generator = if (overrideFixed != null && overrideRandom != null) {
         null
     } else {
@@ -288,7 +293,7 @@ class ConfiguredParametersGenerator(
 }
 
 @Suppress("EmptyFunctionBlock")
-class EmptyParameterMethodGenerator : MethodGenerator {
+class EmptyParameterMethodGenerator : ExecutableGenerator {
     private val empty = ParametersGenerator.Value(arrayOf(), arrayOf(), ParametersGenerator.Type.EMPTY)
 
     override fun prev() {}

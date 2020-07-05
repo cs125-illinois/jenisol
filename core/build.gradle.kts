@@ -16,6 +16,7 @@ dependencies {
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotlintest:kotlintest-runner-junit5:3.4.2")
+    testImplementation("org.slf4j:slf4j-simple:1.7.30")
 }
 tasks.compileKotlin {
     dependsOn("createProperties")
