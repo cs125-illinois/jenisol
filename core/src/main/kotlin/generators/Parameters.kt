@@ -5,7 +5,7 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import edu.illinois.cs.cs125.jenisol.core.EdgeType
 import edu.illinois.cs.cs125.jenisol.core.FixedParameters
 import edu.illinois.cs.cs125.jenisol.core.ParameterGroup
-import edu.illinois.cs.cs125.jenisol.core.RandomPair
+import edu.illinois.cs.cs125.jenisol.core.RandomGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomParameters
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.SimpleType
@@ -23,6 +23,33 @@ import java.lang.reflect.Method
 import java.lang.reflect.Parameter
 import java.lang.reflect.Type
 import kotlin.random.Random
+
+data class Parameters(
+    val solution: Array<Any?>,
+    val submission: Array<Any?>,
+    val reference: Array<Any?>,
+    val type: Type,
+    val complexity: TypeGenerator.Complexity = TypeGenerator.Complexity(0)
+) {
+    enum class Type { EMPTY, SIMPLE, EDGE, MIXED, RANDOM, FIXED_FIELD, RANDOM_METHOD }
+
+    override fun equals(other: Any?) = when {
+        this === other -> true
+        other is Parameters -> reference.contentDeepEquals(other.reference)
+        else -> false
+    }
+
+    override fun hashCode() = reference.contentHashCode()
+}
+
+interface ParametersGenerator {
+    val simple: List<Parameters>
+    val edge: List<Parameters>
+    val mixed: List<Parameters>
+    fun random(complexity: TypeGenerator.Complexity): Parameters
+}
+
+typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
 
 class ParameterGeneratorFactory(private val executables: Set<Executable>, solution: Class<*>) {
 
@@ -138,7 +165,7 @@ class ExecutableGenerators(private val map: Map<Executable, ExecutableGenerator>
     Map<Executable, ExecutableGenerator> by map
 
 interface ExecutableGenerator {
-    fun generate(): ParametersGenerator.Value
+    fun generate(): Parameters
     fun next()
     fun prev()
 }
@@ -211,21 +238,22 @@ class ConfiguredParametersGenerator(
         parametersGenerator(random)
     }
 
-    private fun Collection<ParameterGroup>.toFixedParameters(): List<ParametersGenerator.Value> = map {
-        ParametersGenerator.Value(
+    private fun Collection<ParameterGroup>.toFixedParameters(): List<Parameters> = map {
+        Parameters(
             it.deepCopy().toArray(),
             it.deepCopy().toArray(),
-            ParametersGenerator.Type.FIXED_FIELD
+            it.deepCopy().toArray(),
+            Parameters.Type.FIXED_FIELD
         )
     }
 
-    private fun List<ParametersGenerator.Value>.trim(count: Int) = if (this.size <= count) {
+    private fun List<Parameters>.trim(count: Int) = if (this.size <= count) {
         this
     } else {
         this.shuffled(random).take(count)
     }
 
-    private val fixed: List<ParametersGenerator.Value>
+    private val fixed: List<Parameters>
 
     init {
         fixed = if (overrideFixed != null) {
@@ -240,13 +268,13 @@ class ConfiguredParametersGenerator(
         }
     }
 
-    private val randomPair = RandomPair(random.nextLong())
+    private val randomPair = RandomGroup(random.nextLong())
     private var index = 0
     private var bound: TypeGenerator.Complexity? = null
     private val complexity = TypeGenerator.Complexity()
     private var randomStarted = false
 
-    override fun generate(): ParametersGenerator.Value {
+    override fun generate(): Parameters {
         return if (index in fixed.indices) {
             fixed[index]
         } else {
@@ -257,11 +285,17 @@ class ConfiguredParametersGenerator(
                     overrideRandom.invoke(null, currentComplexity.level, randomPair.solution) as ParameterGroup
                 val submissionParameters =
                     overrideRandom.invoke(null, currentComplexity.level, randomPair.submission) as ParameterGroup
+                val referenceParameters =
+                    overrideRandom.invoke(null, currentComplexity.level, randomPair.reference) as ParameterGroup
                 check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
-                ParametersGenerator.Value(
+                check(setOf(solutionParameters, submissionParameters, referenceParameters).size == 1) {
+                    "@${RandomParameters.name} did not generate equal parameters"
+                }
+                Parameters(
                     solutionParameters.toArray(),
                     submissionParameters.toArray(),
-                    ParametersGenerator.Type.RANDOM_METHOD,
+                    referenceParameters.toArray(),
+                    Parameters.Type.RANDOM_METHOD,
                     currentComplexity
                 )
             } else {
@@ -294,42 +328,11 @@ class ConfiguredParametersGenerator(
 
 @Suppress("EmptyFunctionBlock")
 class EmptyParameterMethodGenerator : ExecutableGenerator {
-    private val empty = ParametersGenerator.Value(arrayOf(), arrayOf(), ParametersGenerator.Type.EMPTY)
+    private val empty = Parameters(arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY)
 
     override fun prev() {}
     override fun next() {}
-    override fun generate(): ParametersGenerator.Value = empty
-}
-
-typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
-
-interface ParametersGenerator {
-    enum class Type { EMPTY, SIMPLE, EDGE, MIXED, RANDOM, FIXED_FIELD, RANDOM_METHOD }
-
-    val simple: List<Value>
-    val edge: List<Value>
-    val mixed: List<Value>
-    fun random(complexity: TypeGenerator.Complexity): Value
-
-    data class Value(
-        val solution: Array<Any?>,
-        val submission: Array<Any?>,
-        val type: Type,
-        val complexity: TypeGenerator.Complexity = TypeGenerator.Complexity(0)
-    ) {
-        val either = solution
-        override fun equals(other: Any?): Boolean {
-            return when {
-                this === other -> true
-                other is Value -> either.contentDeepEquals(other.either)
-                else -> false
-            }
-        }
-
-        override fun hashCode(): Int {
-            return either.contentHashCode()
-        }
-    }
+    override fun generate(): Parameters = empty
 }
 
 class TypeParameterGenerator(
@@ -349,39 +352,36 @@ class TypeParameterGenerator(
         )
     }
 
-    private fun List<Set<TypeGenerator.Value<*>>>.combine(type: ParametersGenerator.Type) = product().map { list ->
+    private fun List<Set<TypeGenerator.Value<*>>>.combine(type: Parameters.Type) = product().map { list ->
         list.map {
             check(it is TypeGenerator.Value<*>) { "Didn't find the right type in our parameter list" }
-            Pair(it.solution, it.submission)
-        }.unzip().let { (solution, submission) ->
-            ParametersGenerator.Value(
-                solution.toTypedArray(),
-                submission.toTypedArray(),
-                type
-            )
+            Triple(it.solution, it.submission, it.reference)
+        }.unzip().let { (solution, submission, reference) ->
+            Parameters(solution.toTypedArray(), submission.toTypedArray(), reference.toTypedArray(), type)
         }
     }
 
     override val simple by lazy {
-        parameterGenerators.map { it.simple }.combine(ParametersGenerator.Type.SIMPLE)
+        parameterGenerators.map { it.simple }.combine(Parameters.Type.SIMPLE)
     }
     override val edge by lazy {
-        parameterGenerators.map { it.edge }.combine(ParametersGenerator.Type.EDGE)
+        parameterGenerators.map { it.edge }.combine(Parameters.Type.EDGE)
     }
     override val mixed by lazy {
-        parameterGenerators.map { it.simple + it.edge }.combine(ParametersGenerator.Type.MIXED).filter {
+        parameterGenerators.map { it.simple + it.edge }.combine(Parameters.Type.MIXED).filter {
             it !in simple && it !in edge
         }
     }
 
-    override fun random(complexity: TypeGenerator.Complexity): ParametersGenerator.Value {
+    override fun random(complexity: TypeGenerator.Complexity): Parameters {
         return parameterGenerators.map { it.random(complexity) }.map {
-            Pair(it.solution, it.submission)
-        }.unzip().let { (solution, submission) ->
-            ParametersGenerator.Value(
+            Triple(it.solution, it.submission, it.reference)
+        }.unzip().let { (solution, submission, reference) ->
+            Parameters(
                 solution.toTypedArray(),
                 submission.toTypedArray(),
-                ParametersGenerator.Type.RANDOM,
+                reference.toTypedArray(),
+                Parameters.Type.RANDOM,
                 complexity
             )
         }
@@ -392,3 +392,13 @@ fun List<*>.product() = fold(listOf(listOf<Any?>())) { acc, set ->
     require(set is Collection<*>) { "Error computing product" }
     acc.flatMap { list -> set.map { element -> list + element } }
 }.toSet()
+
+fun <E> List<Triple<E, E, E>>.unzip(): List<List<E>> {
+    @Suppress("RemoveExplicitTypeArguments")
+    return fold(listOf(ArrayList<E>(), ArrayList<E>(), ArrayList<E>())) { r, i ->
+        r[0].add(i.first)
+        r[1].add(i.second)
+        r[2].add(i.third)
+        r
+    }
+}

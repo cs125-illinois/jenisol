@@ -163,10 +163,10 @@ private fun methodNamed(name: String) = examples.generatortesting.TestGenerators
 private fun Method.testGenerator(
     typeGenerator: TypeGenerator<*> = Defaults.create(this.parameterTypes.first())
 ) {
-    typeGenerator.simple.forEach { invoke(null, it.either) }
-    typeGenerator.edge.forEach { invoke(null, it.either) }
+    typeGenerator.simple.forEach { invoke(null, it.reference) }
+    typeGenerator.edge.forEach { invoke(null, it.reference) }
     (1..8).forEach { complexity ->
-        repeat(4) { invoke(null, typeGenerator.random(TypeGenerator.Complexity(complexity)).either) }
+        repeat(4) { invoke(null, typeGenerator.random(TypeGenerator.Complexity(complexity)).reference) }
     }
 }
 
@@ -184,17 +184,17 @@ private fun Method.testParameterGenerator(
         TypeParameterGenerator(parameters)
     parameterGenerator.simple.also { simple ->
         simple shouldHaveSize simpleSize.pow(dimensionality)
-        simple.forEach { invoke(null, *it.either) }
+        simple.forEach { invoke(null, *it.reference) }
     }
     parameterGenerator.edge.also { edge ->
         edge shouldHaveSize edgeSize.pow(dimensionality)
-        edge.forEach { invoke(null, *it.either) }
+        edge.forEach { invoke(null, *it.reference) }
     }
     parameterGenerator.mixed.also { mixed ->
         mixed shouldHaveSize mixedSize
-        mixed.forEach { invoke(null, *it.either) }
+        mixed.forEach { invoke(null, *it.reference) }
     }
     TypeGenerator.Complexity.ALL.forEach { complexity ->
-        invoke(null, *parameterGenerator.random(complexity).either)
+        invoke(null, *parameterGenerator.random(complexity).reference)
     }
 }

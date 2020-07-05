@@ -92,29 +92,51 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         settings.receiverCount
     }
 
-    fun compare(step: TestStep) {
-        val solution = step.solution
-        val submission = step.submission
+    val verifier: Method? = solution.declaredMethods.filter { it.isVerify() }.also {
+        check(it.size <= 1) { "No support yet for multiple verifiers" }
+    }.firstOrNull()?.also {
+        check(solutionMethods.size == 1) { "No support yet for multiple verifiers" }
+        Verify.validate(it, solutionMethods.first().genericReturnType)
+    }
+
+    fun verify(result: TestResult<*>) {
+        verifier?.also { customVerifier ->
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                unwrapMethodInvocationException { customVerifier.invoke(null, result) }
+            } catch (e: Throwable) {
+                result.differs.add(TestResult.Differs.VERIFIER_THREW)
+                result.verifierThrew = e
+            }
+        } ?: defaultVerify(result)
+    }
+
+    fun defaultVerify(result: TestResult<*>) {
+        val solution = result.solution
+        val submission = result.submission
 
         if (solution.stdout.isNotBlank() && solution.stdout != submission.stdout) {
-            step.differs.add(TestStep.Differs.STDOUT)
+            result.differs.add(TestResult.Differs.STDOUT)
         }
         if (solution.stderr.isNotBlank() && solution.stderr != submission.stderr) {
-            step.differs.add(TestStep.Differs.STDERR)
+            result.differs.add(TestResult.Differs.STDERR)
         }
 
-        if (step.type == TestStep.Type.METHOD) {
-            if (solution.returned != null && submission.returned != null && solution.returned::class.java.isArray) {
-                if (!solution.returned.asArray().contentDeepEquals(submission.returned.asArray())) {
-                    step.differs.add(TestStep.Differs.RETURN)
-                }
-            } else if (solution.returned != submission.returned) {
-                step.differs.add(TestStep.Differs.RETURN)
-            }
+        if (result.type == TestResult.Type.METHOD && !compare(solution.returned, submission.returned)) {
+            result.differs.add(TestResult.Differs.RETURN)
         }
         if (solution.threw != submission.threw) {
-            step.differs.add(TestStep.Differs.THREW)
+            result.differs.add(TestResult.Differs.THREW)
         }
+        if (!compare(solution.parameters, submission.parameters)) {
+            result.differs.add(TestResult.Differs.PARAMETERS)
+        }
+    }
+
+    fun compare(solution: Any?, submission: Any?) = when {
+        solution == null -> submission == null
+        solution::class.java.isArray -> submission?.asArray()?.let { solution.asArray().contentDeepEquals(it) } ?: false
+        else -> solution == submission
     }
 
     fun submission(submission: Class<*>) = Submission(this, submission)
@@ -124,11 +146,12 @@ fun Set<Method>.cycle() = sequence {
     yield(shuffled().first())
 }
 
-class RandomPair(seed: Long = Random.nextLong()) {
+class RandomGroup(seed: Long = Random.nextLong()) {
     val solution = java.util.Random().also { it.setSeed(seed) }
     val submission = java.util.Random().also { it.setSeed(seed) }
+    val reference = java.util.Random().also { it.setSeed(seed) }
     val synced: Boolean
-        get() = solution.nextLong() == submission.nextLong()
+        get() = setOf(solution.nextLong(), submission.nextLong(), reference.nextLong()).size == 1
 }
 
 class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
@@ -156,7 +179,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
     fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
 
-    fun test(settings: Solution.Settings = Solution.Settings()): List<TestStep> {
+    fun test(settings: Solution.Settings = Solution.Settings()): List<TestResult<*>> {
         val testSettings = Solution.Settings.DEFAULTS merge settings
 
         val random = if (settings.seed == -1) {
@@ -177,14 +200,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         for (i in 0 until testSettings.testCount) {
             if (runners.readyCount() < receiverCount) {
                 TestRunner(runners.size, this, methodGenerators, constructors).also { runner ->
-                    runner.next()
+                    runner.next(i)
                     runners.add(runner)
                 }
             } else {
-                runners.shuffled(random).first().next()
+                runners.shuffled(random).first().next(i)
             }
         }
-        return runners.map { it.testSteps }.flatten()
+        return runners.map { it.testResults }.flatten()
     }
 }
 
@@ -218,10 +241,12 @@ inline infix fun <reified T : Any> T.merge(other: T): T {
     return primaryConstructor.callBy(args)
 }
 
-typealias CaptureOutput = (run: () -> Any?) -> Result
+typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
+
+data class CapturedResult(val returned: Any?, val threw: Throwable?, val stdout: String, val stderr: String)
 
 private val outputLock = ReentrantLock()
-fun defaultCaptureOutput(run: () -> Any?): Result = outputLock.withLock {
+fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock {
     val original = Pair(System.out, System.err)
     val diverted = Pair(ByteArrayOutputStream(), ByteArrayOutputStream()).also {
         System.setOut(PrintStream(it.first))
@@ -236,7 +261,7 @@ fun defaultCaptureOutput(run: () -> Any?): Result = outputLock.withLock {
     }
     System.setOut(original.first)
     System.setErr(original.second)
-    return Result(result.first, result.second, diverted.first.toString(), diverted.second.toString())
+    return CapturedResult(result.first, result.second, diverted.first.toString(), diverted.second.toString())
 }
 
 fun unwrapMethodInvocationException(run: () -> Any?): Any? = try {

@@ -2,7 +2,9 @@
 
 package edu.illinois.cs.cs125.jenisol.core.generators
 
-import edu.illinois.cs.cs125.jenisol.core.RandomPair
+import com.rits.cloning.Cloner
+import edu.illinois.cs.cs125.jenisol.core.RandomGroup
+import edu.illinois.cs.cs125.jenisol.core.RandomType
 import java.lang.reflect.Array
 import java.lang.reflect.Method
 import java.lang.reflect.Type
@@ -36,11 +38,6 @@ interface TypeGenerator<T> {
             return this
         }
 
-        fun max(): Complexity {
-            level = MAX
-            return this
-        }
-
         fun power(base: Int = 2) = base.toDouble().pow(level.toDouble()).toLong()
 
         companion object {
@@ -50,9 +47,7 @@ interface TypeGenerator<T> {
         }
     }
 
-    data class Value<T>(val solution: T, val submission: T) {
-        val either = solution
-    }
+    data class Value<T>(val solution: T, val submission: T, val reference: T)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -71,7 +66,7 @@ class OverrideTypeGenerator(
     }
     private val simpleOverride: Set<TypeGenerator.Value<Any>>? = simple?.values()
     private val edgeOverride: Set<TypeGenerator.Value<Any?>>? = edge?.values()
-    private val pairedRandom: RandomPair = RandomPair(random.nextLong())
+    private val randomGroup: RandomGroup = RandomGroup(random.nextLong())
 
     override val simple: Set<TypeGenerator.Value<Any>> =
         simpleOverride ?: default?.simple as Set<TypeGenerator.Value<Any>>
@@ -86,16 +81,19 @@ class OverrideTypeGenerator(
             check(default != null) { "Couldn't find rand generator for $name" }
             return default.random(complexity) as TypeGenerator.Value<Any>
         }
-        check(pairedRandom.synced) {
-            "Paired random number generator out of sync before call to @Rand method for ${klass.name}"
+        check(randomGroup.synced) {
+            "grouped random number generator out of sync before call to @${RandomType.name} method for ${klass.name}"
         }
-        val solution = rand.invoke(null, complexity.level, pairedRandom.solution)
-        val submission = rand.invoke(null, complexity.level, pairedRandom.submission)
-        check(pairedRandom.synced) {
-            "Paired random number generator out of sync after call to @Rand method for ${klass.name}"
+        val solution = rand.invoke(null, complexity.level, randomGroup.solution)
+        val submission = rand.invoke(null, complexity.level, randomGroup.submission)
+        val reference = rand.invoke(null, complexity.level, randomGroup.reference)
+        check(randomGroup.synced) {
+            "grouped random number generator out of sync after call to @${RandomType.name} method for ${klass.name}"
         }
-        check(solution == submission) { "@Rand method for ${klass.name} did not return equal values" }
-        return TypeGenerator.Value(solution, submission)
+        check(setOf(solution, submission, reference).size == 1) {
+            "@${RandomType.name} method for ${klass.name} did not return equal values"
+        }
+        return TypeGenerator.Value(solution, submission, reference)
     }
 }
 
@@ -145,7 +143,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
 
     override val simple: Set<TypeGenerator.Value<Any>>
         get() {
-            val simpleCases = componentGenerator.simple.map { it.either }
+            val simpleCases = componentGenerator.simple.map { it.reference }
             return setOf(
                 Array.newInstance(klass, 0),
                 Array.newInstance(klass, simpleCases.size).also { array ->
@@ -168,7 +166,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
                     Array.set(
                         array,
                         index,
-                        componentGenerator.random(innerComplexity).either
+                        componentGenerator.random(innerComplexity).reference
                     )
                 }
             }
@@ -180,7 +178,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
 class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(random) {
     private val primitiveGenerator = Defaults.create(klass, random)
     override val simple = primitiveGenerator.simple as Set<TypeGenerator.Value<Any>>
-    override val edge = (primitiveGenerator.edge + setOf(TypeGenerator.Value(null, null)))
+    override val edge = (primitiveGenerator.edge + setOf(TypeGenerator.Value(null, null, null)))
         as Set<TypeGenerator.Value<Any?>>
 
     override fun random(complexity: TypeGenerator.Complexity) =
@@ -322,11 +320,17 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
     }
 }
 
-fun <T> Collection<T>.values() = toSet().also {
-    check(size == it.size) { "Collection of values was not distinct" }
-}.map { TypeGenerator.Value(it, it) }.toSet()
+fun <T> Collection<T>.values() = Cloner().let { cloner ->
+    toSet().also {
+        check(size == it.size) { "Collection of values was not distinct" }
+    }.map {
+        TypeGenerator.Value(cloner.deepClone(it), cloner.deepClone(it), cloner.deepClone(it))
+    }.toSet()
+}
 
-fun <T> T.value() = TypeGenerator.Value(this, this)
+fun <T> T.value() = Cloner().let { cloner ->
+    TypeGenerator.Value(cloner.deepClone(this), cloner.deepClone(this), cloner.deepClone(this))
+}
 
 fun <T> Class<T>.getArrayType(start: Boolean = true): Class<*> {
     check(!start || isArray) { "Must be called on an array type" }

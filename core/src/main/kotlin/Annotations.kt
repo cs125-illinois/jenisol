@@ -133,6 +133,33 @@ annotation class Initializer {
 
 fun Method.isInitializer() = isAnnotationPresent(Initializer::class.java)
 
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Verify {
+    companion object {
+        val name: String = Verify::class.java.simpleName
+        fun validate(method: Method, returnType: Type) {
+            check(method.isStatic()) { "@$name methods must be static" }
+            check(method.returnType.name == "void") {
+                "@$name method return values will not be used and should be void"
+            }
+            check(
+                method.parameterTypes.size == 1 &&
+                    method.parameterTypes[0] == TestResult::class.java &&
+                    method.genericParameterTypes[0] is ParameterizedType &&
+                    (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments.size == 1 &&
+                    (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments[0] == returnType
+            ) {
+                "@$name methods must accept parameters " +
+                    "(${TestResult::class.java.simpleName}<${returnType.typeName}> results)"
+            }
+            method.isAccessible = true
+        }
+    }
+}
+
+fun Method.isVerify() = isAnnotationPresent(Verify::class.java)
+
 fun Field.isStatic() = Modifier.isStatic(modifiers)
 fun Field.isFinal() = Modifier.isFinal(modifiers)
 
@@ -150,7 +177,9 @@ fun Any.asArray(): Array<*> {
     }
 }
 
-fun Executable.isAnswerable() = setOf(RandomType::class.java, RandomParameters::class.java).any {
+fun Executable.isAnswerable() = setOf(
+    RandomType::class.java, RandomParameters::class.java, Initializer::class.java, Verify::class.java
+).any {
     isAnnotationPresent(it)
 }
 

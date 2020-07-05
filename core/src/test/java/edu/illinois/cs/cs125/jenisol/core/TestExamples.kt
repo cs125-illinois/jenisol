@@ -53,6 +53,12 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.onegeneratedparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.withverifier.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.noreceiver.single.intarrayargument.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })
 
 fun Class<*>.test() {
@@ -67,7 +73,9 @@ fun Class<*>.test() {
             allClasses
                 .filter { it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
                 .forEach { correct ->
-                    submission(correct.loadClass()).test()
+                    submission(correct.loadClass()).test().also { results ->
+                        results.succeeded() shouldBe true
+                    }
                 }
             allClasses
                 .filter { it.simpleName.startsWith("Incorrect") || it.simpleName.startsWith("Design") }
@@ -84,7 +92,7 @@ fun Class<*>.test() {
                             results.filter { it.failed }
                                 .map { it.type }
                                 .distinct() shouldNotContainAll setOf(
-                                TestStep.Type.CONSTRUCTOR, TestStep.Type.INITIALIZER
+                                TestResult.Type.CONSTRUCTOR, TestResult.Type.INITIALIZER
                             )
                         }
                     }
