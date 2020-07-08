@@ -211,14 +211,15 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     }
 }
 
-fun solution(klass: Class<*>) = Solution(klass)
+fun solution(klass: Class<*>, captureOutput: CaptureOutput = ::defaultCaptureOutput) = Solution(klass, captureOutput)
 
 fun Executable.isStatic() = Modifier.isStatic(modifiers)
 fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
 fun Executable.fullName() = "$name(${parameters.joinToString(", ") { it.type.name }})"
 
 fun Class<*>.findMethod(method: Method) = this.declaredMethods.find {
-    (it?.parameterTypes?.contentEquals(method.parameterTypes) ?: false) &&
+    (it.name == method.name) &&
+        (it?.parameterTypes?.contentEquals(method.parameterTypes) ?: false) &&
         (it?.returnType?.equals(method.returnType) ?: false)
 }
 

@@ -11,12 +11,6 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.receiver.single.noarguments.Correct::class.java.also {
-        "${it.testName()}" { it.test() }
-    }
-    examples.receiver.single.withinitialization.Correct::class.java.also {
-        "${it.testName()}" { it.test() }
-    }
     examples.noreceiver.single.intargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
@@ -57,6 +51,12 @@ class TestExamples : StringSpec({
         "${it.testName()}" { it.test() }
     }
     examples.noreceiver.single.intarrayargument.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.receiver.single.noarguments.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.receiver.single.withinitialization.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })
