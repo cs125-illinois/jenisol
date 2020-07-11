@@ -12,14 +12,15 @@ import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
 class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defaultCaptureOutput) {
     data class Settings(
-        val testCount: Int = -1,
-        val receiverCount: Int = 32,
+        val methodCount: Int = -1,
+        val receiverCount: Int = -1,
         val seed: Int = -1,
         val simpleCount: Int = -1,
         val edgeCount: Int = -1,
@@ -28,8 +29,6 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     ) {
         companion object {
             val DEFAULTS = Settings(
-                testCount = 1024,
-                receiverCount = 32,
                 simpleCount = Int.MAX_VALUE,
                 edgeCount = Int.MAX_VALUE,
                 mixedCount = Int.MAX_VALUE,
@@ -75,6 +74,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     } else {
         null
     }
+    val emptyInitializer = initializer?.parameters?.isEmpty() ?: true
 
     private val initializers = if (initializer != null) {
         setOf(initializer)
@@ -84,12 +84,41 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     val parameterGeneratorFactory: ParameterGeneratorFactory =
         ParameterGeneratorFactory(solutionMethods + solutionConstructors + initializers, solution)
 
-    fun receiverCount(settings: Settings) = if (onlyStatic || (emptyConstructor && !emptyMethod)) {
-        1
-    } else if (!emptyConstructor && emptyMethod) {
-        settings.testCount / 2
-    } else {
-        settings.receiverCount
+    // These calculations should be improved to create a better test balance
+    @Suppress("MagicNumber")
+    val receiverEntropy = when {
+        onlyStatic -> 0
+        emptyConstructor && emptyInitializer -> 2
+        else -> 5
+    }
+
+    @Suppress("MagicNumber")
+    val methodEntropy = when {
+        emptyMethod -> 0
+        else -> 5
+    }
+
+    val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
+    val defaultMethodCount = 2.0.pow(methodEntropy.toDouble()).toInt()
+    val defaultTotalTests = defaultReceiverCount * (defaultMethodCount + 1)
+
+    fun setCounts(settings: Settings): Settings {
+        val receiverCount = if (settings.receiverCount != -1) {
+            settings.receiverCount
+        } else {
+            defaultReceiverCount
+        }
+        val testCount = if (settings.methodCount != -1) {
+            settings.methodCount
+        } else {
+            defaultMethodCount
+        }
+        return settings.copy(
+            receiverCount = receiverCount, methodCount = testCount
+        ).also {
+            check(it.receiverCount >= 0) { "Invalid receiver count" }
+            check(it.methodCount > 0) { "Invalid test count" }
+        }
     }
 
     val verifier: Method? = solution.declaredMethods.filter { it.isVerify() }.also {
@@ -179,26 +208,26 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
     fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
 
-    fun test(settings: Solution.Settings = Solution.Settings()): List<TestResult<*>> {
-        val testSettings = Solution.Settings.DEFAULTS merge settings
+    fun test(passedSettings: Solution.Settings = Solution.Settings()): List<TestResult<*>> {
+        val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
 
-        val random = if (settings.seed == -1) {
+        val random = if (passedSettings.seed == -1) {
             Random
         } else {
-            Random(settings.seed.toLong())
+            Random(passedSettings.seed.toLong())
         }
 
-        val receiverCount = solution.receiverCount(settings)
-        val methodGenerators = solution.parameterGeneratorFactory.get(random, testSettings)
+        val methodGenerators = solution.parameterGeneratorFactory.get(random, settings)
         val constructors = sequence {
             while (true) {
                 yieldAll(solution.solutionConstructors.toList().shuffled(random))
             }
         }
 
+        val totalTests = settings.receiverCount * (settings.methodCount + 1)
         val runners: MutableList<TestRunner> = mutableListOf()
-        for (i in 0 until testSettings.testCount) {
-            if (runners.readyCount() < receiverCount) {
+        for (i in 0 until totalTests) {
+            if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(runners.size, this, methodGenerators, constructors).also { runner ->
                     runner.next(i)
                     runners.add(runner)

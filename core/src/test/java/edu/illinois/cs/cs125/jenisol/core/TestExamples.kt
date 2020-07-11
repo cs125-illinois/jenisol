@@ -59,6 +59,9 @@ class TestExamples : StringSpec({
     examples.receiver.single.withinitialization.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.countarrayequals.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })
 
 fun Class<*>.test() {

@@ -17,6 +17,10 @@ interface TypeGenerator<T> {
     fun random(complexity: Complexity): Value<T>
 
     class Complexity(level: Int = MIN) {
+        init {
+            require(level in 0..MAX) { "Invalid complexity value: $level" }
+        }
+
         @Suppress("MemberVisibilityCanBePrivate")
         var level = level
             set(value) {
@@ -154,20 +158,40 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
             ).values()
         }
     override val edge = setOf<Any?>(null).values()
+
     override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
-        val innerComplexity = if (klass.isArray) {
-            TypeGenerator.Complexity(complexity.level - 2)
+        return random(complexity, complexity)
+    }
+
+    fun random(
+        complexity: TypeGenerator.Complexity,
+        componentComplexity: TypeGenerator.Complexity
+    ): TypeGenerator.Value<Any> {
+        val (currentComplexity, nextCompletity) = if (klass.isArray) {
+            complexity.level.let { level ->
+                val currentLevel = if (level == 0) {
+                    0
+                } else {
+                    random.nextInt(level)
+                }
+                Pair(
+                    TypeGenerator.Complexity(currentLevel),
+                    TypeGenerator.Complexity(level - currentLevel)
+                )
+            }
         } else {
-            complexity
+            Pair(complexity, null)
         }
         return (
-            Array.newInstance(klass, complexity.power().toInt()).also { array ->
-                (0 until complexity.power().toInt()).forEach { index ->
-                    Array.set(
-                        array,
-                        index,
-                        componentGenerator.random(innerComplexity).reference
-                    )
+            Array.newInstance(klass, currentComplexity.power().toInt()).also { array ->
+                (0 until currentComplexity.power().toInt()).forEach { index ->
+                    val value = if (componentGenerator is ArrayGenerator) {
+                        check(nextCompletity != null) { "Invalid complexity split" }
+                        componentGenerator.random(nextCompletity, componentComplexity)
+                    } else {
+                        componentGenerator.random(componentComplexity)
+                    }.reference
+                    Array.set(array, index, value)
                 }
             }
             ).value()

@@ -8,6 +8,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import edu.illinois.cs.cs125.jenisol.core.generators.product
 import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotlintest.matchers.collections.shouldHaveSize
+import io.kotlintest.matchers.numerics.shouldBeLessThanOrEqual
 import io.kotlintest.shouldBe
 import io.kotlintest.specs.StringSpec
 import java.lang.reflect.Method
@@ -128,6 +129,24 @@ class TestGenerators : StringSpec({
             method.invoke(null, arrayOf(arrayOf("")))
             method.invoke(null, arrayOf(arrayOf("test", "me"), arrayOf("again")))
             method.testGenerator()
+        }
+    }
+    "it should generate nested arrays properly" {
+        Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
+            repeat(32) {
+                @Suppress("UNCHECKED_CAST")
+                generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MIN))
+                    .let { it.reference as Array<Array<IntArray>> }.also {
+                        it.size + it[0].size + it[0][0].size shouldBe 4
+                    }
+            }
+            repeat(32) {
+                @Suppress("UNCHECKED_CAST")
+                generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MAX))
+                    .let { it.reference as Array<Array<IntArray>> }.also {
+                        it.size + it[0].size + it[0][0].size shouldBeLessThanOrEqual 258
+                    }
+            }
         }
     }
     "it should generate parameters properly" {
