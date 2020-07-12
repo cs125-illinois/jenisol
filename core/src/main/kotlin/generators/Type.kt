@@ -160,14 +160,15 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
     override val edge = setOf<Any?>(null).values()
 
     override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
-        return random(complexity, complexity)
+        return random(complexity, complexity, true)
     }
 
     fun random(
         complexity: TypeGenerator.Complexity,
-        componentComplexity: TypeGenerator.Complexity
+        componentComplexity: TypeGenerator.Complexity,
+        top: Boolean
     ): TypeGenerator.Value<Any> {
-        val (currentComplexity, nextCompletity) = if (klass.isArray) {
+        val (currentComplexity, nextComplexity) = if (klass.isArray) {
             complexity.level.let { level ->
                 val currentLevel = if (level == 0) {
                     0
@@ -182,12 +183,19 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
         } else {
             Pair(complexity, null)
         }
+        val arraySize = random.nextInt((currentComplexity.power().toInt() * 2) + 1).let {
+            if (top && it == 0) {
+                1
+            } else {
+                it
+            }
+        }
         return (
-            Array.newInstance(klass, currentComplexity.power().toInt()).also { array ->
-                (0 until currentComplexity.power().toInt()).forEach { index ->
+            Array.newInstance(klass, arraySize).also { array ->
+                (0 until arraySize).forEach { index ->
                     val value = if (componentGenerator is ArrayGenerator) {
-                        check(nextCompletity != null) { "Invalid complexity split" }
-                        componentGenerator.random(nextCompletity, componentComplexity)
+                        check(nextComplexity != null) { "Invalid complexity split" }
+                        componentGenerator.random(nextComplexity, componentComplexity, false)
                     } else {
                         componentGenerator.random(componentComplexity)
                     }.reference

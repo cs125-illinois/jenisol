@@ -50,6 +50,9 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.withverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.withprimitiveverifier.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
     examples.noreceiver.single.intarrayargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
@@ -64,6 +67,7 @@ class TestExamples : StringSpec({
     }
 })
 
+@Suppress("NestedBlockDepth")
 fun Class<*>.test() {
     solution(this).apply {
         try {

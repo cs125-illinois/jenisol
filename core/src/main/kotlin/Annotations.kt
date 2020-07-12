@@ -148,7 +148,8 @@ annotation class Verify {
                     method.parameterTypes[0] == TestResult::class.java &&
                     method.genericParameterTypes[0] is ParameterizedType &&
                     (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments.size == 1 &&
-                    (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments[0] == returnType
+                    (method.genericParameterTypes[0] as ParameterizedType)
+                        .actualTypeArguments[0] == returnType.asBoxedType()
             ) {
                 "@$name methods must accept parameters " +
                     "(${TestResult::class.java.simpleName}<${returnType.typeName}> results)"
@@ -209,4 +210,16 @@ data class Three<I, J, K>(val first: I, val second: J, val third: K) : Parameter
 
 data class Four<I, J, K, L>(val first: I, val second: J, val third: K, val fourth: L) : ParameterGroup {
     override fun toArray() = arrayOf(first, second, third, fourth)
+}
+
+fun Type.asBoxedType() = when {
+    this == Byte::class.java -> java.lang.Byte::class.java
+    this == Short::class.java -> java.lang.Short::class.java
+    this == Int::class.java -> java.lang.Integer::class.java
+    this == Long::class.java -> java.lang.Long::class.java
+    this == Float::class.java -> java.lang.Float::class.java
+    this == Double::class.java -> java.lang.Double::class.java
+    this == Char::class.java -> java.lang.Character::class.java
+    this == Boolean::class.java -> java.lang.Boolean::class.java
+    else -> this
 }

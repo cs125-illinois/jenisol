@@ -8,6 +8,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import edu.illinois.cs.cs125.jenisol.core.generators.product
 import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotlintest.matchers.collections.shouldHaveSize
+import io.kotlintest.matchers.numerics.shouldBeGreaterThan
 import io.kotlintest.matchers.numerics.shouldBeLessThanOrEqual
 import io.kotlintest.shouldBe
 import io.kotlintest.specs.StringSpec
@@ -133,18 +134,21 @@ class TestGenerators : StringSpec({
     }
     "it should generate nested arrays properly" {
         Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
-            repeat(32) {
+            (0..128).map {
                 @Suppress("UNCHECKED_CAST")
                 generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MIN))
-                    .let { it.reference as Array<Array<IntArray>> }.also {
-                        it.size + it[0].size + it[0][0].size shouldBe 4
+                    .let { it.reference as Array<Array<IntArray>> }.let { it.totalSize() }.also {
+                        it shouldBeGreaterThan 0
+                        it shouldBeLessThanOrEqual 8
                     }
             }
-            repeat(32) {
+
+            (0..128).map {
                 @Suppress("UNCHECKED_CAST")
                 generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MAX))
-                    .let { it.reference as Array<Array<IntArray>> }.also {
-                        it.size + it[0].size + it[0][0].size shouldBeLessThanOrEqual 258
+                    .let { it.reference as Array<Array<IntArray>> }.let { it.totalSize() }.also {
+                        it shouldBeGreaterThan 0
+                        it shouldBeLessThanOrEqual 512
                     }
             }
         }
@@ -216,4 +220,23 @@ private fun Method.testParameterGenerator(
     TypeGenerator.Complexity.ALL.forEach { complexity ->
         invoke(null, *parameterGenerator.random(complexity).reference)
     }
+}
+
+fun Array<Array<IntArray>>.totalSize() = size.let {
+    var total = it
+    total += getOrElse(0) { arrayOf() }.size
+    total += getOrElse(0) { arrayOf() }.getOrElse(0) { intArrayOf() }.size
+    total
+}
+fun Array<Array<IntArray>>.elementCount(): Int {
+    var count = 0
+    println(size)
+    for (i in 0 until size) {
+        println("$i:${get(i).size}")
+        for (j in 0 until get(i).size) {
+            println("$i:$j:${get(i)[j].size}")
+            count += get(i)[j].size
+        }
+    }
+    return count
 }
