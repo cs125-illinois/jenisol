@@ -3,6 +3,9 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import com.rits.cloning.Cloner
+import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
+import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
+import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -138,7 +141,7 @@ fun Method.isInitializer() = isAnnotationPresent(Initializer::class.java)
 annotation class Verify {
     companion object {
         val name: String = Verify::class.java.simpleName
-        fun validate(method: Method, returnType: Type) {
+        fun validate(method: Method, returnType: Type, parameterTypes: Array<Class<*>>) {
             check(method.isStatic()) { "@$name methods must be static" }
             check(method.returnType.name == "void") {
                 "@$name method return values will not be used and should be void"
@@ -147,9 +150,13 @@ annotation class Verify {
                 method.parameterTypes.size == 1 &&
                     method.parameterTypes[0] == TestResult::class.java &&
                     method.genericParameterTypes[0] is ParameterizedType &&
-                    (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments.size == 1 &&
+                    (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments.size == 2 &&
+                    (
+                        (method.genericParameterTypes[0] as ParameterizedType)
+                            .actualTypeArguments[0] as Class<*>
+                        ).compareBoxed(returnType as Class<*>) &&
                     (method.genericParameterTypes[0] as ParameterizedType)
-                        .actualTypeArguments[0] == returnType.asBoxedType()
+                        .actualTypeArguments[1].parameterGroupMatches(parameterTypes)
             ) {
                 "@$name methods must accept parameters " +
                     "(${TestResult::class.java.simpleName}<${returnType.typeName}> results)"
@@ -188,7 +195,9 @@ fun Field.isAnswerable() = (typeFieldAnnotations + FixedParameters::class.java).
     isAnnotationPresent(it)
 }
 
-private val parameterGroupTypes = setOf(One::class.java, Two::class.java, Three::class.java, Four::class.java)
+private val parameterGroupTypes = setOf(
+    None::class.java, One::class.java, Two::class.java, Three::class.java, Four::class.java
+)
 
 interface ParameterGroup {
     fun toArray(): Array<Any?>
@@ -196,30 +205,111 @@ interface ParameterGroup {
 
 fun ParameterGroup.deepCopy(): ParameterGroup = Cloner().deepClone(this)
 
-data class One<I>(val first: I) : ParameterGroup {
+@Suppress("MagicNumber")
+fun Array<Any?>.toParameterGroup() = when (size) {
+    0 -> None
+    1 -> One(get(0))
+    2 -> Two(get(0), get(1))
+    3 -> Three(get(0), get(1), get(2))
+    4 -> Four(get(0), get(1), get(2), get(3))
+    else -> error("No parameter group for array of size $size")
+}
+
+object None : ParameterGroup {
+    override fun toArray() = arrayOf<Any?>()
+}
+
+data class One<I>(@JvmField val first: I) : ParameterGroup {
     override fun toArray() = arrayOf<Any?>(first)
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is One<*> -> false
+        else -> listOf(first).deepCompare(listOf(other.first))
+    }
+
+    override fun hashCode(): Int = first?.deepHashCode() ?: 0
 }
 
-data class Two<I, J>(val first: I, val second: J) : ParameterGroup {
+data class Two<I, J>(@JvmField val first: I, @JvmField val second: J) : ParameterGroup {
     override fun toArray() = arrayOf(first, second)
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is Two<*, *> -> false
+        else -> listOf(first, second).deepCompare(listOf(other.first, other.second))
+    }
+
+    override fun hashCode(): Int {
+        var result = first?.deepHashCode() ?: 0
+        result = 31 * result + (second?.deepHashCode() ?: 0)
+        return result
+    }
 }
 
-data class Three<I, J, K>(val first: I, val second: J, val third: K) : ParameterGroup {
+data class Three<I, J, K>(@JvmField val first: I, @JvmField val second: J, @JvmField val third: K) : ParameterGroup {
     override fun toArray() = arrayOf(first, second, third)
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is Three<*, *, *> -> false
+        else -> listOf(first, second, third).deepCompare(listOf(other.first, other.second, other.third))
+    }
+
+    override fun hashCode(): Int {
+        var result = first?.deepHashCode() ?: 0
+        result = 31 * result + (second?.deepHashCode() ?: 0)
+        result = 31 * result + (third?.deepHashCode() ?: 0)
+        return result
+    }
+
 }
 
-data class Four<I, J, K, L>(val first: I, val second: J, val third: K, val fourth: L) : ParameterGroup {
+data class Four<I, J, K, L>(
+    @JvmField val first: I,
+    @JvmField val second: J,
+    @JvmField val third: K,
+    @JvmField val fourth: L
+) : ParameterGroup {
     override fun toArray() = arrayOf(first, second, third, fourth)
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is Four<*, *, *, *> -> false
+        else -> listOf(first, second, third, fourth)
+            .deepCompare(listOf(other.first, other.second, other.third, other.fourth))
+    }
+
+    override fun hashCode(): Int {
+        var result = first?.deepHashCode() ?: 0
+        result = 31 * result + (second?.deepHashCode() ?: 0)
+        result = 31 * result + (third?.deepHashCode() ?: 0)
+        result = 31 * result + (fourth?.deepHashCode() ?: 0)
+        return result
+    }
 }
 
-fun Type.asBoxedType() = when {
-    this == Byte::class.java -> java.lang.Byte::class.java
-    this == Short::class.java -> java.lang.Short::class.java
-    this == Int::class.java -> java.lang.Integer::class.java
-    this == Long::class.java -> java.lang.Long::class.java
-    this == Float::class.java -> java.lang.Float::class.java
-    this == Double::class.java -> java.lang.Double::class.java
-    this == Char::class.java -> java.lang.Character::class.java
-    this == Boolean::class.java -> java.lang.Boolean::class.java
-    else -> this
+fun Any.deepHashCode() = if (isAnyArray() == true) {
+    boxArray().contentDeepHashCode()
+} else {
+    hashCode()
+}
+
+fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
+    false
+} else {
+    zip(other).all { (mine, other) ->
+        when {
+            mine == other -> true
+            mine == null && other != null -> false
+            mine != null && other == null -> false
+            mine is Array<*> && other !is Array<*> -> false
+            mine !is Array<*> && other is Array<*> -> false
+            mine!!.boxArray().contentDeepEquals(other!!.boxArray()) -> true
+            else -> false
+        }
+    }
+}
+
+@Suppress("ReturnCount")
+fun Type.parameterGroupMatches(parameters: Array<Class<*>>) = if (this == None::class.java && parameters.isEmpty()) {
+    true
+} else {
+    (this as ParameterizedType).actualTypeArguments.compareBoxed(parameters)
 }

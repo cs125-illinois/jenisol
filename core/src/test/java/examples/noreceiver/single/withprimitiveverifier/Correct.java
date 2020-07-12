@@ -1,5 +1,6 @@
 package examples.noreceiver.single.withprimitiveverifier;
 
+import edu.illinois.cs.cs125.jenisol.core.None;
 import edu.illinois.cs.cs125.jenisol.core.TestResult;
 import edu.illinois.cs.cs125.jenisol.core.Verify;
 
@@ -10,11 +11,11 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<Integer> results) {
-    int solution = results.getSolution().getReturned();
-    int submission = results.getSubmission().getReturned();
+  public static void verify(TestResult<Integer, None> results) {
+    int solution = results.solution.returned;
+    int submission = results.submission.returned;
     if (solution != submission) {
-      results.getDiffers().add(TestResult.Differs.RETURN);
+      results.differs.add(TestResult.Differs.RETURN);
     }
   }
 }

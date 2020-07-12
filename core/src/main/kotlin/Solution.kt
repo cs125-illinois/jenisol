@@ -100,6 +100,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
     val defaultMethodCount = 2.0.pow(methodEntropy.toDouble()).toInt()
+    @Suppress("unused")
     val defaultTotalTests = defaultReceiverCount * (defaultMethodCount + 1)
 
     fun setCounts(settings: Settings): Settings {
@@ -125,10 +126,10 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         check(it.size <= 1) { "No support yet for multiple verifiers" }
     }.firstOrNull()?.also {
         check(solutionMethods.size == 1) { "No support yet for multiple verifiers" }
-        Verify.validate(it, solutionMethods.first().genericReturnType)
+        Verify.validate(it, solutionMethods.first().genericReturnType, solutionMethods.first().parameterTypes)
     }
 
-    fun verify(result: TestResult<*>) {
+    fun verify(result: TestResult<*, *>) {
         verifier?.also { customVerifier ->
             @Suppress("TooGenericExceptionCaught")
             try {
@@ -140,7 +141,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         } ?: defaultVerify(result)
     }
 
-    fun defaultVerify(result: TestResult<*>) {
+    fun defaultVerify(result: TestResult<*, *>) {
         val solution = result.solution
         val submission = result.submission
 
@@ -208,7 +209,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
     fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
 
-    fun test(passedSettings: Solution.Settings = Solution.Settings()): List<TestResult<*>> {
+    fun test(passedSettings: Solution.Settings = Solution.Settings()): List<TestResult<*, *>> {
         val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
 
         val random = if (passedSettings.seed == -1) {
@@ -247,9 +248,12 @@ fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
 fun Executable.fullName() = "$name(${parameters.joinToString(", ") { it.type.name }})"
 
 fun Class<*>.findMethod(method: Method) = this.declaredMethods.find {
-    (it.name == method.name) &&
-        (it?.parameterTypes?.contentEquals(method.parameterTypes) ?: false) &&
-        (it?.returnType?.equals(method.returnType) ?: false)
+    @Suppress("PlatformExtensionReceiverOfInline")
+    it != null &&
+        it.name == method.name &&
+        it.parameterTypes.contentEquals(method.parameterTypes) &&
+        it.returnType == method.returnType &&
+        it.isStatic() == method.isStatic()
 }
 
 fun Class<*>.findConstructor(constructor: Constructor<*>) = this.declaredConstructors.find {

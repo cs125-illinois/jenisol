@@ -1,5 +1,6 @@
 package examples.noreceiver.single.withverifier;
 
+import edu.illinois.cs.cs125.jenisol.core.None;
 import edu.illinois.cs.cs125.jenisol.core.TestResult;
 import edu.illinois.cs.cs125.jenisol.core.Verify;
 import java.util.Arrays;
@@ -11,13 +12,13 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<int[]> results) {
-    int[] solution = results.getSolution().getReturned().clone();
-    int[] submission = results.getSubmission().getReturned().clone();
+  public static void verify(TestResult<int[], None> results) {
+    int[] solution = results.solution.returned.clone();
+    int[] submission = results.submission.returned.clone();
     Arrays.sort(solution);
     Arrays.sort(submission);
     if (!Arrays.equals(solution, submission)) {
-      results.getDiffers().add(TestResult.Differs.RETURN);
+      results.differs.add(TestResult.Differs.RETURN);
     }
   }
 }

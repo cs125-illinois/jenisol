@@ -1,4 +1,4 @@
-@file:Suppress("MagicNumber")
+@file:Suppress("MagicNumber", "TooManyFunctions")
 
 package edu.illinois.cs.cs125.jenisol.core.generators
 
@@ -74,11 +74,11 @@ class OverrideTypeGenerator(
 
     override val simple: Set<TypeGenerator.Value<Any>> =
         simpleOverride ?: default?.simple as Set<TypeGenerator.Value<Any>>
-            ?: error("Couldn't find simple generator for $name")
+        ?: error("Couldn't find simple generator for $name")
 
     override val edge: Set<TypeGenerator.Value<Any?>> =
         edgeOverride ?: default?.edge as Set<TypeGenerator.Value<Any?>>
-            ?: error("Couldn't find edge generator for $name")
+        ?: error("Couldn't find edge generator for $name")
 
     override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
         if (rand == null) {
@@ -387,6 +387,11 @@ fun kotlin.Array<Type>.compareBoxed(other: kotlin.Array<Type>) = when {
     else -> zip(other).all { (mine, other) -> (mine as Class<*>).compareBoxed(other as Class<*>) }
 }
 
+fun kotlin.Array<Type>.compareBoxed(other: kotlin.Array<Class<*>>) = when {
+    size != other.size -> false
+    else -> zip(other).all { (mine, other) -> (mine as Class<*>).compareBoxed(other) }
+}
+
 fun <T> Class<T>.compareBoxed(other: Class<*>) = when {
     this == other -> true
     wrap() == other.wrap() -> true
@@ -412,4 +417,43 @@ fun <T> Class<T>.wrap(): Class<*> = when {
     this == Char::class.java -> java.lang.Character::class.java
     this == Boolean::class.java -> java.lang.Boolean::class.java
     else -> this
+}
+
+@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "RemoveRedundantQualifierName")
+fun Any.box(): Any = when {
+    this == Byte::class.java -> this as java.lang.Byte
+    this == Short::class.java -> this as java.lang.Short
+    this == Int::class.java -> this as java.lang.Integer
+    this == Long::class.java -> this as java.lang.Long
+    this == Float::class.java -> this as java.lang.Float
+    this == Double::class.java -> this as java.lang.Double
+    this == Char::class.java -> this as java.lang.Character
+    this == Boolean::class.java -> this as java.lang.Boolean
+    else -> this
+}
+
+fun Any.boxArray(): kotlin.Array<*> = when (this) {
+    is ByteArray -> this.map { it.box() }.toTypedArray()
+    is ShortArray -> this.map { it.box() }.toTypedArray()
+    is IntArray -> this.map { it.box() }.toTypedArray()
+    is LongArray -> this.map { it.box() }.toTypedArray()
+    is FloatArray -> this.map { it.box() }.toTypedArray()
+    is DoubleArray -> this.map { it.box() }.toTypedArray()
+    is CharArray -> this.map { it.box() }.toTypedArray()
+    is BooleanArray -> this.map { it.box() }.toTypedArray()
+    is kotlin.Array<*> -> this.map { it?.boxArray() }.toTypedArray()
+    else -> error("Value is not an array")
+}
+
+fun Any.isAnyArray() = when (this) {
+    is ByteArray -> true
+    is ShortArray -> true
+    is IntArray -> true
+    is LongArray -> true
+    is FloatArray -> true
+    is DoubleArray -> true
+    is CharArray -> true
+    is BooleanArray -> true
+    is kotlin.Array<*> -> true
+    else -> false
 }

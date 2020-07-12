@@ -53,7 +53,13 @@ class TestExamples : StringSpec({
     examples.noreceiver.single.withprimitiveverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.noreceiver.single.withparameterverifier.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
     examples.noreceiver.single.intarrayargument.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.noreceiver.single.generatedparameterarrays.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
     examples.receiver.single.noarguments.Correct::class.java.also {

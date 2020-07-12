@@ -9,39 +9,45 @@ import java.lang.reflect.Method
 import java.time.Instant
 
 @Suppress("ArrayInDataClass")
-data class Result<T>(
-    val parameters: Array<Any?>,
-    val returned: T?,
-    val threw: Throwable?,
-    val stdout: String,
-    val stderr: String
+data class Result<T, P : ParameterGroup>(
+    @JvmField val parameters: P,
+    @JvmField val returned: T?,
+    @JvmField val threw: Throwable?,
+    @JvmField val stdout: String,
+    @JvmField val stderr: String
 ) {
     @Suppress("UNCHECKED_CAST")
     constructor(parameters: Array<Any?>, capturedResult: CapturedResult) : this(
-        parameters, capturedResult.returned as T?, capturedResult.threw, capturedResult.stdout, capturedResult.stderr
+        parameters.toParameterGroup() as P,
+        capturedResult.returned as T?,
+        capturedResult.threw,
+        capturedResult.stdout,
+        capturedResult.stderr
     )
 }
 
 @Suppress("ArrayInDataClass")
-data class TestResult<T>(
-    val runnerID: Int,
-    val stepCount: Int,
-    val runnerCount: Int,
-    val executable: Executable,
-    val type: Type,
-    val parameters: Array<Any?>,
-    val solution: Result<T>,
-    val submission: Result<T>,
-    val interval: Interval
+data class TestResult<T, P : ParameterGroup>(
+    @JvmField val runnerID: Int,
+    @JvmField val stepCount: Int,
+    @JvmField val runnerCount: Int,
+    @JvmField val executable: Executable,
+    @JvmField val type: Type,
+    @JvmField val parameters: P,
+    @JvmField val solution: Result<T, P>,
+    @JvmField val submission: Result<T, P>,
+    @JvmField val interval: Interval
 ) {
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW }
 
-    val differs: MutableSet<Differs> = mutableSetOf()
+    @JvmField val differs: MutableSet<Differs> = mutableSetOf()
     val succeeded: Boolean
         get() = differs.isEmpty()
     val failed: Boolean
         get() = !succeeded
+
+    @Suppress("unused")
     var verifierThrew: Throwable? = null
 }
 
@@ -55,7 +61,7 @@ class TestRunner(
     data class ReceiverPair(var solution: Any?, var submission: Any?)
 
     val methodIterator = submission.solution.solutionMethods.cycle()
-    val testResults: MutableList<TestResult<*>> = mutableListOf()
+    val testResults: MutableList<TestResult<*, *>> = mutableListOf()
 
     val ready: Boolean
         get() = testResults.none { it.failed }
@@ -75,7 +81,7 @@ class TestRunner(
     private var count = 0
 
     @Suppress("ComplexMethod")
-    fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null): TestResult<*> {
+    fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null): TestResult<*, *> {
         val start = Instant.now()
         val submissionExecutable = submission.submissionExecutables[solutionExecutable]
             ?: error("couldn't find a submission method that should exist")
@@ -95,7 +101,7 @@ class TestRunner(
                     else -> error("encountered unknown executable type: $solutionExecutable")
                 }
             }
-        }.let { Result<Any>(parameters.solution, it) }
+        }.let { Result<Any, ParameterGroup>(parameters.solution, it) }
 
         val submissionResult = submission.solution.captureOutput {
             unwrapMethodInvocationException {
@@ -105,7 +111,7 @@ class TestRunner(
                     else -> error("encountered unknown executable type: $submissionExecutable")
                 }
             }
-        }.let { Result<Any>(parameters.submission, it) }
+        }.let { Result<Any, ParameterGroup>(parameters.submission, it) }
 
         val stepType = type ?: when (solutionExecutable) {
             is Method -> TestResult.Type.METHOD
@@ -116,7 +122,7 @@ class TestRunner(
         return TestResult(
             runnerID,
             stepCount, count++,
-            solutionExecutable, stepType, parameters.reference,
+            solutionExecutable, stepType, parameters.reference.toParameterGroup(),
             solutionResult, submissionResult,
             Interval(start)
         ).also { step ->
@@ -146,8 +152,8 @@ class TestRunner(
 }
 
 @Suppress("unused")
-fun List<TestResult<*>>.succeeded() = all { it.succeeded }
-fun List<TestResult<*>>.failed() = any { it.failed }
+fun List<TestResult<*, *>>.succeeded() = all { it.succeeded }
+fun List<TestResult<*, *>>.failed() = any { it.failed }
 
 data class Interval(val start: Instant, val end: Instant) {
     constructor(start: Instant) : this(start, Instant.now())

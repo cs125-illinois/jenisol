@@ -178,6 +178,16 @@ class TestGenerators : StringSpec({
         IntArray::class.java.compareBoxed(Array<Integer>::class.java) shouldBe true
         Array<IntArray>::class.java.compareBoxed(Array<Array<Integer>>::class.java) shouldBe true
     }
+    "generated parameters should compare properly" {
+        One(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5))).also {
+            it shouldBe One(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)))
+        }
+        Two(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)),
+            arrayOf(booleanArrayOf(true, false), booleanArrayOf(false, true))).also {
+            it shouldBe Two(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)),
+                arrayOf(booleanArrayOf(true, false), booleanArrayOf(false, true)))
+        }
+    }
 })
 
 private fun methodNamed(name: String) = examples.generatortesting.TestGenerators::class.java.declaredMethods
@@ -228,6 +238,7 @@ fun Array<Array<IntArray>>.totalSize() = size.let {
     total += getOrElse(0) { arrayOf() }.getOrElse(0) { intArrayOf() }.size
     total
 }
+
 fun Array<Array<IntArray>>.elementCount(): Int {
     var count = 0
     println(size)
