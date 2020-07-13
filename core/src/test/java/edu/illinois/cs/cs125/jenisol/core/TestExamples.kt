@@ -65,10 +65,16 @@ class TestExamples : StringSpec({
     examples.receiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.receiver.single.withconstructor.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
     examples.receiver.single.withinitialization.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
     examples.noreceiver.single.countarrayequals.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.receiver.single.receiverparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })
@@ -84,7 +90,7 @@ fun Class<*>.test() {
         }
         ClassGraph().acceptPackages(packageName).scan().apply {
             allClasses
-                .filter { it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
+                .filter { !it.isInterface && it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
                 .forEach { correct ->
                     submission(correct.loadClass()).test().also { results ->
                         results.succeeded() shouldBe true

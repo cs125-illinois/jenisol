@@ -48,7 +48,7 @@ private fun validateTypeField(field: Field, name: String): Class<*> {
 annotation class RandomType {
     companion object {
         val name: String = RandomType::class.java.simpleName
-        fun validateAsType(method: Method): Class<*> {
+        fun validate(method: Method): Class<*> {
             check(method.isStatic()) { "@$name methods must be static" }
             check(
                 method.parameterTypes.size == 2 &&
@@ -168,6 +168,12 @@ annotation class Verify {
 
 fun Method.isVerify() = isAnnotationPresent(Verify::class.java)
 
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Compare
+
+fun Class<*>.isCompare() = isAnnotationPresent(Compare::class.java)
+
 fun Field.isStatic() = Modifier.isStatic(modifiers)
 fun Field.isFinal() = Modifier.isFinal(modifiers)
 
@@ -185,13 +191,13 @@ fun Any.asArray(): Array<*> {
     }
 }
 
-fun Executable.isAnswerable() = setOf(
+fun Executable.isJenisol() = setOf(
     RandomType::class.java, RandomParameters::class.java, Initializer::class.java, Verify::class.java
 ).any {
     isAnnotationPresent(it)
 }
 
-fun Field.isAnswerable() = (typeFieldAnnotations + FixedParameters::class.java).any {
+fun Field.isJenisol() = (typeFieldAnnotations + FixedParameters::class.java).any {
     isAnnotationPresent(it)
 }
 
@@ -285,7 +291,7 @@ data class Four<I, J, K, L>(
     }
 }
 
-fun Any.deepHashCode() = if (isAnyArray() == true) {
+fun Any.deepHashCode() = if (isAnyArray()) {
     boxArray().contentDeepHashCode()
 } else {
     hashCode()
@@ -299,9 +305,9 @@ fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
             mine == other -> true
             mine == null && other != null -> false
             mine != null && other == null -> false
-            mine is Array<*> && other !is Array<*> -> false
-            mine !is Array<*> && other is Array<*> -> false
-            mine!!.boxArray().contentDeepEquals(other!!.boxArray()) -> true
+            mine!!.isAnyArray() != other!!.isAnyArray() -> false
+            !mine.isAnyArray() -> mine == other
+            mine.boxArray().contentDeepEquals(other.boxArray()) -> true
             else -> false
         }
     }

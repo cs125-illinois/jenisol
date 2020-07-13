@@ -51,7 +51,8 @@ interface ParametersGenerator {
 
 typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
 
-class ParameterGeneratorFactory(private val executables: Set<Executable>, solution: Class<*>) {
+class GeneratorFactory(private val executables: Set<Executable>, val solution: Solution) {
+    val solutionClass = solution.solution
 
     private val methodParameterGenerators = executables.map { it to MethodParametersGeneratorGenerator(it) }.toMap()
 
@@ -67,7 +68,7 @@ class ParameterGeneratorFactory(private val executables: Set<Executable>, soluti
             .toTypedArray().flatten().distinct().toSet()
         val simple: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
         val edge: MutableMap<Class<*>, Set<Any?>> = mutableMapOf()
-        solution.declaredFields
+        solutionClass.declaredFields
             .filter { it.isSimpleType() || it.isEdgeType() }
             .forEach { field ->
                 val simpleName = SimpleType::class.java.simpleName
@@ -98,11 +99,11 @@ class ParameterGeneratorFactory(private val executables: Set<Executable>, soluti
                 }
             }
         val rand: MutableMap<Class<*>, Method> = mutableMapOf()
-        solution.declaredMethods
+        solutionClass.declaredMethods
             .filter { it.isRandomType() }
             .forEach { method ->
                 val randName = Random::class.java.simpleName
-                RandomType.validateAsType(method).also { klass ->
+                RandomType.validate(method).also { klass ->
                     check(klass !in rand) { "Duplicate @$randName method for type ${klass.name}" }
                     check(klass in neededTypes) {
                         "@$randName annotation for type ${klass.name} that is not used by the solution"
@@ -110,61 +111,85 @@ class ParameterGeneratorFactory(private val executables: Set<Executable>, soluti
                     rand[klass] = method
                 }
             }
-        typeGenerators = (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
+        val generatorMappings = (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
             klass to { random: Random ->
                 OverrideTypeGenerator(
                     klass,
                     simple[klass],
                     edge[klass],
                     rand[klass],
-                    random
-                )
+                    random,
+                    Defaults[klass]
+                ) as TypeGenerator<Any>
             }
-        }.toMap()
+        }.toMutableList()
+        if (solutionClass in neededTypes || !solution.onlyStatic) {
+            check(solutionClass !in simple.keys && solutionClass !in edge.keys && solutionClass !in rand.keys) {
+                "Type generation annotations not supported for receiver types"
+            }
+            // Add this so the next check doesn't fail.
+            // The receiver generator cannot be set up until the submission class is available
+            @Suppress("RedundantLambdaArrow")
+            generatorMappings.add(solutionClass to { _: Random -> UnconfiguredReceiverGenerator })
+        }
+        typeGenerators = generatorMappings.toMap()
     }
 
-    private val parameterGenerators: Map<Executable, ParametersGeneratorGenerator> = executables
-        .filter { it in typesNeeded }
-        .map { executable ->
-            // Generate one unnecessarily to make sure that we can
+    // Check to make sure we can generate all needed parameters
+    init {
+        executables.filter { it in typesNeeded }.forEach { executable ->
             TypeParameterGenerator(executable.parameters, typeGenerators)
-            Pair<Executable, ParametersGeneratorGenerator>(
-                executable,
-                { random ->
-                    TypeParameterGenerator(
-                        executable.parameters,
-                        typeGenerators,
-                        random
-                    )
-                }
-            )
         }
-        .toMap()
+    }
 
-    fun get(random: Random = Random, settings: Solution.Settings) = executables
-        .map { executable ->
-            if (executable.parameters.isEmpty()) {
-                executable to EmptyParameterMethodGenerator()
-            } else {
-                executable to (
-                    methodParameterGenerators[executable]?.generate(
-                        parameterGenerators[executable],
-                        settings,
-                        random
-                    ) ?: error("Didn't find a method parameter generator that should exist")
-                    )
+    fun get(random: Random = Random, settings: Solution.Settings, submission: Class<*>): Generators {
+        val receiverGenerator = if (solutionClass in typeGenerators) {
+            ReceiverGenerator(solution, submission)
+        } else {
+            null
+        }
+        val typeGeneratorsWithReceiver = object : Map<Type, TypeGeneratorGenerator> by typeGenerators {
+            override fun get(key: Type): TypeGeneratorGenerator? {
+                if (key == solutionClass) {
+                    check(receiverGenerator != null) { "Shouldn't need a receiver generator" }
+                    return { receiverGenerator }
+                } else {
+                    return typeGenerators[key]
+                }
             }
         }
-        .toMap()
-        .let {
-            ExecutableGenerators(it)
-        }
+        return executables
+            .map { executable ->
+                if (executable.parameters.isEmpty()) {
+                    executable to EmptyParameterMethodGenerator()
+                } else {
+                    val parameterGenerator = { random: Random ->
+                        TypeParameterGenerator(executable.parameters, typeGeneratorsWithReceiver, random)
+                    }
+                    executable to (
+                        methodParameterGenerators[executable]?.generate(
+                            parameterGenerator,
+                            settings,
+                            random
+                        ) ?: error("Didn't find a method parameter generator that should exist")
+                        )
+                }
+            }
+            .toMap()
+            .let {
+                Generators(it, receiverGenerator).also { receiverGenerator?.methodGenerator = it }
+            }
+    }
 }
 
-class ExecutableGenerators(private val map: Map<Executable, ExecutableGenerator>) :
-    Map<Executable, ExecutableGenerator> by map
+class Generators(
+    private val map: Map<Executable, ExecutableGenerator>,
+    val receiverGenerator: ReceiverGenerator?
+) : Map<Executable, ExecutableGenerator> by map
 
 interface ExecutableGenerator {
+    val fixed: List<Parameters>
+    fun random(complexity: TypeGenerator.Complexity): Parameters
     fun generate(): Parameters
     fun next()
     fun prev()
@@ -185,27 +210,27 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                     "Multiple @${FixedParameters.name} annotations match method ${target.name}"
                 }
             }.firstOrNull()?.let { field ->
-            val values = field.get(null)
-            check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
-            check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
-            try {
-                @Suppress("UNCHECKED_CAST")
-                values as Collection<ParameterGroup>
-            } catch (e: ClassCastException) {
-                error("@${FixedParameters.name} field does not contain a collection of parameter groups")
-            }
-            values.forEach {
-                val solutionParameters = it.deepCopy()
-                val submissionParameters = it.deepCopy()
-                check(solutionParameters !== submissionParameters) {
-                    "@${FixedParameters.name} field produces referentially equal copies"
+                val values = field.get(null)
+                check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
+                check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    values as Collection<ParameterGroup>
+                } catch (e: ClassCastException) {
+                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
                 }
-                check(solutionParameters == submissionParameters) {
-                    "@${FixedParameters.name} field does not produce equal copies"
+                values.forEach {
+                    val solutionParameters = it.deepCopy()
+                    val submissionParameters = it.deepCopy()
+                    check(solutionParameters !== submissionParameters) {
+                        "@${FixedParameters.name} field produces referentially equal copies"
+                    }
+                    check(solutionParameters == submissionParameters) {
+                        "@${FixedParameters.name} field does not produce equal copies"
+                    }
                 }
+                values
             }
-            values
-        }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
@@ -253,10 +278,8 @@ class ConfiguredParametersGenerator(
         this.shuffled(random).take(count)
     }
 
-    private val fixed: List<Parameters>
-
-    init {
-        fixed = if (overrideFixed != null) {
+    override val fixed: List<Parameters> by lazy {
+        if (overrideFixed != null) {
             overrideFixed.toFixedParameters()
         } else {
             check(generator != null) { "Automatic parameter generator was unexpectedly null" }
@@ -274,36 +297,35 @@ class ConfiguredParametersGenerator(
     private val complexity = TypeGenerator.Complexity()
     private var randomStarted = false
 
+    override fun random(complexity: TypeGenerator.Complexity): Parameters = if (overrideRandom != null) {
+        check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
+        val solutionParameters =
+            overrideRandom.invoke(null, complexity.level, randomPair.solution) as ParameterGroup
+        val submissionParameters =
+            overrideRandom.invoke(null, complexity.level, randomPair.submission) as ParameterGroup
+        val referenceParameters =
+            overrideRandom.invoke(null, complexity.level, randomPair.reference) as ParameterGroup
+        check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
+        check(setOf(solutionParameters, submissionParameters, referenceParameters).size == 1) {
+            "@${RandomParameters.name} did not generate equal parameters"
+        }
+        Parameters(
+            solutionParameters.toArray(),
+            submissionParameters.toArray(),
+            referenceParameters.toArray(),
+            Parameters.Type.RANDOM_METHOD,
+            complexity
+        )
+    } else {
+        check(generator != null) { "Automatic parameter generator was unexpectedly null" }
+        generator.random(complexity)
+    }
+
     override fun generate(): Parameters {
         return if (index in fixed.indices) {
             fixed[index]
         } else {
-            val currentComplexity = bound ?: complexity
-            if (overrideRandom != null) {
-                check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
-                val solutionParameters =
-                    overrideRandom.invoke(null, currentComplexity.level, randomPair.solution) as ParameterGroup
-                val submissionParameters =
-                    overrideRandom.invoke(null, currentComplexity.level, randomPair.submission) as ParameterGroup
-                val referenceParameters =
-                    overrideRandom.invoke(null, currentComplexity.level, randomPair.reference) as ParameterGroup
-                check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
-                check(setOf(solutionParameters, submissionParameters, referenceParameters).size == 1) {
-                    "@${RandomParameters.name} did not generate equal parameters"
-                }
-                Parameters(
-                    solutionParameters.toArray(),
-                    submissionParameters.toArray(),
-                    referenceParameters.toArray(),
-                    Parameters.Type.RANDOM_METHOD,
-                    currentComplexity
-                )
-            } else {
-                check(generator != null) { "Automatic parameter generator was unexpectedly null" }
-                generator.random(currentComplexity)
-            }.also {
-                randomStarted = true
-            }
+            random(bound ?: complexity).also { randomStarted = true }
         }.also {
             index++
         }
@@ -328,11 +350,12 @@ class ConfiguredParametersGenerator(
 
 @Suppress("EmptyFunctionBlock")
 class EmptyParameterMethodGenerator : ExecutableGenerator {
-    private val empty = Parameters(arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY)
+    override val fixed = listOf(Parameters(arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY))
+    override fun random(complexity: TypeGenerator.Complexity) = fixed.first()
 
     override fun prev() {}
     override fun next() {}
-    override fun generate(): Parameters = empty
+    override fun generate(): Parameters = fixed.first()
 }
 
 class TypeParameterGenerator(

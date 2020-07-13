@@ -2,7 +2,9 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
-import edu.illinois.cs.cs125.jenisol.core.generators.ExecutableGenerators
+import edu.illinois.cs.cs125.jenisol.core.generators.Generators
+import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
+import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
@@ -41,7 +43,8 @@ data class TestResult<T, P : ParameterGroup>(
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW }
 
-    @JvmField val differs: MutableSet<Differs> = mutableSetOf()
+    @JvmField
+    val differs: MutableSet<Differs> = mutableSetOf()
     val succeeded: Boolean
         get() = differs.isEmpty()
     val failed: Boolean
@@ -54,7 +57,7 @@ data class TestResult<T, P : ParameterGroup>(
 class TestRunner(
     val runnerID: Int,
     val submission: Submission,
-    val executableGenerators: ExecutableGenerators,
+    val generators: Generators,
     val constructors: Sequence<Constructor<*>>
 ) {
 
@@ -89,7 +92,7 @@ class TestRunner(
             "solution and submission executable are not the same type"
         }
 
-        val generator = executableGenerators[solutionExecutable]
+        val generator = generators[solutionExecutable]
             ?: error("couldn't find a parameter generator that should exist")
         val parameters = generator.generate()
 
@@ -157,4 +160,29 @@ fun List<TestResult<*, *>>.failed() = any { it.failed }
 
 data class Interval(val start: Instant, val end: Instant) {
     constructor(start: Instant) : this(start, Instant.now())
+}
+
+@Suppress("ComplexMethod", "MapGetWithNotNullAssertionOperator")
+fun Any.deepEquals(
+    other: Any?,
+    comparators: Map<Class<*>, (first: Any, second: Any) -> Boolean> = mapOf()
+): Boolean = when {
+    this === other -> true
+    other == null -> false
+    this::class.java in comparators -> comparators[this::class.java]!!(this, other)
+    other::class.java in comparators -> comparators[other::class.java]!!(other, this)
+    this is ParameterGroup && other is ParameterGroup -> this.toArray().deepEquals(other.toArray(), comparators)
+    this.isAnyArray() != other.isAnyArray() -> false
+    this.isAnyArray() && other.isAnyArray() -> {
+        val thisBoxed = this.boxArray()
+        val otherBoxed = other.boxArray()
+        (thisBoxed.size == otherBoxed.size) && thisBoxed.zip(otherBoxed).all { (v1, v2) ->
+            when {
+                v1 === v2 -> true
+                v1 == null || v2 === null -> false
+                else -> v1.deepEquals(v2, comparators)
+            }
+        }
+    }
+    else -> this == other
 }

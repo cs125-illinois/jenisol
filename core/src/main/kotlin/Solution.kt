@@ -2,7 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
-import edu.illinois.cs.cs125.jenisol.core.generators.ParameterGeneratorFactory
+import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
@@ -10,6 +10,7 @@ import java.lang.reflect.Executable
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.lang.reflect.Proxy
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
@@ -38,23 +39,25 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     }
 
     init {
-        solution.declaredFields.filter { it.isStatic() && !it.isAnswerable() }.also {
+        solution.declaredFields.filter { it.isStatic() && !it.isJenisol() }.also {
             check(it.isEmpty()) { "No support for testing classes with static fields yet" }
         }
     }
 
     val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
         it as Executable
-    }.filter { !it.isPrivate() && !it.isAnswerable() }
+    }.filter { !it.isPrivate() && !it.isJenisol() }
 
     val solutionMethods = publicMethods.filterIsInstance<Method>().also {
-        check(it.isNotEmpty()) { "Answerable found no methods to test in ${solution.name}" }
+        check(it.isNotEmpty()) { "Found no methods to test in ${solution.name}" }
     }.toSet()
     val onlyStatic = solutionMethods.all { it.isStatic() }
 
     val solutionConstructors = if (!onlyStatic) {
-        publicMethods.filterIsInstance<Constructor<*>>().also {
-            check(it.isNotEmpty()) { "Answerable found no available constructors in ${solution.name}" }
+        publicMethods.filterIsInstance<Constructor<*>>().filter { it.isPublic() }.also {
+            check(it.isNotEmpty()) {
+                "Methods require receivers but found no available public constructors in ${solution.name}"
+            }
         }.toSet()
     } else {
         setOf()
@@ -81,8 +84,19 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     } else {
         setOf()
     }
-    val parameterGeneratorFactory: ParameterGeneratorFactory =
-        ParameterGeneratorFactory(solutionMethods + solutionConstructors + initializers, solution)
+    val generatorFactory: GeneratorFactory = GeneratorFactory(
+        solutionMethods + solutionConstructors + initializers, this
+    )
+
+    val proxyInterface = solution.interfaces.filter { it.isCompare() }.also {
+        check(it.size <= 1) { "Can only declare one compare interface" }
+    }.firstOrNull()
+
+    fun createProxy(submission: Any) = proxyInterface?.let {
+        Proxy.newProxyInstance(submission::class.java.classLoader, listOf(it).toTypedArray()) { _, method, args ->
+            method.invoke(submission, *args)
+        }
+    } ?: error("No interface to proxy to")
 
     // These calculations should be improved to create a better test balance
     @Suppress("MagicNumber")
@@ -100,6 +114,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
     val defaultMethodCount = 2.0.pow(methodEntropy.toDouble()).toInt()
+
     @Suppress("unused")
     val defaultTotalTests = defaultReceiverCount * (defaultMethodCount + 1)
 
@@ -163,10 +178,19 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         }
     }
 
+    fun receiverCompare(solution: Any, submission: Any) = createProxy(submission).let {
+        proxyInterface!!.declaredMethods.filter { it.parameters.isEmpty() }.also {
+            check(it.isNotEmpty()) { "Compare interface contains no empty methods for object comparison" }
+        }.all { method ->
+            method.invoke(solution) == method.invoke(submission)
+        }
+    }
+
+    val comparators = mapOf(solution to ::receiverCompare)
+
     fun compare(solution: Any?, submission: Any?) = when {
         solution == null -> submission == null
-        solution::class.java.isArray -> submission?.asArray()?.let { solution.asArray().contentDeepEquals(it) } ?: false
-        else -> solution == submission
+        else -> solution.deepEquals(submission, comparators)
     }
 
     fun submission(submission: Class<*>) = Submission(this, submission)
@@ -195,8 +219,8 @@ class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
 class Submission(val solution: Solution, val submission: Class<*>) {
     val submissionExecutables = solution.solutionExecutables.map { solutionExecutable ->
         when (solutionExecutable) {
-            is Constructor<*> -> submission.findConstructor(solutionExecutable)
-            is Method -> submission.findMethod(solutionExecutable)
+            is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
+            is Method -> submission.findMethod(solutionExecutable, solution.solution)
             else -> error("Encountered unexpected executable type: $solutionExecutable")
         }?.let { executable ->
             solutionExecutable to executable
@@ -218,7 +242,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             Random(passedSettings.seed.toLong())
         }
 
-        val methodGenerators = solution.parameterGeneratorFactory.get(random, settings)
+        val generators = solution.generatorFactory.get(random, settings, submission)
         val constructors = sequence {
             while (true) {
                 yieldAll(solution.solutionConstructors.toList().shuffled(random))
@@ -229,7 +253,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val runners: MutableList<TestRunner> = mutableListOf()
         for (i in 0 until totalTests) {
             if (runners.readyCount() < settings.receiverCount) {
-                TestRunner(runners.size, this, methodGenerators, constructors).also { runner ->
+                TestRunner(runners.size, this, generators, constructors).also { runner ->
                     runner.next(i)
                     runners.add(runner)
                 }
@@ -245,20 +269,29 @@ fun solution(klass: Class<*>, captureOutput: CaptureOutput = ::defaultCaptureOut
 
 fun Executable.isStatic() = Modifier.isStatic(modifiers)
 fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
+fun Executable.isPublic() = Modifier.isPublic(modifiers)
 fun Executable.fullName() = "$name(${parameters.joinToString(", ") { it.type.name }})"
 
-fun Class<*>.findMethod(method: Method) = this.declaredMethods.find {
-    @Suppress("PlatformExtensionReceiverOfInline")
-    it != null &&
+fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMethods.find {
+    it.isPublic() &&
+        it != null &&
         it.name == method.name &&
-        it.parameterTypes.contentEquals(method.parameterTypes) &&
+        it.parameterTypes.fixReceivers(this, solution).contentEquals(method.parameterTypes) &&
         it.returnType == method.returnType &&
         it.isStatic() == method.isStatic()
 }
 
-fun Class<*>.findConstructor(constructor: Constructor<*>) = this.declaredConstructors.find {
-    it?.parameterTypes?.contentEquals(constructor.parameterTypes) ?: false
+fun Class<*>.findConstructor(constructor: Constructor<*>, solution: Class<*>) = this.declaredConstructors.find {
+    it.isPublic() &&
+        it?.parameterTypes?.fixReceivers(this, solution)?.contentEquals(constructor.parameterTypes) ?: false
 }
+
+fun Array<Class<*>>.fixReceivers(from: Class<*>, to: Class<*>) = map {
+    when (it) {
+        from -> to
+        else -> it
+    }
+}.toTypedArray()
 
 inline infix fun <reified T : Any> T.merge(other: T): T {
     val nameToProperty = T::class.declaredMemberProperties.associateBy { it.name }

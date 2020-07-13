@@ -5,6 +5,8 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.RandomGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomType
+import edu.illinois.cs.cs125.jenisol.core.Solution
+import edu.illinois.cs.cs125.jenisol.core.findConstructor
 import java.lang.reflect.Array
 import java.lang.reflect.Method
 import java.lang.reflect.Type
@@ -54,17 +56,76 @@ interface TypeGenerator<T> {
     data class Value<T>(val solution: T, val submission: T, val reference: T)
 }
 
+val UnconfiguredReceiverGenerator = object : TypeGenerator<Any> {
+    override val simple: Set<TypeGenerator.Value<Any>>
+        get() = error("Receiver generation unconfigured")
+    override val edge: Set<TypeGenerator.Value<Any?>>
+        get() = error("Receiver generation unconfigured")
+
+    override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
+        error("Receiver generation unconfigured")
+    }
+}
+
+class ReceiverGenerator(
+    private val solution: Solution, private val submission: Class<*>, private val random: Random = Random
+) : TypeGenerator<Any> {
+    lateinit var methodGenerator: Generators
+
+    private val fixedReceivers by lazy {
+        solution.solutionConstructors.map { solutionConstructor ->
+            val submissionConstructor = submission.findConstructor(solutionConstructor, solution.solution)
+                ?: error("Can't find submission constructor that should exist")
+
+            methodGenerator[solutionConstructor]!!.fixed.map {
+                val solutionReceiver = solutionConstructor.newInstance(*it.solution)
+                val submissionReceiver = submissionConstructor.newInstance(*it.submission)
+                val referenceReceiver = solutionConstructor.newInstance(*it.reference)
+                Pair(it, TypeGenerator.Value<Any>(solutionReceiver, submissionReceiver, referenceReceiver))
+            }
+        }.flatten().toSet()
+    }
+
+    override val simple: Set<TypeGenerator.Value<Any>>
+        get() = fixedReceivers
+            .filter { (parameters, _) -> parameters.type == Parameters.Type.SIMPLE }
+            .map { (_, value) -> value }
+            .toSet()
+
+    @Suppress("UNCHECKED_CAST")
+    override val edge: Set<TypeGenerator.Value<Any?>>
+        get() = fixedReceivers
+            .filter { (parameters, _) -> parameters.type != Parameters.Type.SIMPLE }
+            .map { (_, value) -> value }
+            .toSet() as Set<TypeGenerator.Value<Any?>>
+
+    private val constructors = sequence { yieldAll(solution.solutionConstructors.shuffled(random)) }
+    override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
+        val solutionConstructor = constructors.first()
+        val submissionConstructor = submission.findConstructor(solutionConstructor, solution.solution)
+            ?: error("Can't find submission constructor that should exist")
+        return methodGenerator[solutionConstructor]!!.random(complexity).let {
+            val solutionReceiver = solutionConstructor.newInstance(*it.solution)
+            val submissionReceiver = submissionConstructor.newInstance(*it.submission)
+            val referenceReceiver = solutionConstructor.newInstance(*it.reference)
+            TypeGenerator.Value(solutionReceiver, submissionReceiver, referenceReceiver)
+        }
+    }
+}
+
 @Suppress("UNCHECKED_CAST")
 class OverrideTypeGenerator(
     private val klass: Class<*>,
     simple: Set<Any>? = null,
     edge: Set<Any?>? = null,
     private val rand: Method? = null,
-    random: Random = Random
+    random: Random = Random,
+    defaultGenerator: TypeGeneratorGenerator? = null
 ) : TypeGenerator<Any> {
     private val name: String = klass.name
     private val default = if (simple == null || edge == null || rand == null) {
-        Defaults[klass](random)
+        check(defaultGenerator != null) { "Override type generator for $name needs default generator" }
+        defaultGenerator(random)
     } else {
         null
     }
@@ -441,8 +502,8 @@ fun Any.boxArray(): kotlin.Array<*> = when (this) {
     is DoubleArray -> this.map { it.box() }.toTypedArray()
     is CharArray -> this.map { it.box() }.toTypedArray()
     is BooleanArray -> this.map { it.box() }.toTypedArray()
-    is kotlin.Array<*> -> this.map { it?.boxArray() }.toTypedArray()
-    else -> error("Value is not an array")
+    is kotlin.Array<*> -> this
+    else -> error("Value is not an array: ${this::class.java}")
 }
 
 fun Any.isAnyArray() = when (this) {
