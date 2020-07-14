@@ -123,7 +123,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 ) as TypeGenerator<Any>
             }
         }.toMutableList()
-        if (solutionClass in neededTypes || !solution.onlyStatic) {
+        if (solutionClass in neededTypes || !solution.allStaticMethods) {
             check(solutionClass !in simple.keys && solutionClass !in edge.keys && solutionClass !in rand.keys) {
                 "Type generation annotations not supported for receiver types"
             }

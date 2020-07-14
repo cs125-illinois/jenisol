@@ -77,6 +77,9 @@ class TestExamples : StringSpec({
     examples.receiver.single.receiverparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.receiver.single.constructorthrows.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })
 
 @Suppress("NestedBlockDepth")
@@ -93,6 +96,7 @@ fun Class<*>.test() {
                 .filter { !it.isInterface && it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
                 .forEach { correct ->
                     submission(correct.loadClass()).test().also { results ->
+                        println(results.find { it.failed }?.differs)
                         results.succeeded() shouldBe true
                     }
                 }

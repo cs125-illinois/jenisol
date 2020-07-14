@@ -61,23 +61,19 @@ class TestRunner(
     val constructors: Sequence<Constructor<*>>
 ) {
 
-    data class ReceiverPair(var solution: Any?, var submission: Any?)
+    data class Receivers(var solution: Any?, var submission: Any?, val reference: Any?)
 
     val methodIterator = submission.solution.solutionMethods.cycle()
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
 
     val ready: Boolean
-        get() = testResults.none { it.failed }
+        get() = testResults.none { it.failed } && receivers != null
 
-    val receivers: ReceiverPair by lazy {
-        if (submission.solution.onlyStatic) {
-            ReceiverPair(null, null)
-        } else {
-            testResults.find { it.type == TestResult.Type.CONSTRUCTOR && it.succeeded }?.let {
-                check(it.solution.returned != null) { "Constructor returned null" }
-                check(it.submission.returned != null) { "Constructor returned null" }
-                ReceiverPair(it.solution.returned, it.submission.returned)
-            } ?: error("Couldn't find a receiver pair")
+    var receivers: Receivers? = null
+
+    init {
+        if (submission.solution.allStaticMethods) {
+            receivers = Receivers(null, null, null)
         }
     }
 
@@ -96,31 +92,49 @@ class TestRunner(
             ?: error("couldn't find a parameter generator that should exist")
         val parameters = generator.generate()
 
+        val stepType = type ?: when (solutionExecutable) {
+            is Method -> TestResult.Type.METHOD
+            is Constructor<*> -> TestResult.Type.CONSTRUCTOR
+            else -> error("encountered unknown executable type: $solutionExecutable")
+        }
+
+        if (stepType == TestResult.Type.METHOD) {
+            check(receivers != null) { "No receivers available" }
+        }
         val solutionResult = submission.solution.captureOutput {
             unwrapMethodInvocationException {
                 when (solutionExecutable) {
-                    is Method -> solutionExecutable.invoke(receivers.solution, *parameters.solution)
+                    is Method -> solutionExecutable.invoke(receivers!!.solution, *parameters.solution)
                     is Constructor<*> -> solutionExecutable.newInstance(*parameters.solution)
                     else -> error("encountered unknown executable type: $solutionExecutable")
                 }
             }
         }.let { Result<Any, ParameterGroup>(parameters.solution, it) }
 
+        // If this is a constructor and it didn't fail on the solution, generate an additional reference object
+        // so that we can donate this to the receiver generator later
+        val referenceResult = if (stepType == TestResult.Type.CONSTRUCTOR && solutionResult.returned != null) {
+            submission.solution.captureOutput {
+                unwrapMethodInvocationException {
+                    when (solutionExecutable) {
+                        is Constructor<*> -> solutionExecutable.newInstance(*parameters.reference)
+                        else -> error("encountered unknown executable type: $solutionExecutable")
+                    }
+                }
+            }.let { Result<Any, ParameterGroup>(parameters.reference, it) }
+        } else {
+            null
+        }
+
         val submissionResult = submission.solution.captureOutput {
             unwrapMethodInvocationException {
                 when (submissionExecutable) {
-                    is Method -> submissionExecutable.invoke(receivers.submission, *parameters.submission)
+                    is Method -> submissionExecutable.invoke(receivers!!.submission, *parameters.submission)
                     is Constructor<*> -> submissionExecutable.newInstance(*parameters.submission)
                     else -> error("encountered unknown executable type: $submissionExecutable")
                 }
             }
         }.let { Result<Any, ParameterGroup>(parameters.submission, it) }
-
-        val stepType = type ?: when (solutionExecutable) {
-            is Method -> TestResult.Type.METHOD
-            is Constructor<*> -> TestResult.Type.CONSTRUCTOR
-            else -> error("encountered unknown executable type: $solutionExecutable")
-        }
 
         return TestResult(
             runnerID,
@@ -136,12 +150,21 @@ class TestRunner(
             } else {
                 generator.prev()
             }
+            if (step.succeeded && stepType == TestResult.Type.CONSTRUCTOR) {
+                // If both constructors throw identically, then the step didn't fail but
+                // this test runner still can't proceed
+                receivers = if (step.solution.returned != null) {
+                    Receivers(step.solution.returned, step.submission.returned, referenceResult!!.returned)
+                } else {
+                    null
+                }
+            }
         }
     }
 
     var created = false
     fun next(stepCount: Int): Boolean {
-        if (!submission.solution.onlyStatic && !created) {
+        if (!submission.solution.allStaticMethods && !created) {
             run(constructors.first(), stepCount)
             if (ready && submission.solution.initializer != null) {
                 run(submission.solution.initializer, stepCount, TestResult.Type.INITIALIZER)
@@ -164,25 +187,26 @@ data class Interval(val start: Instant, val end: Instant) {
 
 @Suppress("ComplexMethod", "MapGetWithNotNullAssertionOperator")
 fun Any.deepEquals(
-    other: Any?,
-    comparators: Map<Class<*>, (first: Any, second: Any) -> Boolean> = mapOf()
+    submission: Any?,
+    comparators: Comparators
 ): Boolean = when {
-    this === other -> true
-    other == null -> false
-    this::class.java in comparators -> comparators[this::class.java]!!(this, other)
-    other::class.java in comparators -> comparators[other::class.java]!!(other, this)
-    this is ParameterGroup && other is ParameterGroup -> this.toArray().deepEquals(other.toArray(), comparators)
-    this.isAnyArray() != other.isAnyArray() -> false
-    this.isAnyArray() && other.isAnyArray() -> {
-        val thisBoxed = this.boxArray()
-        val otherBoxed = other.boxArray()
-        (thisBoxed.size == otherBoxed.size) && thisBoxed.zip(otherBoxed).all { (v1, v2) ->
-            when {
-                v1 === v2 -> true
-                v1 == null || v2 === null -> false
-                else -> v1.deepEquals(v2, comparators)
+    this === submission -> true
+    submission == null -> false
+    this::class.java in comparators -> comparators[this::class.java].compare(this, submission)
+    this is ParameterGroup && submission is ParameterGroup ->
+        this.toArray().deepEquals(submission.toArray(), comparators)
+    this.isAnyArray() != submission.isAnyArray() -> false
+    this.isAnyArray() && submission.isAnyArray() -> {
+        val solutionBoxed = this.boxArray()
+        val submissionBoxed = submission.boxArray()
+        (solutionBoxed.size == submissionBoxed.size) && solutionBoxed.zip(submissionBoxed)
+            .all { (solution, submission) ->
+                when {
+                    solution === submission -> true
+                    solution == null || submission === null -> false
+                    else -> solution.deepEquals(submission, comparators)
+                }
             }
-        }
     }
-    else -> this == other
+    else -> this == submission
 }

@@ -51,12 +51,15 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     val solutionMethods = publicMethods.filterIsInstance<Method>().also {
         check(it.isNotEmpty()) { "Found no methods to test in ${solution.name}" }
     }.toSet()
-    val onlyStatic = solutionMethods.all { it.isStatic() }
 
-    val solutionConstructors = if (!onlyStatic) {
+    val receiverParameters = solutionMethods.any { method -> method.parameterTypes.any { it == solution } }
+    val receiverReturn = solutionMethods.any { method -> method.returnType == solution }
+    val allStaticMethods = solutionMethods.all { it.isStatic() }
+
+    val solutionConstructors = if (!allStaticMethods || receiverParameters) {
         publicMethods.filterIsInstance<Constructor<*>>().filter { it.isPublic() }.also {
             check(it.isNotEmpty()) {
-                "Methods require receivers but found no available public constructors in ${solution.name}"
+                "Testing require receivers but found no available public constructors in ${solution.name}"
             }
         }.toSet()
     } else {
@@ -90,7 +93,11 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     val proxyInterface = solution.interfaces.filter { it.isCompare() }.also {
         check(it.size <= 1) { "Can only declare one compare interface" }
-    }.firstOrNull()
+    }.firstOrNull().also {
+        if (it == null && (receiverParameters || receiverReturn)) {
+            error("Must register a receiver interface to compare receivers passed or returned by test methods")
+        }
+    }
 
     fun createProxy(submission: Any) = proxyInterface?.let {
         Proxy.newProxyInstance(submission::class.java.classLoader, listOf(it).toTypedArray()) { _, method, args ->
@@ -101,7 +108,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     // These calculations should be improved to create a better test balance
     @Suppress("MagicNumber")
     val receiverEntropy = when {
-        onlyStatic -> 0
+        allStaticMethods -> 0
         emptyConstructor && emptyInitializer -> 2
         else -> 5
     }
@@ -170,7 +177,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         if (result.type == TestResult.Type.METHOD && !compare(solution.returned, submission.returned)) {
             result.differs.add(TestResult.Differs.RETURN)
         }
-        if (solution.threw != submission.threw) {
+        if (!compare(solution.threw, submission.threw)) {
             result.differs.add(TestResult.Differs.THREW)
         }
         if (!compare(solution.parameters, submission.parameters)) {
@@ -178,18 +185,21 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         }
     }
 
-    fun receiverCompare(solution: Any, submission: Any) = createProxy(submission).let {
-        proxyInterface!!.declaredMethods.filter { it.parameters.isEmpty() }.also {
-            check(it.isNotEmpty()) { "Compare interface contains no empty methods for object comparison" }
-        }.all { method ->
-            method.invoke(solution) == method.invoke(submission)
+    val receiverCompare = object : Comparator {
+        override val descendants = true
+        override fun compare(solution: Any, submission: Any): Boolean = createProxy(submission).let {
+            proxyInterface!!.declaredMethods.filter { it.parameters.isEmpty() }.also {
+                check(it.isNotEmpty()) { "Compare interface contains no empty methods for object comparison" }
+            }.all { method ->
+                method.invoke(solution) == method.invoke(submission)
+            }
         }
     }
 
-    val comparators = mapOf(solution to ::receiverCompare)
+    val comparators = Comparators(mutableMapOf(solution to receiverCompare))
 
-    fun compare(solution: Any?, submission: Any?) = when {
-        solution == null -> submission == null
+    fun compare(solution: Any?, submission: Any?) = when (solution) {
+        null -> submission == null
         else -> solution.deepEquals(submission, comparators)
     }
 
@@ -251,14 +261,25 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         val totalTests = settings.receiverCount * (settings.methodCount + 1)
         val runners: MutableList<TestRunner> = mutableListOf()
-        for (i in 0 until totalTests) {
+
+        var stepCount = 0
+        var totalCount = 0
+        while (true) {
             if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(runners.size, this, generators, constructors).also { runner ->
-                    runner.next(i)
+                    runner.next(stepCount)
                     runners.add(runner)
+                    if (runner.ready || runner.receivers != null) {
+                        totalCount++
+                    }
                 }
             } else {
-                runners.shuffled(random).first().next(i)
+                runners.filter { it.ready }.shuffled(random).first().next(stepCount)
+                totalCount++
+            }
+            stepCount++
+            if (totalCount == totalTests) {
+                break
             }
         }
         return runners.map { it.testResults }.flatten()

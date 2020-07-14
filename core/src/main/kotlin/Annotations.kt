@@ -192,7 +192,11 @@ fun Any.asArray(): Array<*> {
 }
 
 fun Executable.isJenisol() = setOf(
-    RandomType::class.java, RandomParameters::class.java, Initializer::class.java, Verify::class.java
+    RandomType::class.java,
+    RandomParameters::class.java,
+    Initializer::class.java,
+    Verify::class.java,
+    Compare::class.java
 ).any {
     isAnnotationPresent(it)
 }
@@ -265,7 +269,6 @@ data class Three<I, J, K>(@JvmField val first: I, @JvmField val second: J, @JvmF
         result = 31 * result + (third?.deepHashCode() ?: 0)
         return result
     }
-
 }
 
 data class Four<I, J, K, L>(
