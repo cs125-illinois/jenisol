@@ -1,14 +1,9 @@
 package edu.illinois.cs.cs125.jenisol.core
 
-import examples.java.noreceiver.single.generatedparameterarrays.Correct
-import io.github.classgraph.ClassGraph
-import io.kotlintest.matchers.collections.shouldNotContainAll
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
-class TestExamples : StringSpec({
+class TestJavaExamples : StringSpec({
     examples.java.noreceiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
@@ -60,7 +55,7 @@ class TestExamples : StringSpec({
     examples.java.noreceiver.single.intarrayargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    Correct::class.java.also {
+    examples.java.noreceiver.single.generatedparameterarrays.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
     examples.java.receiver.single.noarguments.Correct::class.java.also {
@@ -83,43 +78,3 @@ class TestExamples : StringSpec({
     }
 })
 
-@Suppress("NestedBlockDepth")
-fun Class<*>.test() {
-    solution(this).apply {
-        try {
-            submission(solution).test()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            error("Solution did not pass testing")
-        }
-        ClassGraph().acceptPackages(packageName).scan().apply {
-            allClasses
-                .filter { !it.isInterface && it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
-                .forEach { correct ->
-                    submission(correct.loadClass()).test().also { results ->
-                        results.succeeded() shouldBe true
-                    }
-                }
-            allClasses
-                .filter { it.simpleName.startsWith("Incorrect") || it.simpleName.startsWith("Design") }
-                .apply {
-                    check(isNotEmpty()) { "No incorrect examples.java.examples for ${testName()}" }
-                }.forEach { incorrect ->
-                    if (incorrect.simpleName.startsWith("Design")) {
-                        shouldThrow<ClassDesignError> {
-                            submission(incorrect.loadClass())
-                        }
-                    } else {
-                        submission(incorrect.loadClass()).test().also { results ->
-                            results.failed() shouldBe true
-                            results.filter { it.failed }
-                                .map { it.type }
-                                .distinct() shouldNotContainAll setOf(
-                                TestResult.Type.CONSTRUCTOR, TestResult.Type.INITIALIZER
-                            )
-                        }
-                    }
-                }
-        }
-    }
-}

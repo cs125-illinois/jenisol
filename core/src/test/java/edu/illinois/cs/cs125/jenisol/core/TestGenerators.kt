@@ -138,7 +138,7 @@ class TestGenerators : StringSpec({
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
                 generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MIN))
-                    .let { it.reference as Array<Array<IntArray>> }.let { it.totalSize() }.also {
+                    .let { it.solutionCopy as Array<Array<IntArray>> }.let { it.totalSize() }.also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 8
                     }
@@ -147,7 +147,7 @@ class TestGenerators : StringSpec({
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
                 generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MAX))
-                    .let { it.reference as Array<Array<IntArray>> }.let { it.totalSize() }.also {
+                    .let { it.solutionCopy as Array<Array<IntArray>> }.let { it.totalSize() }.also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 512
                     }
@@ -201,10 +201,10 @@ private fun methodNamed(name: String) = TestGenerators::class.java.declaredMetho
 private fun Method.testGenerator(
     typeGenerator: TypeGenerator<*> = Defaults.create(this.parameterTypes.first())
 ) {
-    typeGenerator.simple.forEach { invoke(null, it.reference) }
-    typeGenerator.edge.forEach { invoke(null, it.reference) }
+    typeGenerator.simple.forEach { invoke(null, it.solutionCopy) }
+    typeGenerator.edge.forEach { invoke(null, it.solutionCopy) }
     (1..8).forEach { complexity ->
-        repeat(4) { invoke(null, typeGenerator.random(TypeGenerator.Complexity(complexity)).reference) }
+        repeat(4) { invoke(null, typeGenerator.random(TypeGenerator.Complexity(complexity)).solutionCopy) }
     }
 }
 
@@ -222,18 +222,18 @@ private fun Method.testParameterGenerator(
         TypeParameterGenerator(parameters)
     parameterGenerator.simple.also { simple ->
         simple shouldHaveSize simpleSize.pow(dimensionality)
-        simple.forEach { invoke(null, *it.reference) }
+        simple.forEach { invoke(null, *it.solutionCopy) }
     }
     parameterGenerator.edge.also { edge ->
         edge shouldHaveSize edgeSize.pow(dimensionality)
-        edge.forEach { invoke(null, *it.reference) }
+        edge.forEach { invoke(null, *it.solutionCopy) }
     }
     parameterGenerator.mixed.also { mixed ->
         mixed shouldHaveSize mixedSize
-        mixed.forEach { invoke(null, *it.reference) }
+        mixed.forEach { invoke(null, *it.solutionCopy) }
     }
     TypeGenerator.Complexity.ALL.forEach { complexity ->
-        invoke(null, *parameterGenerator.random(complexity).reference)
+        invoke(null, *parameterGenerator.random(complexity).solutionCopy)
     }
 }
 

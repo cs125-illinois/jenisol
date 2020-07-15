@@ -151,8 +151,70 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         Verify.validate(it, solutionMethods.first().genericReturnType, solutionMethods.first().parameterTypes)
     }
 
+    val receiverCompare = object : Comparator {
+        override val descendants = true
+        override fun compare(solution: Any, submission: Any): Boolean = createProxy(submission).let {
+            proxyInterface!!.declaredMethods.filter { it.parameters.isEmpty() }.also {
+                check(it.isNotEmpty()) { "Compare interface contains no empty methods for object comparison" }
+            }.all { method ->
+                method.invoke(solution) == method.invoke(submission)
+            }
+        }
+    }
+
+    fun submission(submission: Class<*>) = Submission(this, submission)
+}
+
+fun Set<Method>.cycle() = sequence {
+    yield(shuffled().first())
+}
+
+class RandomGroup(seed: Long = Random.nextLong()) {
+    val solution = java.util.Random().also { it.setSeed(seed) }
+    val submission = java.util.Random().also { it.setSeed(seed) }
+    val solutionCopy = java.util.Random().also { it.setSeed(seed) }
+    val submissionCopy = java.util.Random().also { it.setSeed(seed) }
+    val synced: Boolean
+        get() = setOf(
+            solution.nextLong(), solutionCopy.nextLong(), submission.nextLong(), submissionCopy.nextLong()
+        ).size == 1
+}
+
+class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
+    "Submission class ${klass.name} didn't provide ${if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }} ${executable.fullName()}"
+)
+
+class Submission(val solution: Solution, val submission: Class<*>) {
+    val submissionExecutables = solution.solutionExecutables.map { solutionExecutable ->
+        when (solutionExecutable) {
+            is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
+            is Method -> submission.findMethod(solutionExecutable, solution.solution)
+            else -> error("Encountered unexpected executable type: $solutionExecutable")
+        }?.let { executable ->
+            solutionExecutable to executable
+        } ?: throw ClassDesignError(submission, solutionExecutable)
+    }.toMap().toMutableMap().also {
+        if (solution.initializer != null) {
+            it[solution.initializer] = solution.initializer
+        }
+    }.toMap()
+
+    fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
+
+    val comparators = Comparators(
+        mutableMapOf(solution.solution to solution.receiverCompare, submission to solution.receiverCompare)
+    )
+    fun compare(solution: Any?, submission: Any?) = when (solution) {
+        null -> submission == null
+        else -> solution.deepEquals(submission, comparators)
+    }
+
     fun verify(result: TestResult<*, *>) {
-        verifier?.also { customVerifier ->
+        solution.verifier?.also { customVerifier ->
             @Suppress("TooGenericExceptionCaught")
             try {
                 unwrapMethodInvocationException { customVerifier.invoke(null, result) }
@@ -185,65 +247,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         }
     }
 
-    val receiverCompare = object : Comparator {
-        override val descendants = true
-        override fun compare(solution: Any, submission: Any): Boolean = createProxy(submission).let {
-            proxyInterface!!.declaredMethods.filter { it.parameters.isEmpty() }.also {
-                check(it.isNotEmpty()) { "Compare interface contains no empty methods for object comparison" }
-            }.all { method ->
-                method.invoke(solution) == method.invoke(submission)
-            }
-        }
-    }
-
-    val comparators = Comparators(mutableMapOf(solution to receiverCompare))
-
-    fun compare(solution: Any?, submission: Any?) = when (solution) {
-        null -> submission == null
-        else -> solution.deepEquals(submission, comparators)
-    }
-
-    fun submission(submission: Class<*>) = Submission(this, submission)
-}
-
-fun Set<Method>.cycle() = sequence {
-    yield(shuffled().first())
-}
-
-class RandomGroup(seed: Long = Random.nextLong()) {
-    val solution = java.util.Random().also { it.setSeed(seed) }
-    val submission = java.util.Random().also { it.setSeed(seed) }
-    val reference = java.util.Random().also { it.setSeed(seed) }
-    val synced: Boolean
-        get() = setOf(solution.nextLong(), submission.nextLong(), reference.nextLong()).size == 1
-}
-
-class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
-    "Submission class ${klass.name} didn't provide ${if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }} ${executable.fullName()}"
-)
-
-class Submission(val solution: Solution, val submission: Class<*>) {
-    val submissionExecutables = solution.solutionExecutables.map { solutionExecutable ->
-        when (solutionExecutable) {
-            is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
-            is Method -> submission.findMethod(solutionExecutable, solution.solution)
-            else -> error("Encountered unexpected executable type: $solutionExecutable")
-        }?.let { executable ->
-            solutionExecutable to executable
-        } ?: throw ClassDesignError(submission, solutionExecutable)
-    }.toMap().toMutableMap().also {
-        if (solution.initializer != null) {
-            it[solution.initializer] = solution.initializer
-        }
-    }.toMap()
-
-    fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
-
-    fun test(passedSettings: Solution.Settings = Solution.Settings()): List<TestResult<*, *>> {
+    fun test(passedSettings: Solution.Settings = Solution.Settings()): TestResults {
         val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
 
         val random = if (passedSettings.seed == -1) {
@@ -282,7 +286,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 break
             }
         }
-        return runners.map { it.testResults }.flatten()
+        @Suppress("UNCHECKED_CAST")
+        return TestResults(runners.map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten())
     }
 }
 

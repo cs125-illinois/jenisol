@@ -51,7 +51,7 @@ interface TypeGenerator<T> {
         }
     }
 
-    data class Value<T>(val solution: T, val submission: T, val reference: T)
+    data class Value<T>(val solution: T, val submission: T, val solutionCopy: T, val submissionCopy: T)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -76,11 +76,11 @@ class OverrideTypeGenerator(
 
     override val simple: Set<TypeGenerator.Value<Any>> =
         simpleOverride ?: default?.simple as Set<TypeGenerator.Value<Any>>
-            ?: error("Couldn't find simple generator for $name")
+        ?: error("Couldn't find simple generator for $name")
 
     override val edge: Set<TypeGenerator.Value<Any?>> =
         edgeOverride ?: default?.edge as Set<TypeGenerator.Value<Any?>>
-            ?: error("Couldn't find edge generator for $name")
+        ?: error("Couldn't find edge generator for $name")
 
     override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
         if (rand == null) {
@@ -92,14 +92,15 @@ class OverrideTypeGenerator(
         }
         val solution = rand.invoke(null, complexity.level, randomGroup.solution)
         val submission = rand.invoke(null, complexity.level, randomGroup.submission)
-        val reference = rand.invoke(null, complexity.level, randomGroup.reference)
+        val solutionCopy = rand.invoke(null, complexity.level, randomGroup.solutionCopy)
+        val submissionCopy = rand.invoke(null, complexity.level, randomGroup.submissionCopy)
         check(randomGroup.synced) {
             "grouped random number generator out of sync after call to @${RandomType.name} method for ${klass.name}"
         }
-        check(setOf(solution, submission, reference).size == 1) {
+        check(setOf(solution, submission, solutionCopy, submissionCopy).size == 1) {
             "@${RandomType.name} method for ${klass.name} did not return equal values"
         }
-        return TypeGenerator.Value(solution, submission, reference)
+        return TypeGenerator.Value(solution, submission, solutionCopy, submissionCopy)
     }
 }
 
@@ -149,7 +150,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
 
     override val simple: Set<TypeGenerator.Value<Any>>
         get() {
-            val simpleCases = componentGenerator.simple.map { it.reference }
+            val simpleCases = componentGenerator.simple.map { it.solutionCopy }
             return setOf(
                 Array.newInstance(klass, 0),
                 Array.newInstance(klass, simpleCases.size).also { array ->
@@ -200,7 +201,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
                         componentGenerator.random(nextComplexity, componentComplexity, false)
                     } else {
                         componentGenerator.random(componentComplexity)
-                    }.reference
+                    }.solutionCopy
                     Array.set(array, index, value)
                 }
             }
@@ -212,7 +213,8 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
 class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(random) {
     private val primitiveGenerator = Defaults.create(klass, random)
     override val simple = primitiveGenerator.simple as Set<TypeGenerator.Value<Any>>
-    override val edge = (primitiveGenerator.edge + setOf(TypeGenerator.Value(null, null, null)))
+    override val edge = (primitiveGenerator.edge +
+        setOf(TypeGenerator.Value(null, null, null, null)))
         as Set<TypeGenerator.Value<Any?>>
 
     override fun random(complexity: TypeGenerator.Complexity) =
@@ -358,12 +360,14 @@ fun <T> Collection<T>.values() = Cloner().let { cloner ->
     toSet().also {
         check(size == it.size) { "Collection of values was not distinct" }
     }.map {
-        TypeGenerator.Value(cloner.deepClone(it), cloner.deepClone(it), cloner.deepClone(it))
+        TypeGenerator.Value(cloner.deepClone(it), cloner.deepClone(it), cloner.deepClone(it), cloner.deepClone(it))
     }.toSet()
 }
 
 fun <T> T.value() = Cloner().let { cloner ->
-    TypeGenerator.Value(cloner.deepClone(this), cloner.deepClone(this), cloner.deepClone(this))
+    TypeGenerator.Value(
+        cloner.deepClone(this), cloner.deepClone(this), cloner.deepClone(this), cloner.deepClone(this)
+    )
 }
 
 fun <T> Class<T>.getArrayType(start: Boolean = true): Class<*> {

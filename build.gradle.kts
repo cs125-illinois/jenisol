@@ -19,6 +19,9 @@ allprojects {
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
     version = "2020.7.0"
+    tasks.withType<JavaCompile> {
+        options.compilerArgs.add("-parameters")
+    }
     tasks.withType<KotlinCompile> {
         val javaVersion = JavaVersion.VERSION_1_8.toString()
         sourceCompatibility = javaVersion

@@ -21,8 +21,9 @@ class ReceiverGenerator(
             methodGenerator[solutionConstructor]!!.fixed.map {
                 val solutionReceiver = solutionConstructor.newInstance(*it.solution)
                 val submissionReceiver = submissionConstructor.newInstance(*it.submission)
-                val referenceReceiver = solutionConstructor.newInstance(*it.reference)
-                Pair(it, TypeGenerator.Value<Any>(solutionReceiver, submissionReceiver, referenceReceiver))
+                val solutionCopy = solutionConstructor.newInstance(*it.solutionCopy)
+                val submissionCopy = submissionConstructor.newInstance(*it.submissionCopy)
+                Pair(it, TypeGenerator.Value<Any>(solutionReceiver, submissionReceiver, solutionCopy, submissionCopy))
             }
         }.flatten().toSet()
     }
@@ -48,8 +49,9 @@ class ReceiverGenerator(
         return methodGenerator[solutionConstructor]!!.random(complexity).let {
             val solutionReceiver = solutionConstructor.newInstance(*it.solution)
             val submissionReceiver = submissionConstructor.newInstance(*it.submission)
-            val referenceReceiver = solutionConstructor.newInstance(*it.reference)
-            TypeGenerator.Value(solutionReceiver, submissionReceiver, referenceReceiver)
+            val solutionCopy = solutionConstructor.newInstance(*it.solutionCopy)
+            val submissionCopy = submissionConstructor.newInstance(*it.submissionCopy)
+            TypeGenerator.Value(solutionReceiver, submissionReceiver, solutionCopy, submissionCopy)
         }
     }
 }

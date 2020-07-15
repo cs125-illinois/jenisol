@@ -13,16 +13,16 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<Integer, One<Integer[]>> results) {
+  public static void verify(TestResult<Integer, One<int[]>> results) {
     int solutionReturn = results.solution.returned;
     int submissionReturn = results.submission.returned;
     if (solutionReturn != submissionReturn) {
       results.differs.add(TestResult.Differs.RETURN);
       return;
     }
-    Integer[] solutionArray = results.solution.parameters.first;
-    Integer[] submissionArray = results.submission.parameters.first;
-    if (solutionArray.length != submissionArray.length) {
+    int[] solutionArray = results.solution.parameters.first;
+    int[] submissionArray = results.submission.parameters.first;
+    if (solutionArray != null && solutionArray.length != submissionArray.length) {
       results.differs.add(TestResult.Differs.PARAMETERS);
     }
   }

@@ -2,6 +2,9 @@
   <profile version="1.0">
     <option name="myName" value="ktlint" />
     <inspection_tool class="KotlinUnusedImport" enabled="true" level="ERROR" enabled_by_default="true" />
+    <inspection_tool class="PackageDirectoryMismatch" enabled="true" level="INFO" enabled_by_default="false">
+      <scope name="Production" level="INFO" enabled="true" />
+    </inspection_tool>
     <inspection_tool class="RedundantSemicolon" enabled="true" level="ERROR" enabled_by_default="true" />
   </profile>
 </component>

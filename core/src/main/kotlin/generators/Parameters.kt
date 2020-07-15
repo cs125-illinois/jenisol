@@ -24,10 +24,12 @@ import java.lang.reflect.Parameter
 import java.lang.reflect.Type
 import kotlin.random.Random
 
+@Suppress("ArrayInDataClass")
 data class Parameters(
     val solution: Array<Any?>,
     val submission: Array<Any?>,
-    val reference: Array<Any?>,
+    val solutionCopy: Array<Any?>,
+    val submissionCopy: Array<Any?>,
     val type: Type,
     val complexity: TypeGenerator.Complexity = TypeGenerator.Complexity(0)
 ) {
@@ -35,11 +37,11 @@ data class Parameters(
 
     override fun equals(other: Any?) = when {
         this === other -> true
-        other is Parameters -> reference.contentDeepEquals(other.reference)
+        other is Parameters -> solutionCopy.contentDeepEquals(other.solutionCopy)
         else -> false
     }
 
-    override fun hashCode() = reference.contentHashCode()
+    override fun hashCode() = solutionCopy.contentHashCode()
 }
 
 interface ParametersGenerator {
@@ -210,27 +212,27 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                     "Multiple @${FixedParameters.name} annotations match method ${target.name}"
                 }
             }.firstOrNull()?.let { field ->
-            val values = field.get(null)
-            check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
-            check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
-            try {
-                @Suppress("UNCHECKED_CAST")
-                values as Collection<ParameterGroup>
-            } catch (e: ClassCastException) {
-                error("@${FixedParameters.name} field does not contain a collection of parameter groups")
-            }
-            values.forEach {
-                val solutionParameters = it.deepCopy()
-                val submissionParameters = it.deepCopy()
-                check(solutionParameters !== submissionParameters) {
-                    "@${FixedParameters.name} field produces referentially equal copies"
+                val values = field.get(null)
+                check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
+                check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    values as Collection<ParameterGroup>
+                } catch (e: ClassCastException) {
+                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
                 }
-                check(solutionParameters == submissionParameters) {
-                    "@${FixedParameters.name} field does not produce equal copies"
+                values.forEach {
+                    val solutionParameters = it.deepCopy()
+                    val submissionParameters = it.deepCopy()
+                    check(solutionParameters !== submissionParameters) {
+                        "@${FixedParameters.name} field produces referentially equal copies"
+                    }
+                    check(solutionParameters == submissionParameters) {
+                        "@${FixedParameters.name} field does not produce equal copies"
+                    }
                 }
+                values
             }
-            values
-        }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
@@ -265,6 +267,7 @@ class ConfiguredParametersGenerator(
 
     private fun Collection<ParameterGroup>.toFixedParameters(): List<Parameters> = map {
         Parameters(
+            it.deepCopy().toArray(),
             it.deepCopy().toArray(),
             it.deepCopy().toArray(),
             it.deepCopy().toArray(),
@@ -303,16 +306,19 @@ class ConfiguredParametersGenerator(
             overrideRandom.invoke(null, complexity.level, randomPair.solution) as ParameterGroup
         val submissionParameters =
             overrideRandom.invoke(null, complexity.level, randomPair.submission) as ParameterGroup
-        val referenceParameters =
-            overrideRandom.invoke(null, complexity.level, randomPair.reference) as ParameterGroup
+        val solutionCopyParameters =
+            overrideRandom.invoke(null, complexity.level, randomPair.solutionCopy) as ParameterGroup
+        val submissionCopyParameters =
+            overrideRandom.invoke(null, complexity.level, randomPair.submissionCopy) as ParameterGroup
         check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
-        check(setOf(solutionParameters, submissionParameters, referenceParameters).size == 1) {
+        check(setOf(solutionParameters, submissionParameters, submissionCopyParameters).size == 1) {
             "@${RandomParameters.name} did not generate equal parameters"
         }
         Parameters(
             solutionParameters.toArray(),
             submissionParameters.toArray(),
-            referenceParameters.toArray(),
+            solutionCopyParameters.toArray(),
+            submissionCopyParameters.toArray(),
             Parameters.Type.RANDOM_METHOD,
             complexity
         )
@@ -350,7 +356,7 @@ class ConfiguredParametersGenerator(
 
 @Suppress("EmptyFunctionBlock")
 class EmptyParameterMethodGenerator : ExecutableGenerator {
-    override val fixed = listOf(Parameters(arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY))
+    override val fixed = listOf(Parameters(arrayOf(), arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY))
     override fun random(complexity: TypeGenerator.Complexity) = fixed.first()
 
     override fun prev() {}
@@ -378,9 +384,15 @@ class TypeParameterGenerator(
     private fun List<Set<TypeGenerator.Value<*>>>.combine(type: Parameters.Type) = product().map { list ->
         list.map {
             check(it is TypeGenerator.Value<*>) { "Didn't find the right type in our parameter list" }
-            Triple(it.solution, it.submission, it.reference)
-        }.unzip().let { (solution, submission, reference) ->
-            Parameters(solution.toTypedArray(), submission.toTypedArray(), reference.toTypedArray(), type)
+            Quad(it.solution, it.submission, it.submissionCopy, it.submissionCopy)
+        }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
+            Parameters(
+                solution.toTypedArray(),
+                submission.toTypedArray(),
+                solutionCopy.toTypedArray(),
+                submissionCopy.toTypedArray(),
+                type
+            )
         }
     }
 
@@ -398,12 +410,13 @@ class TypeParameterGenerator(
 
     override fun random(complexity: TypeGenerator.Complexity): Parameters {
         return parameterGenerators.map { it.random(complexity) }.map {
-            Triple(it.solution, it.submission, it.reference)
-        }.unzip().let { (solution, submission, reference) ->
+            Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
+        }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
             Parameters(
                 solution.toTypedArray(),
                 submission.toTypedArray(),
-                reference.toTypedArray(),
+                solutionCopy.toTypedArray(),
+                submissionCopy.toTypedArray(),
                 Parameters.Type.RANDOM,
                 complexity
             )
@@ -416,12 +429,16 @@ fun List<*>.product() = fold(listOf(listOf<Any?>())) { acc, set ->
     acc.flatMap { list -> set.map { element -> list + element } }
 }.toSet()
 
-fun <E> List<Triple<E, E, E>>.unzip(): List<List<E>> {
+data class Quad<T>(val first: T, val second: T, val third: T, val fourth: T)
+
+@Suppress("MagicNumber")
+fun <E> List<Quad<E>>.unzip(): List<List<E>> {
     @Suppress("RemoveExplicitTypeArguments")
-    return fold(listOf(ArrayList<E>(), ArrayList<E>(), ArrayList<E>())) { r, i ->
+    return fold(listOf(ArrayList<E>(), ArrayList<E>(), ArrayList<E>(), ArrayList<E>())) { r, i ->
         r[0].add(i.first)
         r[1].add(i.second)
         r[2].add(i.third)
+        r[3].add(i.fourth)
         r
     }
 }
