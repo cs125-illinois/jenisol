@@ -79,7 +79,7 @@ class TestRunner(
 
     private var count = 0
 
-    @Suppress("ComplexMethod")
+    @Suppress("ComplexMethod", "LongMethod")
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null): TestResult<*, *> {
         val start = Instant.now()
         val submissionExecutable = submission.submissionExecutables[solutionExecutable]

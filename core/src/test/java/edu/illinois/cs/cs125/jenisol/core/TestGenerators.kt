@@ -6,6 +6,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.TypeParameterGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import edu.illinois.cs.cs125.jenisol.core.generators.product
+import examples.generatortesting.TestGenerators
 import io.kotlintest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotlintest.matchers.collections.shouldHaveSize
 import io.kotlintest.matchers.numerics.shouldBeGreaterThan
@@ -182,15 +183,19 @@ class TestGenerators : StringSpec({
         One(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5))).also {
             it shouldBe One(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)))
         }
-        Two(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)),
-            arrayOf(booleanArrayOf(true, false), booleanArrayOf(false, true))).also {
-            it shouldBe Two(arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)),
-                arrayOf(booleanArrayOf(true, false), booleanArrayOf(false, true)))
+        Two(
+            arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)),
+            arrayOf(booleanArrayOf(true, false), booleanArrayOf(false, true))
+        ).also {
+            it shouldBe Two(
+                arrayOf(intArrayOf(1, 2, 3), intArrayOf(4, 5)),
+                arrayOf(booleanArrayOf(true, false), booleanArrayOf(false, true))
+            )
         }
     }
 })
 
-private fun methodNamed(name: String) = examples.generatortesting.TestGenerators::class.java.declaredMethods
+private fun methodNamed(name: String) = TestGenerators::class.java.declaredMethods
     .find { it.name == name } ?: error("Couldn't find method $name")
 
 private fun Method.testGenerator(

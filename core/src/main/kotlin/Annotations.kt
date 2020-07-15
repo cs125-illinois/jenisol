@@ -4,8 +4,8 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
-import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
+import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -281,8 +281,9 @@ data class Four<I, J, K, L>(
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
         other !is Four<*, *, *, *> -> false
-        else -> listOf(first, second, third, fourth)
-            .deepCompare(listOf(other.first, other.second, other.third, other.fourth))
+        else ->
+            listOf(first, second, third, fourth)
+                .deepCompare(listOf(other.first, other.second, other.third, other.fourth))
     }
 
     override fun hashCode(): Int {

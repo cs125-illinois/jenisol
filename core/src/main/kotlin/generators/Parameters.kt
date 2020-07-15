@@ -210,27 +210,27 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                     "Multiple @${FixedParameters.name} annotations match method ${target.name}"
                 }
             }.firstOrNull()?.let { field ->
-                val values = field.get(null)
-                check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
-                check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
-                try {
-                    @Suppress("UNCHECKED_CAST")
-                    values as Collection<ParameterGroup>
-                } catch (e: ClassCastException) {
-                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
-                }
-                values.forEach {
-                    val solutionParameters = it.deepCopy()
-                    val submissionParameters = it.deepCopy()
-                    check(solutionParameters !== submissionParameters) {
-                        "@${FixedParameters.name} field produces referentially equal copies"
-                    }
-                    check(solutionParameters == submissionParameters) {
-                        "@${FixedParameters.name} field does not produce equal copies"
-                    }
-                }
-                values
+            val values = field.get(null)
+            check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
+            check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+            try {
+                @Suppress("UNCHECKED_CAST")
+                values as Collection<ParameterGroup>
+            } catch (e: ClassCastException) {
+                error("@${FixedParameters.name} field does not contain a collection of parameter groups")
             }
+            values.forEach {
+                val solutionParameters = it.deepCopy()
+                val submissionParameters = it.deepCopy()
+                check(solutionParameters !== submissionParameters) {
+                    "@${FixedParameters.name} field produces referentially equal copies"
+                }
+                check(solutionParameters == submissionParameters) {
+                    "@${FixedParameters.name} field does not produce equal copies"
+                }
+            }
+            values
+        }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }

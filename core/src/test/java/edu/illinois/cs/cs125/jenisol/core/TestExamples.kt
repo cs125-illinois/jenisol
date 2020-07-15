@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import examples.java.noreceiver.single.generatedparameterarrays.Correct
 import io.github.classgraph.ClassGraph
 import io.kotlintest.matchers.collections.shouldNotContainAll
 import io.kotlintest.shouldBe
@@ -8,76 +9,76 @@ import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
 class TestExamples : StringSpec({
-    examples.noreceiver.single.noarguments.Correct::class.java.also {
+    examples.java.noreceiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.intargument.Correct::class.java.also {
+    examples.java.noreceiver.single.intargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.twointarguments.Correct::class.java.also {
+    examples.java.noreceiver.single.twointarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.prints.Correct::class.java.also {
+    examples.java.noreceiver.single.prints.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.submissionprints.Correct::class.java.also {
+    examples.java.noreceiver.single.submissionprints.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.edgetype.Correct::class.java.also {
+    examples.java.noreceiver.single.edgetype.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.simpletype.Correct::class.java.also {
+    examples.java.noreceiver.single.simpletype.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.randomtype.Correct::class.java.also {
+    examples.java.noreceiver.single.randomtype.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.returnsarray.Correct::class.java.also {
+    examples.java.noreceiver.single.returnsarray.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.onefixedparameter.Correct::class.java.also {
+    examples.java.noreceiver.single.onefixedparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.twofixedparameters.Correct::class.java.also {
+    examples.java.noreceiver.single.twofixedparameters.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.onerandomparameter.Correct::class.java.also {
+    examples.java.noreceiver.single.onerandomparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.onegeneratedparameter.Correct::class.java.also {
+    examples.java.noreceiver.single.onegeneratedparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.withverifier.Correct::class.java.also {
+    examples.java.noreceiver.single.withverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.withprimitiveverifier.Correct::class.java.also {
+    examples.java.noreceiver.single.withprimitiveverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.withparameterverifier.Correct::class.java.also {
+    examples.java.noreceiver.single.withparameterverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.intarrayargument.Correct::class.java.also {
+    examples.java.noreceiver.single.intarrayargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.generatedparameterarrays.Correct::class.java.also {
+    Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.receiver.single.noarguments.Correct::class.java.also {
+    examples.java.receiver.single.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.receiver.single.withconstructor.Correct::class.java.also {
+    examples.java.receiver.single.withconstructor.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.receiver.single.withinitialization.Correct::class.java.also {
+    examples.java.receiver.single.withinitialization.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.noreceiver.single.countarrayequals.Correct::class.java.also {
+    examples.java.noreceiver.single.countarrayequals.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.receiver.single.receiverparameter.Correct::class.java.also {
+    examples.java.receiver.single.receiverparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.receiver.single.constructorthrows.Correct::class.java.also {
+    examples.java.receiver.single.constructorthrows.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })
@@ -96,14 +97,13 @@ fun Class<*>.test() {
                 .filter { !it.isInterface && it.simpleName != "Correct" && it.simpleName.startsWith("Correct") }
                 .forEach { correct ->
                     submission(correct.loadClass()).test().also { results ->
-                        println(results.find { it.failed }?.differs)
                         results.succeeded() shouldBe true
                     }
                 }
             allClasses
                 .filter { it.simpleName.startsWith("Incorrect") || it.simpleName.startsWith("Design") }
                 .apply {
-                    check(isNotEmpty()) { "No incorrect examples for ${testName()}" }
+                    check(isNotEmpty()) { "No incorrect examples.java.examples for ${testName()}" }
                 }.forEach { incorrect ->
                     if (incorrect.simpleName.startsWith("Design")) {
                         shouldThrow<ClassDesignError> {

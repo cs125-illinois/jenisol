@@ -7,7 +7,9 @@ import edu.illinois.cs.cs125.jenisol.core.findConstructor
 import kotlin.random.Random
 
 class ReceiverGenerator(
-    private val solution: Solution, private val submission: Class<*>, private val random: Random = Random
+    private val solution: Solution,
+    private val submission: Class<*>,
+    private val random: Random = Random
 ) : TypeGenerator<Any> {
     lateinit var methodGenerator: Generators
 

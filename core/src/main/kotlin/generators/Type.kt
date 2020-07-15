@@ -76,11 +76,11 @@ class OverrideTypeGenerator(
 
     override val simple: Set<TypeGenerator.Value<Any>> =
         simpleOverride ?: default?.simple as Set<TypeGenerator.Value<Any>>
-        ?: error("Couldn't find simple generator for $name")
+            ?: error("Couldn't find simple generator for $name")
 
     override val edge: Set<TypeGenerator.Value<Any?>> =
         edgeOverride ?: default?.edge as Set<TypeGenerator.Value<Any?>>
-        ?: error("Couldn't find edge generator for $name")
+            ?: error("Couldn't find edge generator for $name")
 
     override fun random(complexity: TypeGenerator.Complexity): TypeGenerator.Value<Any> {
         if (rand == null) {
