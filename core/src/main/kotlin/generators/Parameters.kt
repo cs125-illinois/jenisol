@@ -31,7 +31,7 @@ data class Parameters(
     val solutionCopy: Array<Any?>,
     val submissionCopy: Array<Any?>,
     val type: Type,
-    val complexity: TypeGenerator.Complexity = TypeGenerator.Complexity(0)
+    val complexity: Complexity = ZeroComplexity
 ) {
     enum class Type { EMPTY, SIMPLE, EDGE, MIXED, RANDOM, FIXED_FIELD, RANDOM_METHOD }
 
@@ -48,7 +48,7 @@ interface ParametersGenerator {
     val simple: List<Parameters>
     val edge: List<Parameters>
     val mixed: List<Parameters>
-    fun random(complexity: TypeGenerator.Complexity): Parameters
+    fun random(complexity: Complexity): Parameters
 }
 
 typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
@@ -125,7 +125,15 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 ) as TypeGenerator<Any>
             }
         }.toMutableList()
-        if (solutionClass in neededTypes || !solution.allStaticMethods) {
+
+        if (solution.noReceiver) {
+            check(solutionClass !in neededTypes) {
+                "Incorrectly calculated whether we needed a receiver: " +
+                    "${solution.noReceiver} v. ${solutionClass !in neededTypes}"
+            }
+        }
+
+        if (solutionClass in neededTypes) {
             check(solutionClass !in simple.keys && solutionClass !in edge.keys && solutionClass !in rand.keys) {
                 "Type generation annotations not supported for receiver types"
             }
@@ -144,24 +152,25 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         }
     }
 
-    fun get(random: Random = Random, settings: Solution.Settings, submission: Class<*>): Generators {
-        val receiverGenerator = if (solutionClass in typeGenerators) {
-            ReceiverGenerator(solution, submission)
-        } else {
-            null
-        }
+    fun get(
+        random: Random = Random, settings: Solution.Settings, receiverGenerator: ReceiverGenerator? = null,
+        forExecutables: Set<Executable> = executables, from: Generators? = null
+    ): Generators {
         val typeGeneratorsWithReceiver = object : Map<Type, TypeGeneratorGenerator> by typeGenerators {
             override fun get(key: Type): TypeGeneratorGenerator? {
                 if (key == solutionClass) {
-                    check(receiverGenerator != null) { "Shouldn't need a receiver generator" }
+                    check(receiverGenerator != null) { "Needed a receiver generator that was not provided" }
                     return { receiverGenerator }
                 } else {
                     return typeGenerators[key]
                 }
             }
         }
-        return executables
+        return forExecutables
             .map { executable ->
+                if (from != null && executable in from) {
+                    from[executable]
+                }
                 if (executable.parameters.isEmpty()) {
                     executable to EmptyParameterMethodGenerator()
                 } else {
@@ -179,19 +188,16 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             }
             .toMap()
             .let {
-                Generators(it, receiverGenerator).also { receiverGenerator?.methodGenerator = it }
+                Generators(it)
             }
     }
 }
 
-class Generators(
-    private val map: Map<Executable, ExecutableGenerator>,
-    val receiverGenerator: ReceiverGenerator?
-) : Map<Executable, ExecutableGenerator> by map
+class Generators(private val map: Map<Executable, ExecutableGenerator>) : Map<Executable, ExecutableGenerator> by map
 
 interface ExecutableGenerator {
     val fixed: List<Parameters>
-    fun random(complexity: TypeGenerator.Complexity): Parameters
+    fun random(complexity: Complexity): Parameters
     fun generate(): Parameters
     fun next()
     fun prev()
@@ -296,11 +302,11 @@ class ConfiguredParametersGenerator(
 
     private val randomPair = RandomGroup(random.nextLong())
     private var index = 0
-    private var bound: TypeGenerator.Complexity? = null
-    private val complexity = TypeGenerator.Complexity()
+    private var bound: Complexity? = null
+    private val complexity = Complexity()
     private var randomStarted = false
 
-    override fun random(complexity: TypeGenerator.Complexity): Parameters = if (overrideRandom != null) {
+    override fun random(complexity: Complexity): Parameters = if (overrideRandom != null) {
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
         val solutionParameters =
             overrideRandom.invoke(null, complexity.level, randomPair.solution) as ParameterGroup
@@ -357,7 +363,7 @@ class ConfiguredParametersGenerator(
 @Suppress("EmptyFunctionBlock")
 class EmptyParameterMethodGenerator : ExecutableGenerator {
     override val fixed = listOf(Parameters(arrayOf(), arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY))
-    override fun random(complexity: TypeGenerator.Complexity) = fixed.first()
+    override fun random(complexity: Complexity) = fixed.first()
 
     override fun prev() {}
     override fun next() {}
@@ -381,9 +387,9 @@ class TypeParameterGenerator(
         )
     }
 
-    private fun List<Set<TypeGenerator.Value<*>>>.combine(type: Parameters.Type) = product().map { list ->
+    private fun List<Set<Value<*>>>.combine(type: Parameters.Type) = product().map { list ->
         list.map {
-            check(it is TypeGenerator.Value<*>) { "Didn't find the right type in our parameter list" }
+            check(it is Value<*>) { "Didn't find the right type in our parameter list" }
             Quad(it.solution, it.submission, it.submissionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
             Parameters(
@@ -408,7 +414,7 @@ class TypeParameterGenerator(
         }
     }
 
-    override fun random(complexity: TypeGenerator.Complexity): Parameters {
+    override fun random(complexity: Complexity): Parameters {
         return parameterGenerators.map { it.random(complexity) }.map {
             Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->

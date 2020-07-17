@@ -3,6 +3,8 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
+import edu.illinois.cs.cs125.jenisol.core.generators.Value
+import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import java.lang.reflect.Constructor
@@ -158,21 +160,19 @@ class TestResults(
     fun explain() = if (succeeded) {
         "Passed"
     } else {
-        filter { it.failed }.sortedBy { it.complexity }.let {
-            val leastComplex = it.first().complexity
-            it.filter { it.complexity == leastComplex }
-        }.sortedBy { it.stepCount }.first().explain()
+        filter { it.failed }.sortedBy { it.complexity }.let { result ->
+            val leastComplex = result.first().complexity
+            result.filter { it.complexity == leastComplex }
+        }.minBy { it.stepCount }!!.explain()
     }
 }
 
 class TestRunner(
     val runnerID: Int,
     val submission: Submission,
-    val generators: Generators,
+    var generators: Generators,
     val constructors: Sequence<Constructor<*>>
 ) {
-
-    data class Receivers(var solution: Any?, var submission: Any?, val reference: Any?)
 
     val methodIterator = submission.solution.solutionMethods.cycle()
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
@@ -180,17 +180,17 @@ class TestRunner(
     val ready: Boolean
         get() = testResults.none { it.failed } && receivers != null
 
-    var receivers: Receivers? = null
+    var receivers: Value<Any?>? = null
 
     init {
-        if (submission.solution.allStaticMethods) {
-            receivers = Receivers(null, null, null)
+        if (submission.solution.noReceiver) {
+            receivers = Value(null, null, null, null, ZeroComplexity)
         }
     }
 
     private var count = 0
 
-    @Suppress("ComplexMethod", "LongMethod")
+    @Suppress("ComplexMethod", "LongMethod", "ComplexCondition")
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null): TestResult<*, *> {
         val start = Instant.now()
         val submissionExecutable = submission.submissionExecutables[solutionExecutable]
@@ -213,7 +213,7 @@ class TestRunner(
             check(receivers != null) { "No receivers available" }
         }
         val solutionResult = submission.solution.captureOutput {
-            unwrapMethodInvocationException {
+            unwrap {
                 when (solutionExecutable) {
                     is Method -> solutionExecutable.invoke(receivers!!.solution, *parameters.solution)
                     is Constructor<*> -> solutionExecutable.newInstance(*parameters.solution)
@@ -226,25 +226,8 @@ class TestRunner(
             )
         }
 
-        // If this is a constructor and it didn't fail on the solution, generate an additional reference object
-        // so that we can donate this to the receiver generator later
-        val referenceResult = if (stepType == TestResult.Type.CONSTRUCTOR && solutionResult.returned != null) {
-            submission.solution.captureOutput {
-                unwrapMethodInvocationException {
-                    when (solutionExecutable) {
-                        is Constructor<*> -> solutionExecutable.newInstance(*parameters.solutionCopy)
-                        else -> error("encountered unknown executable type: $solutionExecutable")
-                    }
-                }
-            }.let {
-                Result<Any, ParameterGroup>(parameters.solutionCopy, it, false)
-            }
-        } else {
-            null
-        }
-
         val submissionResult = submission.solution.captureOutput {
-            unwrapMethodInvocationException {
+            unwrap {
                 when (submissionExecutable) {
                     is Method -> submissionExecutable.invoke(receivers!!.submission, *parameters.submission)
                     is Constructor<*> -> submissionExecutable.newInstance(*parameters.submission)
@@ -255,6 +238,25 @@ class TestRunner(
             Result<Any, ParameterGroup>(
                 parameters.submission, it, !submission.compare(parameters.submission, parameters.submissionCopy)
             )
+        }
+
+        // If this is a constructor and it didn't fail, generate additional references object
+        // so that we can donate this to the receiver generator later
+        val (solutionCopy, submissionCopy) = if (
+            solutionExecutable is Constructor<*> && submissionExecutable is Constructor<*> &&
+            solutionResult.returned != null && submissionResult.returned != null
+        ) {
+            Pair(submission.solution.captureOutput {
+                unwrap { solutionExecutable.newInstance(*parameters.solutionCopy) }
+            }.let {
+                Result<Any, ParameterGroup>(parameters.solutionCopy, it, false)
+            }, submission.solution.captureOutput {
+                unwrap { submissionExecutable.newInstance(*parameters.submissionCopy) }
+            }.let {
+                Result<Any, ParameterGroup>(parameters.submissionCopy, it, false)
+            })
+        } else {
+            Pair(null, null)
         }
 
         return TestResult(
@@ -278,7 +280,13 @@ class TestRunner(
                 // If both constructors throw identically, then the step didn't fail but
                 // this test runner still can't proceed
                 receivers = if (step.solution.returned != null) {
-                    Receivers(step.solution.returned, step.submission.returned, referenceResult!!.returned)
+                    Value(
+                        step.solution.returned,
+                        step.submission.returned,
+                        solutionCopy!!.returned,
+                        submissionCopy!!.returned,
+                        parameters.complexity
+                    )
                 } else {
                     null
                 }
@@ -288,7 +296,7 @@ class TestRunner(
 
     var created = false
     fun next(stepCount: Int): Boolean {
-        if (!submission.solution.allStaticMethods && !created) {
+        if (!submission.solution.noReceiver && !created) {
             run(constructors.first(), stepCount)
             if (ready && submission.solution.initializer != null) {
                 run(submission.solution.initializer, stepCount, TestResult.Type.INITIALIZER)

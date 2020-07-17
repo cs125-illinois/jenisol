@@ -3,6 +3,7 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
+import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
@@ -54,12 +55,12 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     val receiverParameters = solutionMethods.any { method -> method.parameterTypes.any { it == solution } }
     val receiverReturn = solutionMethods.any { method -> method.returnType == solution }
-    val allStaticMethods = solutionMethods.all { it.isStatic() }
+    val noReceiver = solutionMethods.all { it.isStatic() } && !receiverParameters
 
-    val solutionConstructors = if (!allStaticMethods || receiverParameters) {
+    val solutionConstructors = if (!noReceiver) {
         publicMethods.filterIsInstance<Constructor<*>>().filter { it.isPublic() }.also {
             check(it.isNotEmpty()) {
-                "Testing require receivers but found no available public constructors in ${solution.name}"
+                "Testing requires receivers but found no available public constructors in ${solution.name}"
             }
         }.toSet()
     } else {
@@ -87,6 +88,9 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     } else {
         setOf()
     }
+
+    val receiverInitializationMethods = solutionConstructors + initializers
+
     val generatorFactory: GeneratorFactory = GeneratorFactory(
         solutionMethods + solutionConstructors + initializers, this
     )
@@ -99,6 +103,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         }
     }
 
+    @Suppress("Unused")
     fun createProxy(submission: Any) = proxyInterface?.let {
         Proxy.newProxyInstance(submission::class.java.classLoader, listOf(it).toTypedArray()) { _, method, args ->
             method.invoke(submission, *args)
@@ -108,7 +113,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     // These calculations should be improved to create a better test balance
     @Suppress("MagicNumber")
     val receiverEntropy = when {
-        allStaticMethods -> 0
+        noReceiver -> 0
         emptyConstructor && emptyInitializer -> 2
         else -> 5
     }
@@ -153,13 +158,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     val receiverCompare = object : Comparator {
         override val descendants = true
-        override fun compare(solution: Any, submission: Any): Boolean = createProxy(submission).let {
-            proxyInterface!!.declaredMethods.filter { it.parameters.isEmpty() }.also {
-                check(it.isNotEmpty()) { "Compare interface contains no empty methods for object comparison" }
-            }.all { method ->
-                method.invoke(solution) == method.invoke(submission)
-            }
-        }
+        override fun compare(solution: Any, submission: Any): Boolean = true
     }
 
     fun submission(submission: Class<*>) = Submission(this, submission)
@@ -208,6 +207,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     val comparators = Comparators(
         mutableMapOf(solution.solution to solution.receiverCompare, submission to solution.receiverCompare)
     )
+
     fun compare(solution: Any?, submission: Any?) = when (solution) {
         null -> submission == null
         else -> solution.deepEquals(submission, comparators)
@@ -217,7 +217,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         solution.verifier?.also { customVerifier ->
             @Suppress("TooGenericExceptionCaught")
             try {
-                unwrapMethodInvocationException { customVerifier.invoke(null, result) }
+                unwrap { customVerifier.invoke(null, result) }
             } catch (e: Throwable) {
                 result.differs.add(TestResult.Differs.VERIFIER_THREW)
                 result.verifierThrew = e
@@ -256,32 +256,47 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             Random(passedSettings.seed.toLong())
         }
 
-        val generators = solution.generatorFactory.get(random, settings, submission)
+        val runners: MutableList<TestRunner> = mutableListOf()
+        var stepCount = 0
+        var totalCount = 0
+
         val constructors = sequence {
             while (true) {
                 yieldAll(solution.solutionConstructors.toList().shuffled(random))
             }
         }
 
-        val totalTests = settings.receiverCount * (settings.methodCount + 1)
-        val runners: MutableList<TestRunner> = mutableListOf()
+        val (receiverGenerator, initialGenerators) = if (!solution.noReceiver) {
+            check(settings.receiverCount > 1) { "Incorrect receiver count" }
 
-        var stepCount = 0
-        var totalCount = 0
+            val generators =
+                solution.generatorFactory.get(random, settings, null, solution.receiverInitializationMethods)
+            while (runners.readyCount() < settings.receiverCount) {
+                TestRunner(runners.size, this, generators, constructors).also { runner ->
+                    runner.next(stepCount++)
+                    runners.add(runner)
+                }
+            }
+            Pair(ReceiverGenerator(random, runners.filter { it.ready }.toMutableList()), generators)
+        } else {
+            Pair(null, null)
+        }
+
+        val generators = solution.generatorFactory.get(random, settings, receiverGenerator, from = initialGenerators)
+        runners.filter { it.ready }.forEach { it.generators = generators }
+
+        val totalTests = settings.receiverCount * settings.methodCount
         while (true) {
             if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(runners.size, this, generators, constructors).also { runner ->
-                    runner.next(stepCount)
+                    runner.next(stepCount++)
                     runners.add(runner)
-                    if (runner.ready || runner.receivers != null) {
-                        totalCount++
-                    }
+                    receiverGenerator?.runners?.add(runner)
                 }
             } else {
-                runners.filter { it.ready }.shuffled(random).first().next(stepCount)
-                totalCount++
+                runners.filter { it.ready }.shuffled(random).first().next(stepCount++)
             }
-            stepCount++
+            totalCount++
             if (totalCount == totalTests) {
                 break
             }
@@ -357,7 +372,7 @@ fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock 
     return CapturedResult(result.first, result.second, diverted.first.toString(), diverted.second.toString())
 }
 
-fun unwrapMethodInvocationException(run: () -> Any?): Any? = try {
+fun unwrap(run: () -> Any?): Any? = try {
     run()
 } catch (e: InvocationTargetException) {
     throw e.cause ?: error("InvocationTargetException should have a cause")

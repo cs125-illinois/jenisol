@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Defaults
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeParameterGenerator
@@ -137,8 +138,8 @@ class TestGenerators : StringSpec({
         Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
-                generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MIN))
-                    .let { it.solutionCopy as Array<Array<IntArray>> }.let { it.totalSize() }.also {
+                generator.random(Complexity(Complexity.MIN))
+                .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 8
                     }
@@ -146,8 +147,8 @@ class TestGenerators : StringSpec({
 
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
-                generator.random(TypeGenerator.Complexity(TypeGenerator.Complexity.MAX))
-                    .let { it.solutionCopy as Array<Array<IntArray>> }.let { it.totalSize() }.also {
+                generator.random(Complexity(Complexity.MAX))
+                .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 512
                     }
@@ -204,7 +205,7 @@ private fun Method.testGenerator(
     typeGenerator.simple.forEach { invoke(null, it.solutionCopy) }
     typeGenerator.edge.forEach { invoke(null, it.solutionCopy) }
     (1..8).forEach { complexity ->
-        repeat(4) { invoke(null, typeGenerator.random(TypeGenerator.Complexity(complexity)).solutionCopy) }
+        repeat(4) { invoke(null, typeGenerator.random(Complexity(complexity)).solutionCopy) }
     }
 }
 
@@ -232,7 +233,7 @@ private fun Method.testParameterGenerator(
         mixed shouldHaveSize mixedSize
         mixed.forEach { invoke(null, *it.solutionCopy) }
     }
-    TypeGenerator.Complexity.ALL.forEach { complexity ->
+    Complexity.ALL.forEach { complexity ->
         invoke(null, *parameterGenerator.random(complexity).solutionCopy)
     }
 }
