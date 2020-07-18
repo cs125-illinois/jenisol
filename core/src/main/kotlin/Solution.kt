@@ -77,8 +77,10 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     }.toSet()
 
     val skipReceiver = needsReceiver.isEmpty() && receiverTransformers.isEmpty() &&
-        (receiverGenerators.isEmpty() ||
-            (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty()))
+        (
+            receiverGenerators.isEmpty() ||
+                (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty())
+            )
 
     init {
         if (needsReceiver.isNotEmpty()) {
@@ -264,6 +266,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
+    @Suppress("LongMethod")
     fun test(passedSettings: Solution.Settings = Solution.Settings()): TestResults {
         val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
 

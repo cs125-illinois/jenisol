@@ -62,4 +62,3 @@ fun Class<*>.test() {
             }
     }
 }
-

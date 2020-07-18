@@ -80,4 +80,3 @@ class TestJavaExamples : StringSpec({
         "${it.testName()}" { it.test() }
     }
 })
-

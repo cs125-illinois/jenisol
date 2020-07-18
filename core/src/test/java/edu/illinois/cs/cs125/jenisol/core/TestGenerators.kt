@@ -139,7 +139,7 @@ class TestGenerators : StringSpec({
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
                 generator.random(Complexity(Complexity.MIN))
-                .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
+                    .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 8
                     }
@@ -148,7 +148,7 @@ class TestGenerators : StringSpec({
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
                 generator.random(Complexity(Complexity.MAX))
-                .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
+                    .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 512
                     }

@@ -76,11 +76,11 @@ class OverrideTypeGenerator(
 
     override val simple: Set<Value<Any>> =
         simpleOverride ?: default?.simple as Set<Value<Any>>
-        ?: error("Couldn't find simple generator for $name")
+            ?: error("Couldn't find simple generator for $name")
 
     override val edge: Set<Value<Any?>> =
         edgeOverride ?: default?.edge as Set<Value<Any?>>
-        ?: error("Couldn't find edge generator for $name")
+            ?: error("Couldn't find edge generator for $name")
 
     override fun random(complexity: Complexity): Value<Any> {
         if (rand == null) {
@@ -206,8 +206,10 @@ class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerato
 class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(random) {
     private val primitiveGenerator = Defaults.create(klass, random)
     override val simple = primitiveGenerator.simple as Set<Value<Any>>
-    override val edge = (primitiveGenerator.edge +
-        setOf(Value(null, null, null, null, Complexity(0)))) as Set<Value<Any?>>
+    override val edge = (
+        primitiveGenerator.edge +
+            setOf(Value(null, null, null, null, Complexity(0)))
+        ) as Set<Value<Any?>>
 
     override fun random(complexity: Complexity) = primitiveGenerator.random(complexity) as Value<Any>
 

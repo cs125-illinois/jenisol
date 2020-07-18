@@ -194,7 +194,9 @@ class TestRunner(
     var count = 0
 
     fun Executable.pairRun(
-        receiver: Any?, parameters: Array<Any?>, parametersCopy: Array<Any?>? = null
+        receiver: Any?,
+        parameters: Array<Any?>,
+        parametersCopy: Array<Any?>? = null
     ): Result<Any, ParameterGroup> = submission.solution.captureOutput {
         unwrap {
             when (this) {
