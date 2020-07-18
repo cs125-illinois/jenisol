@@ -38,6 +38,7 @@ class Complexity(var level: Int = MIN) {
         val ALL = (MIN..MAX).map { Complexity(it) }
     }
 }
+
 val ZeroComplexity = Complexity(0)
 
 open class Value<T>(
@@ -76,11 +77,11 @@ class OverrideTypeGenerator(
 
     override val simple: Set<Value<Any>> =
         simpleOverride ?: default?.simple as Set<Value<Any>>
-            ?: error("Couldn't find simple generator for $name")
+        ?: error("Couldn't find simple generator for $name")
 
     override val edge: Set<Value<Any?>> =
         edgeOverride ?: default?.edge as Set<Value<Any?>>
-            ?: error("Couldn't find edge generator for $name")
+        ?: error("Couldn't find edge generator for $name")
 
     override fun random(complexity: Complexity): Value<Any> {
         if (rand == null) {
@@ -108,7 +109,7 @@ sealed class TypeGenerators<T>(internal val random: Random) : TypeGenerator<T>
 typealias TypeGeneratorGenerator = (random: Random) -> TypeGenerator<*>
 
 object Defaults {
-    private val map = mutableMapOf<Class<*>, TypeGeneratorGenerator>()
+    val map = mutableMapOf<Class<*>, TypeGeneratorGenerator>()
 
     init {
         map[Byte::class.java] = ByteGenerator.Companion::create
@@ -126,6 +127,7 @@ object Defaults {
         map[Boolean::class.java] = BooleanGenerator.Companion::create
         map[java.lang.Boolean::class.java] = BoxedGenerator.create(Boolean::class.java)
         map[String::class.java] = StringGenerator.Companion::create
+        map[Any::class.java] = ObjectGenerator.Companion::create
     }
 
     operator fun get(klass: Class<*>): TypeGeneratorGenerator {
@@ -346,6 +348,33 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
         }
 
         fun create(random: Random = Random) = StringGenerator(random)
+    }
+}
+
+class ObjectGenerator(random: Random) : TypeGenerators<Any>(random) {
+
+    private val defaultObjects = Defaults.map.filterKeys { !it.isPrimitive && it != Any::class.java }
+        .mapValues { (_, generator) -> generator(random) }
+
+    init {
+        check(defaultObjects.isNotEmpty()) { "No default objects to generate" }
+    }
+
+    override val simple = (setOf(Any()) + defaultObjects.values.map { it.simple }.flatten().toSet())
+        .values(ZeroComplexity)
+
+    override val edge = (setOf(null as Any?) + defaultObjects.values.map { it.edge }.flatten().toSet()).distinct()
+        .values(ZeroComplexity)
+
+    @Suppress("UNCHECKED_CAST")
+    override fun random(complexity: Complexity): Value<Any> {
+        val randomType = defaultObjects.keys.shuffled(random).first()
+        return (defaultObjects[randomType] ?: error("Couldn't find type generator that should exist"))
+            .random(complexity) as Value<Any>
+    }
+
+    companion object {
+        fun create(random: Random = Random) = ObjectGenerator(random)
     }
 }
 

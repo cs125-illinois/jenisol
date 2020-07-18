@@ -1,82 +1,83 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import examples.java.receiver.withconstructor.Correct
 import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
 class TestJavaExamples : StringSpec({
-    examples.java.noreceiver.single.noarguments.Correct::class.java.also {
+    examples.java.noreceiver.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.intargument.Correct::class.java.also {
+    examples.java.noreceiver.intargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.twointarguments.Correct::class.java.also {
+    examples.java.noreceiver.twointarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.prints.Correct::class.java.also {
+    examples.java.noreceiver.prints.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.submissionprints.Correct::class.java.also {
+    examples.java.noreceiver.submissionprints.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.edgetype.Correct::class.java.also {
+    examples.java.noreceiver.edgetype.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.simpletype.Correct::class.java.also {
+    examples.java.noreceiver.simpletype.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.randomtype.Correct::class.java.also {
+    examples.java.noreceiver.randomtype.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.returnsarray.Correct::class.java.also {
+    examples.java.noreceiver.returnsarray.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.onefixedparameter.Correct::class.java.also {
+    examples.java.noreceiver.onefixedparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.twofixedparameters.Correct::class.java.also {
+    examples.java.noreceiver.twofixedparameters.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.onerandomparameter.Correct::class.java.also {
+    examples.java.noreceiver.onerandomparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.onegeneratedparameter.Correct::class.java.also {
+    examples.java.noreceiver.onegeneratedparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.withverifier.Correct::class.java.also {
+    examples.java.noreceiver.withverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.withprimitiveverifier.Correct::class.java.also {
+    examples.java.noreceiver.withprimitiveverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.withparameterverifier.Correct::class.java.also {
+    examples.java.noreceiver.withparameterverifier.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.intarrayargument.Correct::class.java.also {
+    examples.java.noreceiver.intarrayargument.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.generatedparameterarrays.Correct::class.java.also {
+    examples.java.noreceiver.generatedparameterarrays.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.receiver.single.noarguments.Correct::class.java.also {
+    examples.java.receiver.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.receiver.single.withconstructor.Correct::class.java.also {
+    Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.receiver.single.withinitialization.Correct::class.java.also {
+    examples.java.receiver.withinitialization.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.countarrayequals.Correct::class.java.also {
+    examples.java.noreceiver.countarrayequals.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.noreceiver.single.factoryconstructor.Correct::class.java.also {
+    examples.java.noreceiver.factoryconstructor.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.receiver.single.receiverparameter.Correct::class.java.also {
+    examples.java.receiver.receiverparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    examples.java.receiver.single.constructorthrows.Correct::class.java.also {
+    examples.java.receiver.constructorthrows.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })

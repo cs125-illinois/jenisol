@@ -4,6 +4,7 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
 import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
+import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
@@ -11,6 +12,7 @@ import java.lang.reflect.Executable
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.lang.reflect.Type
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
@@ -266,7 +268,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "ComplexMethod")
     fun test(passedSettings: Solution.Settings = Solution.Settings()): TestResults {
         val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
 
@@ -303,7 +305,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             Pair(null, null)
         }
 
-        val generators = solution.generatorFactory.get(random, settings, receiverGenerator, from = initialGenerators)
+        @Suppress("UNCHECKED_CAST")
+        val generatorOverrides = if (receiverGenerator != null) {
+            mutableMapOf((solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator))
+        } else {
+            mapOf<Type, TypeGeneratorGenerator>()
+        }
+
+        val generators = solution.generatorFactory.get(random, settings, generatorOverrides, from = initialGenerators)
         runners.filter { it.ready }.forEach {
             it.generators = generators
         }
