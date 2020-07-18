@@ -37,7 +37,8 @@ class ReceiverGenerator(val random: Random = Random, val runners: MutableList<Te
     override val edge: Set<Value<Any?>>
         get() = mutableSetOf(Value<Any?>(null, null, null, null, ZeroComplexity))
 
-    override fun random(complexity: Complexity): Value<Any> = runners.findWithComplexity(complexity, random)
+    override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =
+        runners.findWithComplexity(complexity, random)
 }
 
 val UnconfiguredReceiverGenerator = object : TypeGenerator<Any> {
@@ -46,7 +47,7 @@ val UnconfiguredReceiverGenerator = object : TypeGenerator<Any> {
     override val edge: Set<Value<Any?>>
         get() = error("Receiver generation unconfigured")
 
-    override fun random(complexity: Complexity): Value<Any> {
+    override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         error("Receiver generation unconfigured")
     }
 }

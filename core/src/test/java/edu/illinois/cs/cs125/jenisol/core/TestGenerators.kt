@@ -145,7 +145,7 @@ class TestGenerators : StringSpec({
         Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
-                generator.random(Complexity(Complexity.MIN))
+                generator.random(Complexity(Complexity.MIN), null)
                     .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 8
@@ -154,7 +154,7 @@ class TestGenerators : StringSpec({
 
             (0..128).map {
                 @Suppress("UNCHECKED_CAST")
-                generator.random(Complexity(Complexity.MAX))
+                generator.random(Complexity(Complexity.MAX), null)
                     .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
                         it shouldBeLessThanOrEqual 1024
@@ -212,7 +212,7 @@ private fun Method.testGenerator(
     typeGenerator.simple.forEach { invoke(null, it.solutionCopy) }
     typeGenerator.edge.forEach { invoke(null, it.solutionCopy) }
     (1..8).forEach { complexity ->
-        repeat(4) { invoke(null, typeGenerator.random(Complexity(complexity)).solutionCopy) }
+        repeat(4) { invoke(null, typeGenerator.random(Complexity(complexity), null).solutionCopy) }
     }
 }
 
@@ -241,7 +241,7 @@ private fun Method.testParameterGenerator(
         mixed.forEach { invoke(null, *it.solutionCopy) }
     }
     Complexity.ALL.forEach { complexity ->
-        invoke(null, *parameterGenerator.random(complexity).solutionCopy)
+        invoke(null, *parameterGenerator.random(complexity, null).solutionCopy)
     }
 }
 
@@ -252,12 +252,13 @@ fun Array<Array<IntArray>>.totalSize() = size.let {
     total
 }
 
+@Suppress("unused")
 fun Array<Array<IntArray>>.elementCount(): Int {
     var count = 0
     println(size)
     for (i in 0 until size) {
         println("$i:${get(i).size}")
-        for (j in 0 until get(i).size) {
+        for (j in get(i).indices) {
             println("$i:$j:${get(i)[j].size}")
             count += get(i)[j].size
         }

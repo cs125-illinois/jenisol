@@ -222,7 +222,7 @@ class TestRunner(
 
         val generator = generators[solutionExecutable]
             ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
-        val parameters = generator.generate()
+        val parameters = generator.generate(this)
 
         val stepType = type ?: if (!created) {
             when (solutionExecutable) {

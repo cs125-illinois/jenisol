@@ -10,6 +10,7 @@ import edu.illinois.cs.cs125.jenisol.core.RandomParameters
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.SimpleType
 import edu.illinois.cs.cs125.jenisol.core.Solution
+import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import edu.illinois.cs.cs125.jenisol.core.asArray
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
 import edu.illinois.cs.cs125.jenisol.core.isEdgeType
@@ -48,7 +49,7 @@ interface ParametersGenerator {
     val simple: List<Parameters>
     val edge: List<Parameters>
     val mixed: List<Parameters>
-    fun random(complexity: Complexity): Parameters
+    fun random(complexity: Complexity, runner: TestRunner?): Parameters
 }
 
 typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
@@ -193,8 +194,8 @@ class Generators(private val map: Map<Executable, ExecutableGenerator>) : Map<Ex
 
 interface ExecutableGenerator {
     val fixed: List<Parameters>
-    fun random(complexity: Complexity): Parameters
-    fun generate(): Parameters
+    fun random(complexity: Complexity, runner: TestRunner): Parameters
+    fun generate(runner: TestRunner): Parameters
     fun next()
     fun prev()
 }
@@ -302,7 +303,7 @@ class ConfiguredParametersGenerator(
     private val complexity = Complexity()
     private var randomStarted = false
 
-    override fun random(complexity: Complexity): Parameters = if (overrideRandom != null) {
+    override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
         val solutionParameters =
             overrideRandom.invoke(null, complexity.level, randomPair.solution) as ParameterGroup
@@ -326,14 +327,14 @@ class ConfiguredParametersGenerator(
         )
     } else {
         check(generator != null) { "Automatic parameter generator was unexpectedly null" }
-        generator.random(complexity)
+        generator.random(complexity, runner)
     }
 
-    override fun generate(): Parameters {
+    override fun generate(runner: TestRunner): Parameters {
         return if (index in fixed.indices) {
             fixed[index]
         } else {
-            random(bound ?: complexity).also { randomStarted = true }
+            random(bound ?: complexity, runner).also { randomStarted = true }
         }.also {
             index++
         }
@@ -359,11 +360,11 @@ class ConfiguredParametersGenerator(
 @Suppress("EmptyFunctionBlock")
 class EmptyParameterMethodGenerator : ExecutableGenerator {
     override val fixed = listOf(Parameters(arrayOf(), arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY))
-    override fun random(complexity: Complexity) = fixed.first()
+    override fun random(complexity: Complexity, runner: TestRunner) = fixed.first()
 
     override fun prev() {}
     override fun next() {}
-    override fun generate(): Parameters = fixed.first()
+    override fun generate(runner: TestRunner): Parameters = fixed.first()
 }
 
 class TypeParameterGenerator(
@@ -410,8 +411,8 @@ class TypeParameterGenerator(
         }
     }
 
-    override fun random(complexity: Complexity): Parameters {
-        return parameterGenerators.map { it.random(complexity) }.map {
+    override fun random(complexity: Complexity, runner: TestRunner?): Parameters {
+        return parameterGenerators.map { it.random(complexity, runner) }.map {
             Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
             Parameters(

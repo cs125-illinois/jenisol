@@ -310,7 +310,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val generatorOverrides = if (receiverGenerator != null) {
             mutableMapOf(
                 (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
-                (Any::class.java as Type) to { r: Random -> ObjectGenerator(r, runners) }
+                (Any::class.java as Type) to { r: Random -> ObjectGenerator(r, receiverGenerator) }
             )
         } else {
             mapOf<Type, TypeGeneratorGenerator>()
