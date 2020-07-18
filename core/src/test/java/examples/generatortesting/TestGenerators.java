@@ -36,6 +36,8 @@ public class TestGenerators {
 
   public static void testString(String value) {}
 
+  public static void testObject(Object value) {}
+
   public static void testIntArray(int[] values) {}
 
   public static void testTwoIntArrays(int[] first, int[] second) {}

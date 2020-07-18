@@ -29,14 +29,14 @@ fun Class<*>.test() {
 
     solution(primarySolution).apply {
         submission(primarySolution).test().also { results ->
-            check(results.succeeded) { "Solution did not pass testing: ${results.find { it.failed }!!.verifierThrew}" }
+            check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
         }
         testingClasses
             .filter { it != primarySolution && it.simpleName.startsWith("Correct") }
             .forEach { correct ->
                 submission(correct).test().also { results ->
                     check(results.succeeded) {
-                        "Class marked as correct did not pass testing: ${results.find { it.failed }!!.differs}"
+                        "Class marked as correct did not pass testing: ${results.explain()}"
                     }
                 }
             }

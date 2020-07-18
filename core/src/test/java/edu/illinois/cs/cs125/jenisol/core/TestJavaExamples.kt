@@ -80,4 +80,7 @@ class TestJavaExamples : StringSpec({
     examples.java.receiver.constructorthrows.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.java.receiver.equals.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })

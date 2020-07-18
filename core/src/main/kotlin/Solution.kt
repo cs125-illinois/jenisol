@@ -3,6 +3,7 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
+import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
 import java.io.ByteArrayOutputStream
@@ -307,7 +308,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         @Suppress("UNCHECKED_CAST")
         val generatorOverrides = if (receiverGenerator != null) {
-            mutableMapOf((solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator))
+            mutableMapOf(
+                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
+                (Any::class.java as Type) to { r: Random -> ObjectGenerator(r, runners) }
+            )
         } else {
             mapOf<Type, TypeGeneratorGenerator>()
         }

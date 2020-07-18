@@ -45,7 +45,7 @@
 
     <!-- Checks that a package-info.java file exists for each package.     -->
     <!-- See http://checkstyle.sf.net/config_javadoc.html#JavadocPackage -->
-    <!-- jenisol: we don't need this for our examples.java.examples
+    <!-- jenisol: we don't need this for our examples
     <module name="JavadocPackage"/>
     -->
 
@@ -91,7 +91,7 @@
 
         <!-- Checks for Javadoc comments.                     -->
         <!-- See http://checkstyle.sf.net/config_javadoc.html -->
-        <!-- jenisol: we don't need to require Javadoc comments on examples.java.examples.
+        <!-- jenisol: we don't need to require Javadoc comments on examples
         <module name="JavadocMethod"/>
         <module name="JavadocType"/>
         <module name="JavadocVariable"/>
@@ -155,7 +155,9 @@
         <!-- See http://checkstyle.sf.net/config_coding.html -->
         <module name="AvoidInlineConditionals"/>
         <module name="EmptyStatement"/>
-        <module name="EqualsHashCode"/>
+        <!-- jenisol: our examples don't always provide both
+          <module name="EqualsHashCode"/>
+        -->
         <module name="HiddenField"/>
         <module name="IllegalInstantiation"/>
         <module name="InnerAssignment"/>
@@ -171,7 +173,7 @@
         <module name="DesignForExtension"/>
         -->
         <module name="FinalClass"/>
-        <!-- jenisol: our examples.java.examples expose public constructors
+        <!-- jenisol: our examples expose public constructors
         <module name="HideUtilityClassConstructor"/>
         -->
         <module name="InterfaceIsType"/>

@@ -5,6 +5,7 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.RandomGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomType
+import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import java.lang.reflect.Array
 import java.lang.reflect.Method
 import java.lang.reflect.Type
@@ -77,11 +78,11 @@ class OverrideTypeGenerator(
 
     override val simple: Set<Value<Any>> =
         simpleOverride ?: default?.simple as Set<Value<Any>>
-        ?: error("Couldn't find simple generator for $name")
+            ?: error("Couldn't find simple generator for $name")
 
     override val edge: Set<Value<Any?>> =
         edgeOverride ?: default?.edge as Set<Value<Any?>>
-        ?: error("Couldn't find edge generator for $name")
+            ?: error("Couldn't find edge generator for $name")
 
     override fun random(complexity: Complexity): Value<Any> {
         if (rand == null) {
@@ -351,7 +352,16 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
     }
 }
 
-class ObjectGenerator(random: Random) : TypeGenerators<Any>(random) {
+@Suppress("UNCHECKED_CAST")
+class ObjectGenerator(
+    random: Random,
+    private val runners: MutableList<TestRunner> = mutableListOf()
+) : TypeGenerators<Any>(random) {
+
+    init {
+        check(runners.none { it.receivers == null }) { "Found null receivers" }
+        check(runners.none { !it.ready }) { "Found non-ready receivers" }
+    }
 
     private val defaultObjects = Defaults.map.filterKeys { !it.isPrimitive && it != Any::class.java }
         .mapValues { (_, generator) -> generator(random) }
@@ -360,17 +370,22 @@ class ObjectGenerator(random: Random) : TypeGenerators<Any>(random) {
         check(defaultObjects.isNotEmpty()) { "No default objects to generate" }
     }
 
-    override val simple = (setOf(Any()) + defaultObjects.values.map { it.simple }.flatten().toSet())
-        .values(ZeroComplexity)
+    override val simple = (
+        setOf(Any()).values(ZeroComplexity) +
+            defaultObjects.values.map { it.simple }.flatten().distinct().toSet()
+        )
+        as Set<Value<Any>>
 
-    override val edge = (setOf(null as Any?) + defaultObjects.values.map { it.edge }.flatten().toSet()).distinct()
-        .values(ZeroComplexity)
+    override val edge = (
+        setOf(null as Any?).values(ZeroComplexity) +
+            defaultObjects.values.map { it.edge }.flatten().distinct().toSet()
+        )
+        as Set<Value<Any?>>
 
-    @Suppress("UNCHECKED_CAST")
-    override fun random(complexity: Complexity): Value<Any> {
-        val randomType = defaultObjects.keys.shuffled(random).first()
-        return (defaultObjects[randomType] ?: error("Couldn't find type generator that should exist"))
-            .random(complexity) as Value<Any>
+    override fun random(complexity: Complexity): Value<Any> = if (runners.isNotEmpty() && random.nextBoolean()) {
+        runners.findWithComplexity(complexity, random)
+    } else {
+        defaultObjects.values.shuffled(random).first().random(complexity) as Value<Any>
     }
 
     companion object {

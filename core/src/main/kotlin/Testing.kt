@@ -349,7 +349,7 @@ fun Any.deepEquals(
             .all { (solution, submission) ->
                 when {
                     solution === submission -> true
-                    solution == null || submission === null -> false
+                    solution == null || submission == null -> false
                     else -> solution.deepEquals(submission, comparators)
                 }
             }

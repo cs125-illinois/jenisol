@@ -12,6 +12,7 @@
         <list>
           <option value="detekt" />
           <option value="core:checkstyleTest" />
+          <option value="lintKotlin" />
         </list>
       </option>
       <option name="vmOptions" value="" />

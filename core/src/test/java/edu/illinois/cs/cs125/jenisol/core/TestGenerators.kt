@@ -102,6 +102,13 @@ class TestGenerators : StringSpec({
             method.testGenerator()
         }
     }
+    "it should generate Objects properly" {
+        methodNamed("testObject").also { method ->
+            method.invoke(null, null)
+            method.invoke(null, Any())
+            method.testGenerator()
+        }
+    }
     "it should generate arrays properly" {
         methodNamed("testIntArray").also { method ->
             method.invoke(null, null)
@@ -150,7 +157,7 @@ class TestGenerators : StringSpec({
                 generator.random(Complexity(Complexity.MAX))
                     .let { it.solutionCopy as Array<Array<IntArray>> }.totalSize().also {
                         it shouldBeGreaterThan 0
-                        it shouldBeLessThanOrEqual 512
+                        it shouldBeLessThanOrEqual 1024
                     }
             }
         }

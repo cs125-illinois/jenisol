@@ -5,6 +5,27 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import kotlin.random.Random
 
+@Suppress("UNCHECKED_CAST")
+fun List<TestRunner>.findWithComplexity(complexity: Complexity, random: Random): Value<Any> {
+    filter { it.ready }
+        .map { it.receivers!! }
+        .filter { it.complexity == complexity }
+        .shuffled(random)
+        .firstOrNull()
+        ?.also {
+            return it as Value<Any>
+        }
+    filter { it.ready }
+        .map { it.receivers!! }
+        .filter { it.complexity.level <= complexity.level }
+        .shuffled(random)
+        .firstOrNull()
+        ?.also {
+            return it as Value<Any>
+        }
+    error("Couldn't locate receiver with complexity: ${complexity.level}")
+}
+
 class ReceiverGenerator(val random: Random = Random, val runners: MutableList<TestRunner>) : TypeGenerator<Any> {
     init {
         check(runners.none { it.receivers == null }) { "Found null receivers" }
@@ -24,28 +45,7 @@ class ReceiverGenerator(val random: Random = Random, val runners: MutableList<Te
     override val edge: Set<Value<Any?>>
         get() = mutableSetOf(Value<Any?>(null, null, null, null, ZeroComplexity))
 
-    @Suppress("UNCHECKED_CAST")
-    override fun random(complexity: Complexity): Value<Any> {
-        runners
-            .filter { it.ready }
-            .map { it.receivers!! }
-            .filter { it.complexity == complexity }
-            .shuffled(random)
-            .firstOrNull()
-            ?.also {
-                return it as Value<Any>
-            }
-        runners
-            .filter { it.ready }
-            .map { it.receivers!! }
-            .filter { it.complexity.level <= complexity.level }
-            .shuffled(random)
-            .firstOrNull()
-            ?.also {
-                return it as Value<Any>
-            }
-        error("Couldn't locate receiver with complexity: ${complexity.level}")
-    }
+    override fun random(complexity: Complexity): Value<Any> = runners.findWithComplexity(complexity, random)
 }
 
 val UnconfiguredReceiverGenerator = object : TypeGenerator<Any> {
