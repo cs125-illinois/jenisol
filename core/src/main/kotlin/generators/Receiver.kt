@@ -6,25 +6,17 @@ import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import kotlin.random.Random
 
 @Suppress("UNCHECKED_CAST")
-fun List<TestRunner>.findWithComplexity(complexity: Complexity, random: Random): Value<Any> {
-    filter { it.ready }
-        .map { it.receivers!! }
-        .filter { it.complexity == complexity }
-        .shuffled(random)
-        .firstOrNull()
-        ?.also {
-            return it as Value<Any>
+fun List<TestRunner>.findWithComplexity(complexity: Complexity, random: Random): Value<Any> = filter { it.ready }
+    .map { it.receivers!! }
+    .let { receivers ->
+        check(receivers.isNotEmpty()) { "No receivers available" }
+        val closest = receivers.map { it.complexity.level }.distinct().sorted().let { complexities ->
+            complexities.find { it == complexity.level } ?: complexities.filter { complexity.level < it }.sorted()
+                .firstOrNull() ?: complexities.filter { complexity.level < it }.sorted().reversed().firstOrNull()
+                ?: error("Couldn't locate a complexity that should exist")
         }
-    filter { it.ready }
-        .map { it.receivers!! }
-        .filter { it.complexity.level <= complexity.level }
-        .shuffled(random)
-        .firstOrNull()
-        ?.also {
-            return it as Value<Any>
-        }
-    error("Couldn't locate receiver with complexity: ${complexity.level}")
-}
+        receivers.filter { it.complexity.level == closest }.shuffled(random).firstOrNull() as Value<Any>
+    }
 
 class ReceiverGenerator(val random: Random = Random, val runners: MutableList<TestRunner>) : TypeGenerator<Any> {
     init {
