@@ -70,6 +70,9 @@ class TestJavaExamples : StringSpec({
     examples.java.noreceiver.single.countarrayequals.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.java.noreceiver.single.factoryconstructor.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
     examples.java.receiver.single.receiverparameter.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }

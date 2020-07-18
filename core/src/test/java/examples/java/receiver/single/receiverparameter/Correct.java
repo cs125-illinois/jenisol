@@ -1,6 +1,6 @@
 package examples.java.receiver.single.receiverparameter;
 
-public class Correct implements CorrectImpl {
+public class Correct {
   private int value;
   private boolean used = false;
 

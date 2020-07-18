@@ -50,7 +50,7 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField var message: String? = null,
     @JvmField val differs: MutableSet<Differs> = mutableSetOf()
 ) {
-    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD }
+    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW }
 
     val succeeded: Boolean
@@ -171,27 +171,46 @@ class TestRunner(
     val runnerID: Int,
     val submission: Submission,
     var generators: Generators,
-    val constructors: Sequence<Constructor<*>>
+    val receiverGenerators: Sequence<Executable>,
+    var receivers: Value<Any?>? = null
 ) {
-
-    val methodIterator = submission.solution.solutionMethods.cycle()
+    val methodIterator = submission.solution.methodsToTest.cycle()
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
 
     val ready: Boolean
         get() = testResults.none { it.failed } && receivers != null
 
-    var receivers: Value<Any?>? = null
+    var returnedReceivers: Value<Any?>? = null
+
+    var created: Boolean
 
     init {
-        if (submission.solution.noReceiver) {
+        if (receivers == null && submission.solution.skipReceiver) {
             receivers = Value(null, null, null, null, ZeroComplexity)
         }
+        created = receivers != null
     }
 
-    private var count = 0
+    var count = 0
+
+    fun Executable.pairRun(
+        receiver: Any?, parameters: Array<Any?>, parametersCopy: Array<Any?>? = null
+    ): Result<Any, ParameterGroup> = submission.solution.captureOutput {
+        unwrap {
+            when (this) {
+                is Method -> this.invoke(receiver, *parameters)
+                is Constructor<*> -> this.newInstance(*parameters)
+                else -> error("Unknown executable type")
+            }
+        }
+    }.let {
+        Result(parameters, it, parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false)
+    }
 
     @Suppress("ComplexMethod", "LongMethod", "ComplexCondition")
-    fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null): TestResult<*, *> {
+    fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null) {
+        val creating = !created && type != TestResult.Type.INITIALIZER
+
         val start = Instant.now()
         val submissionExecutable = submission.submissionExecutables[solutionExecutable]
             ?: error("couldn't find a submission method that should exist")
@@ -200,66 +219,54 @@ class TestRunner(
         }
 
         val generator = generators[solutionExecutable]
-            ?: error("couldn't find a parameter generator that should exist")
+            ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
         val parameters = generator.generate()
 
-        val stepType = type ?: when (solutionExecutable) {
-            is Method -> TestResult.Type.METHOD
-            is Constructor<*> -> TestResult.Type.CONSTRUCTOR
-            else -> error("encountered unknown executable type: $solutionExecutable")
-        }
-
-        if (stepType == TestResult.Type.METHOD) {
+        val stepType = type ?: if (!created) {
+            when (solutionExecutable) {
+                is Constructor<*> -> TestResult.Type.CONSTRUCTOR
+                is Method -> TestResult.Type.FACTORY_METHOD
+                else -> error("Unexpected executable type")
+            }
+        } else {
             check(receivers != null) { "No receivers available" }
-        }
-        val solutionResult = submission.solution.captureOutput {
-            unwrap {
-                when (solutionExecutable) {
-                    is Method -> solutionExecutable.invoke(receivers!!.solution, *parameters.solution)
-                    is Constructor<*> -> solutionExecutable.newInstance(*parameters.solution)
-                    else -> error("encountered unknown executable type: $solutionExecutable")
-                }
+            when (solutionExecutable) {
+                is Constructor<*> -> TestResult.Type.COPY_CONSTRUCTOR
+                is Method -> TestResult.Type.METHOD
+                else -> error("Unexpected executable type")
             }
-        }.let {
-            Result<Any, ParameterGroup>(
-                parameters.solution, it, !submission.compare(parameters.solution, parameters.solutionCopy)
-            )
         }
+        val stepReceivers = receivers ?: Value(null, null, null, null, ZeroComplexity)
 
-        val submissionResult = submission.solution.captureOutput {
-            unwrap {
-                when (submissionExecutable) {
-                    is Method -> submissionExecutable.invoke(receivers!!.submission, *parameters.submission)
-                    is Constructor<*> -> submissionExecutable.newInstance(*parameters.submission)
-                    else -> error("encountered unknown executable type: $submissionExecutable")
-                }
-            }
-        }.let {
-            Result<Any, ParameterGroup>(
-                parameters.submission, it, !submission.compare(parameters.submission, parameters.submissionCopy)
-            )
-        }
+        val solutionResult =
+            solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
+        val submissionResult =
+            submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
 
-        // If this is a constructor and it didn't fail, generate additional references object
-        // so that we can donate this to the receiver generator later
         val (solutionCopy, submissionCopy) = if (
-            solutionExecutable is Constructor<*> && submissionExecutable is Constructor<*> &&
-            solutionResult.returned != null && submissionResult.returned != null
+            creating && solutionResult.returned != null && submissionResult.returned != null
         ) {
-            Pair(submission.solution.captureOutput {
-                unwrap { solutionExecutable.newInstance(*parameters.solutionCopy) }
-            }.let {
-                Result<Any, ParameterGroup>(parameters.solutionCopy, it, false)
-            }, submission.solution.captureOutput {
-                unwrap { submissionExecutable.newInstance(*parameters.submissionCopy) }
-            }.let {
-                Result<Any, ParameterGroup>(parameters.submissionCopy, it, false)
-            })
+            // If we are created receivers and that succeeded, create a second pair to donate to the receiver
+            // generator
+            Pair(
+                solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy),
+                submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
+            )
+        } else if (created &&
+            solutionResult.returned != null && submissionResult.returned != null &&
+            solutionResult.returned::class.java == submission.solution.solution &&
+            submissionResult.returned::class.java == submission.submission
+        ) {
+            // Or if we ran a method that generated more receivers, also donate them
+            Pair(
+                solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy),
+                submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
+            )
         } else {
             Pair(null, null)
         }
 
-        return TestResult(
+        val step = TestResult(
             runnerID,
             stepCount, count++,
             solutionExecutable, stepType, parameters.solutionCopy.toParameterGroup(),
@@ -268,36 +275,45 @@ class TestRunner(
             parameters.complexity.level,
             submission.solution.solution,
             submission.submission
-        ).also { step ->
-            submission.verify(step)
-            testResults.add(step)
-            if (step.succeeded) {
-                generator.next()
+        )
+
+        submission.verify(step)
+        testResults.add(step)
+
+        if (step.succeeded) {
+            generator.next()
+        } else {
+            generator.prev()
+        }
+        if (step.succeeded && creating) {
+            // If both receiver generators throw identically, then the step didn't fail but
+            // this test runner still can't proceed
+            receivers = if (step.solution.returned != null) {
+                Value(
+                    step.solution.returned,
+                    step.submission.returned,
+                    solutionCopy!!.returned,
+                    submissionCopy!!.returned,
+                    parameters.complexity
+                )
             } else {
-                generator.prev()
+                null
             }
-            if (step.succeeded && stepType == TestResult.Type.CONSTRUCTOR) {
-                // If both constructors throw identically, then the step didn't fail but
-                // this test runner still can't proceed
-                receivers = if (step.solution.returned != null) {
-                    Value(
-                        step.solution.returned,
-                        step.submission.returned,
-                        solutionCopy!!.returned,
-                        submissionCopy!!.returned,
-                        parameters.complexity
-                    )
-                } else {
-                    null
-                }
-            }
+        } else if (step.succeeded && solutionCopy != null && submissionCopy != null) {
+            check(returnedReceivers == null) { "Returned receivers not retrieved between steps" }
+            returnedReceivers = Value(
+                step.solution.returned,
+                step.submission.returned,
+                solutionCopy.returned,
+                submissionCopy.returned,
+                parameters.complexity
+            )
         }
     }
 
-    var created = false
     fun next(stepCount: Int): Boolean {
-        if (!submission.solution.noReceiver && !created) {
-            run(constructors.first(), stepCount)
+        if (!created) {
+            run(receiverGenerators.first(), stepCount)
             if (ready && submission.solution.initializer != null) {
                 run(submission.solution.initializer, stepCount, TestResult.Type.INITIALIZER)
             }

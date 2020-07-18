@@ -11,7 +11,6 @@ import java.lang.reflect.Executable
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.Proxy
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
@@ -45,83 +44,95 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         }
     }
 
-    val publicMethods = (solution.declaredMethods.toList() + solution.declaredConstructors.toList()).map {
-        it as Executable
-    }.filter { !it.isPrivate() && !it.isJenisol() }
+    val allExecutables =
+        (solution.declaredMethods.toSet() + solution.declaredConstructors.toSet())
+            .filterNotNull()
+            .filter {
+                !it.isPrivate() && !it.isJenisol()
+            }.toSet().also {
+                check(it.isNotEmpty()) { "Found no methods to test" }
+            }
 
-    val solutionMethods = publicMethods.filterIsInstance<Method>().also {
-        check(it.isNotEmpty()) { "Found no methods to test in ${solution.name}" }
+    fun Executable.receiverParameter() = parameterTypes.any { it == solution }
+
+    val receiverGenerators = allExecutables.filter { executable ->
+        !executable.receiverParameter()
+    }.filter { executable ->
+        when (executable) {
+            is Constructor<*> -> true
+            is Method -> executable.isStatic() && executable.returnType == solution
+            else -> error("Unexpected executable type")
+        }
+    }.toSet()
+    val methodsToTest = (allExecutables - receiverGenerators).also {
+        check(it.isNotEmpty()) { "Found methods that generate receivers but no ways to test them" }
+    }
+    val needsReceiver = methodsToTest.filter { executable ->
+        executable.receiverParameter() || (executable is Method && !executable.isStatic())
+    }.toSet()
+    val receiverTransformers = methodsToTest.filterIsInstance<Method>().filter { method ->
+        method.returnType != solution
+    }.filter { method ->
+        !method.isStatic() || method.receiverParameter()
     }.toSet()
 
-    val receiverParameters = solutionMethods.any { method -> method.parameterTypes.any { it == solution } }
-    val receiverReturn = solutionMethods.any { method -> method.returnType == solution }
-    val noReceiver = solutionMethods.all { it.isStatic() } && !receiverParameters
+    val skipReceiver = needsReceiver.isEmpty() && receiverTransformers.isEmpty() &&
+        (receiverGenerators.isEmpty() ||
+            (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty()))
 
-    val solutionConstructors = if (!noReceiver) {
-        publicMethods.filterIsInstance<Constructor<*>>().filter { it.isPublic() }.also {
-            check(it.isNotEmpty()) {
-                "Testing requires receivers but found no available public constructors in ${solution.name}"
-            }
-        }.toSet()
-    } else {
-        setOf()
-    }
-    val solutionExecutables = solutionConstructors + solutionMethods
-
-    val emptyConstructor = solutionConstructors.size == 1 && solutionConstructors.first().parameters.isEmpty()
-    val emptyMethod = solutionMethods.size == 1 && solutionMethods.first().parameters.isEmpty()
-
-    val initializer: Executable? = if (emptyConstructor) {
-        solution.superclass.declaredMethods.filter { it.isInitializer() }.also {
-            check(it.size <= 1) { "Solution parent class ${solution.superclass.name} has multiple initializers" }
-        }.firstOrNull()?.let {
-            Initializer.validate(it)
-            it
+    init {
+        if (needsReceiver.isNotEmpty()) {
+            check(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
         }
-    } else {
-        null
-    }
-    val emptyInitializer = initializer?.parameters?.isEmpty() ?: true
-
-    private val initializers = if (initializer != null) {
-        setOf(initializer)
-    } else {
-        setOf()
+        if (!skipReceiver && receiverGenerators.isNotEmpty()) {
+            check(receiverTransformers.isNotEmpty()) { "No way to verify generated receivers" }
+        }
     }
 
-    val receiverInitializationMethods = solutionConstructors + initializers
+    val initializer: Executable? = solution.superclass.declaredMethods.filter {
+        it.isInitializer()
+    }.also {
+        check(it.size <= 1) { "Solution parent class ${solution.superclass.name} has multiple initializers" }
+    }.firstOrNull()?.also {
+        Initializer.validate(it)
+    }
+    private val initializers = initializer?.let { setOf(it) } ?: setOf()
+    val receiversAndInitializers = receiverGenerators + initializers
 
-    val generatorFactory: GeneratorFactory = GeneratorFactory(
-        solutionMethods + solutionConstructors + initializers, this
-    )
+    val generatorFactory: GeneratorFactory = GeneratorFactory(allExecutables + initializers, this)
 
+    /*
     val proxyInterface = solution.interfaces.filter { it.isCompare() }.also {
         check(it.size <= 1) { "Can only declare one compare interface" }
-    }.firstOrNull().also {
-        if (it == null && (receiverParameters || receiverReturn)) {
-            error("Must register a receiver interface to compare receivers passed or returned by test methods")
-        }
-    }
+    }.firstOrNull()
 
-    @Suppress("Unused")
     fun createProxy(submission: Any) = proxyInterface?.let {
         Proxy.newProxyInstance(submission::class.java.classLoader, listOf(it).toTypedArray()) { _, method, args ->
             method.invoke(submission, *args)
         }
     } ?: error("No interface to proxy to")
+     */
+
+    val receiverEntropy: Int
+    val methodEntropy: Int
 
     // These calculations should be improved to create a better test balance
-    @Suppress("MagicNumber")
-    val receiverEntropy = when {
-        noReceiver -> 0
-        emptyConstructor && emptyInitializer -> 2
-        else -> 5
-    }
+    init {
+        val emptyInitializers =
+            (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty()) &&
+                (initializer?.parameters?.isEmpty() ?: true)
 
-    @Suppress("MagicNumber")
-    val methodEntropy = when {
-        emptyMethod -> 0
-        else -> 5
+        @Suppress("MagicNumber")
+        receiverEntropy = when {
+            skipReceiver -> 0
+            emptyInitializers -> 2
+            else -> 5
+        }
+        @Suppress("MagicNumber")
+        methodEntropy = when {
+            methodsToTest.size == 1 && methodsToTest.first().parameters.isEmpty() -> 0
+            else -> 5
+        }
     }
 
     val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
@@ -152,8 +163,14 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     val verifier: Method? = solution.declaredMethods.filter { it.isVerify() }.also {
         check(it.size <= 1) { "No support yet for multiple verifiers" }
     }.firstOrNull()?.also {
-        check(solutionMethods.size == 1) { "No support yet for multiple verifiers" }
-        Verify.validate(it, solutionMethods.first().genericReturnType, solutionMethods.first().parameterTypes)
+        check(methodsToTest.size == 1) { "No support yet for multiple verifiers" }
+        val methodToTest = methodsToTest.first()
+        val returnType = when (methodToTest) {
+            is Constructor<*> -> solution
+            is Method -> methodToTest.genericReturnType
+            else -> error("Unexpected executable type")
+        }
+        Verify.validate(it, returnType, methodToTest.parameterTypes)
     }
 
     val receiverCompare = object : Comparator {
@@ -164,7 +181,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     fun submission(submission: Class<*>) = Submission(this, submission)
 }
 
-fun Set<Method>.cycle() = sequence {
+fun Set<Executable>.cycle() = sequence {
     yield(shuffled().first())
 }
 
@@ -188,7 +205,7 @@ class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
 )
 
 class Submission(val solution: Solution, val submission: Class<*>) {
-    val submissionExecutables = solution.solutionExecutables.map { solutionExecutable ->
+    val submissionExecutables = solution.allExecutables.map { solutionExecutable ->
         when (solutionExecutable) {
             is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
             is Method -> submission.findMethod(solutionExecutable, solution.solution)
@@ -260,19 +277,20 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         var stepCount = 0
         var totalCount = 0
 
-        val constructors = sequence {
+        val receiverGenerators = sequence {
             while (true) {
-                yieldAll(solution.solutionConstructors.toList().shuffled(random))
+                yieldAll(solution.receiverGenerators.toList().shuffled(random))
             }
         }
 
-        val (receiverGenerator, initialGenerators) = if (!solution.noReceiver) {
+        val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
             check(settings.receiverCount > 1) { "Incorrect receiver count" }
 
-            val generators =
-                solution.generatorFactory.get(random, settings, null, solution.receiverInitializationMethods)
+            val generators = solution.generatorFactory.get(
+                random, settings, null, solution.receiversAndInitializers
+            )
             while (runners.readyCount() < settings.receiverCount) {
-                TestRunner(runners.size, this, generators, constructors).also { runner ->
+                TestRunner(runners.size, this, generators, receiverGenerators).also { runner ->
                     runner.next(stepCount++)
                     runners.add(runner)
                 }
@@ -283,19 +301,37 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
 
         val generators = solution.generatorFactory.get(random, settings, receiverGenerator, from = initialGenerators)
-        runners.filter { it.ready }.forEach { it.generators = generators }
+        runners.filter { it.ready }.forEach {
+            it.generators = generators
+        }
 
         val totalTests = settings.receiverCount * settings.methodCount
         while (true) {
-            if (runners.readyCount() < settings.receiverCount) {
-                TestRunner(runners.size, this, generators, constructors).also { runner ->
+            val usedRunner = if (runners.readyCount() < settings.receiverCount) {
+                TestRunner(runners.size, this, generators, receiverGenerators).also { runner ->
                     runner.next(stepCount++)
                     runners.add(runner)
                     receiverGenerator?.runners?.add(runner)
                 }
             } else {
-                runners.filter { it.ready }.shuffled(random).first().next(stepCount++)
+                runners.filter { it.ready }.shuffled(random).first().also {
+                    it.next(stepCount++)
+                }
             }
+
+            if (usedRunner.returnedReceivers != null) {
+                runners.add(
+                    TestRunner(
+                        runners.size,
+                        this,
+                        generators,
+                        receiverGenerators,
+                        usedRunner.returnedReceivers
+                    )
+                )
+                usedRunner.returnedReceivers = null
+            }
+
             totalCount++
             if (totalCount == totalTests) {
                 break
@@ -318,7 +354,7 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
         it != null &&
         it.name == method.name &&
         it.parameterTypes.fixReceivers(this, solution).contentEquals(method.parameterTypes) &&
-        it.returnType == method.returnType &&
+        (it.returnType == method.returnType || (it.returnType == this && method.returnType == solution)) &&
         it.isStatic() == method.isStatic()
 }
 

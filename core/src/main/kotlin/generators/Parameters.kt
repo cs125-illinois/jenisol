@@ -126,10 +126,10 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             }
         }.toMutableList()
 
-        if (solution.noReceiver) {
+        if (solution.skipReceiver) {
             check(solutionClass !in neededTypes) {
                 "Incorrectly calculated whether we needed a receiver: " +
-                    "${solution.noReceiver} v. ${solutionClass !in neededTypes}"
+                    "${solution.skipReceiver} v. ${solutionClass !in neededTypes}"
             }
         }
 

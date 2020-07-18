@@ -1,6 +1,6 @@
 package examples.java.receiver.single.receiverparameter;
 
-public class Incorrect0 implements CorrectImpl {
+public class Incorrect0 {
   private int value;
 
   public Incorrect0() {
