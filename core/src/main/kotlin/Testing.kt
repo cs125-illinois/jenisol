@@ -2,6 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
+import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
@@ -152,7 +153,8 @@ fun print(value: Any?): String = when {
 
 @Suppress("UNUSED")
 class TestResults(
-    val results: List<TestResult<Any, ParameterGroup>>
+    val results: List<TestResult<Any, ParameterGroup>>,
+    val settings: Settings
 ) : List<TestResult<Any, ParameterGroup>> by results {
     val succeeded = all { it.succeeded }
     val failed = !succeeded
@@ -177,8 +179,12 @@ class TestRunner(
     val methodIterator = submission.solution.methodsToTest.cycle()
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
 
+    val failed: Boolean
+        get() = testResults.any { it.failed }
     val ready: Boolean
         get() = testResults.none { it.failed } && receivers != null
+
+    var lastComplexity: Complexity? = null
 
     var returnedReceivers: Value<Any?>? = null
 
@@ -297,20 +303,19 @@ class TestRunner(
         } else {
             generator?.prev()
         }
-        if (step.succeeded && creating) {
-            // If both receiver generators throw identically, then the step didn't fail but
-            // this test runner still can't proceed
-            receivers = if (step.solution.returned != null) {
-                Value(
-                    step.solution.returned,
-                    step.submission.returned,
-                    solutionCopy!!.returned,
-                    submissionCopy!!.returned,
-                    parameters.complexity
-                )
-            } else {
-                null
-            }
+
+        lastComplexity = parameters.complexity
+
+        // If both receiver generators throw identically, then the step didn't fail but
+        // this test runner still can't proceed
+        if (step.succeeded && creating && step.solution.returned != null) {
+            receivers = Value(
+                step.solution.returned,
+                step.submission.returned,
+                solutionCopy!!.returned,
+                submissionCopy!!.returned,
+                parameters.complexity
+            )
         } else if (step.succeeded && solutionCopy != null && submissionCopy != null) {
             check(returnedReceivers == null) { "Returned receivers not retrieved between steps" }
             returnedReceivers = Value(

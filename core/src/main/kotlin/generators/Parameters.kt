@@ -7,6 +7,7 @@ import edu.illinois.cs.cs125.jenisol.core.FixedParameters
 import edu.illinois.cs.cs125.jenisol.core.ParameterGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomParameters
 import edu.illinois.cs.cs125.jenisol.core.RandomType
+import edu.illinois.cs.cs125.jenisol.core.Settings
 import edu.illinois.cs.cs125.jenisol.core.SimpleType
 import edu.illinois.cs.cs125.jenisol.core.Solution
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
@@ -165,7 +166,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
 
     fun get(
         random: Random = Random,
-        settings: Solution.Settings,
+        settings: Settings,
         typeGeneratorOverrides: Map<Type, TypeGeneratorGenerator>? = null,
         forExecutables: Set<Executable> = executables,
         from: Generators? = null
@@ -259,14 +260,14 @@ class MethodParametersGeneratorGenerator(target: Executable) {
     val needsParameterGenerator = fixedParameters == null || randomParameters == null
     fun generate(
         parametersGenerator: ParametersGeneratorGenerator?,
-        settings: Solution.Settings,
+        settings: Settings,
         random: Random = Random
     ) = ConfiguredParametersGenerator(parametersGenerator, settings, random, fixedParameters, randomParameters)
 }
 
 class ConfiguredParametersGenerator(
     parametersGenerator: ParametersGeneratorGenerator?,
-    private val settings: Solution.Settings,
+    private val settings: Settings,
     private val random: Random = Random,
     overrideFixed: Collection<ParameterGroup>? = null,
     private val overrideRandom: Method? = null

@@ -100,12 +100,21 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    @Suppress("LongMethod", "ComplexMethod")
+    @Suppress("UNCHECKED_CAST")
+    fun List<TestRunner>.toResults(settings: Settings) =
+        TestResults(map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten(), settings)
+
+    private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
+        check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
+    }.minBy { it.lastComplexity!!.level }
+
+    @Suppress("LongMethod", "ComplexMethod", "ReturnCount")
     fun test(
-        passedSettings: Solution.Settings = Solution.Settings(),
+        passedSettings: Settings = Settings(),
         captureOutput: CaptureOutput = ::defaultCaptureOutput
     ): TestResults {
-        val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
+        val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
+        println(settings)
 
         val random = if (passedSettings.seed == -1) {
             Random
@@ -115,7 +124,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         val runners: MutableList<TestRunner> = mutableListOf()
         var stepCount = 0
-        var totalCount = 0
 
         val receiverGenerators = sequence {
             while (true) {
@@ -129,7 +137,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             val generators = solution.generatorFactory.get(
                 random, settings, null, solution.receiversAndInitializers
             )
-            while (runners.readyCount() < settings.receiverCount) {
+            var receiverGoalMet = false
+            for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
                 TestRunner(
                     runners.size,
                     this,
@@ -140,6 +149,20 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     runner.next(stepCount++)
                     runners.add(runner)
                 }
+                runners.failed()?.also {
+                    if (!settings.shrink!! || it.lastComplexity!!.level == 0) {
+                        return runners.toResults(settings)
+                    }
+                }
+                if (runners.readyCount() == settings.receiverCount) {
+                    receiverGoalMet = true
+                    break
+                }
+            }
+            // If we couldn't generate the requested number of receivers due to constructor failures,
+            // just give up and return at this point
+            if (!receiverGoalMet) {
+                return runners.toResults(settings)
             }
             Pair(
                 ReceiverGenerator(
@@ -173,7 +196,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
 
         val totalTests = settings.receiverCount * settings.methodCount
-        while (true) {
+        for (totalCount in 0..totalTests) {
             val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(
                     runners.size,
@@ -191,6 +214,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     it.next(stepCount++)
                 }
             }
+            runners.failed()?.also {
+                if (!settings.shrink!! || it.lastComplexity!!.level == 0) {
+                    println("Here")
+                    return runners.toResults(settings)
+                }
+            }
 
             if (usedRunner.returnedReceivers != null) {
                 runners.add(
@@ -205,17 +234,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 )
                 usedRunner.returnedReceivers = null
             }
-
-            totalCount++
-            if (totalCount == totalTests) {
-                break
-            }
         }
-        @Suppress("UNCHECKED_CAST")
-        return TestResults(
-            runners.map { it.testResults as List<TestResult<Any, ParameterGroup>> }
-                .flatten()
-        )
+        return runners.toResults(settings)
     }
 }
 

@@ -16,25 +16,6 @@ import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
 class Solution(val solution: Class<*>) {
-    data class Settings(
-        val methodCount: Int = -1,
-        val receiverCount: Int = -1,
-        val seed: Int = -1,
-        val simpleCount: Int = -1,
-        val edgeCount: Int = -1,
-        val mixedCount: Int = -1,
-        val fixedCount: Int = -1
-    ) {
-        companion object {
-            val DEFAULTS = Settings(
-                simpleCount = Int.MAX_VALUE,
-                edgeCount = Int.MAX_VALUE,
-                mixedCount = Int.MAX_VALUE,
-                fixedCount = Int.MAX_VALUE
-            )
-        }
-    }
-
     init {
         solution.declaredFields.filter { it.isStatic() && !it.isJenisol() }.also {
             checkDesign(it.isEmpty()) { "No support for testing classes with static fields yet" }
@@ -104,18 +85,6 @@ class Solution(val solution: Class<*>) {
     val receiversAndInitializers = receiverGenerators + initializers
 
     val generatorFactory: GeneratorFactory = GeneratorFactory(allExecutables + initializers, this)
-
-    /*
-    val proxyInterface = solution.interfaces.filter { it.isCompare() }.also {
-        check(it.size <= 1) { "Can only declare one compare interface" }
-    }.firstOrNull()
-
-    fun createProxy(submission: Any) = proxyInterface?.let {
-        Proxy.newProxyInstance(submission::class.java.classLoader, listOf(it).toTypedArray()) { _, method, args ->
-            method.invoke(submission, *args)
-        }
-    } ?: error("No interface to proxy to")
-     */
 
     private val receiverEntropy: Int
     private val methodEntropy: Int
@@ -217,21 +186,6 @@ fun Array<Class<*>>.fixReceivers(from: Class<*>, to: Class<*>) = map {
     }
 }.toTypedArray()
 
-inline infix fun <reified T : Any> T.merge(other: T): T {
-    val nameToProperty = T::class.declaredMemberProperties.associateBy { it.name }
-    val primaryConstructor = T::class.primaryConstructor!!
-    val args = primaryConstructor.parameters.associateWith { parameter ->
-        val property = nameToProperty[parameter.name]!!
-        val value = if (property.get(other) != -1) {
-            property.get(other)
-        } else {
-            property.get(this)
-        }
-        value
-    }
-    return primaryConstructor.callBy(args)
-}
-
 typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
 
 data class CapturedResult(val returned: Any?, val threw: Throwable?, val stdout: String, val stderr: String)
@@ -273,3 +227,41 @@ private fun <T> checkDesign(method: () -> T): T {
 }
 
 private fun designError(message: String?): Nothing = throw SolutionDesignError(message)
+
+data class Settings(
+    val shrink: Boolean? = null,
+    val methodCount: Int = -1,
+    val receiverCount: Int = -1,
+    val receiverRetries: Int = -1,
+    val seed: Int = -1,
+    val simpleCount: Int = -1,
+    val edgeCount: Int = -1,
+    val mixedCount: Int = -1,
+    val fixedCount: Int = -1
+) {
+    companion object {
+        val DEFAULTS = Settings(
+            shrink = true,
+            receiverRetries = 4,
+            simpleCount = Int.MAX_VALUE,
+            edgeCount = Int.MAX_VALUE,
+            mixedCount = Int.MAX_VALUE,
+            fixedCount = Int.MAX_VALUE
+        )
+    }
+
+    infix fun merge(other: Settings): Settings {
+        val nameToProperty = Settings::class.declaredMemberProperties.associateBy { it.name }
+        val primaryConstructor = Settings::class.primaryConstructor!!
+        val args = primaryConstructor.parameters.associateWith { parameter ->
+            val property = nameToProperty[parameter.name]!!
+            val value = if (property.get(other) != null && property.get(other) != -1) {
+                property.get(other)
+            } else {
+                property.get(this)
+            }
+            value
+        }
+        return primaryConstructor.callBy(args)
+    }
+}
