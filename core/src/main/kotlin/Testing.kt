@@ -6,8 +6,6 @@ import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
-import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
-import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
@@ -173,6 +171,7 @@ class TestRunner(
     val submission: Submission,
     var generators: Generators,
     val receiverGenerators: Sequence<Executable>,
+    val captureOutput: CaptureOutput,
     var receivers: Value<Any?>? = null
 ) {
     val methodIterator = submission.solution.methodsToTest.cycle()
@@ -198,7 +197,7 @@ class TestRunner(
         receiver: Any?,
         parameters: Array<Any?>,
         parametersCopy: Array<Any?>? = null
-    ): Result<Any, ParameterGroup> = submission.solution.captureOutput {
+    ): Result<Any, ParameterGroup> = captureOutput {
         unwrap {
             when (this) {
                 is Method -> this.invoke(receiver, *parameters)
@@ -340,30 +339,4 @@ class TestRunner(
 
 data class Interval(val start: Instant, val end: Instant) {
     constructor(start: Instant) : this(start, Instant.now())
-}
-
-@Suppress("ComplexMethod", "MapGetWithNotNullAssertionOperator")
-fun Any.deepEquals(
-    submission: Any?,
-    comparators: Comparators
-): Boolean = when {
-    this === submission -> true
-    submission == null -> false
-    this::class.java in comparators -> comparators[this::class.java].compare(this, submission)
-    this is ParameterGroup && submission is ParameterGroup ->
-        this.toArray().deepEquals(submission.toArray(), comparators)
-    this.isAnyArray() != submission.isAnyArray() -> false
-    this.isAnyArray() && submission.isAnyArray() -> {
-        val solutionBoxed = this.boxArray()
-        val submissionBoxed = submission.boxArray()
-        (solutionBoxed.size == submissionBoxed.size) && solutionBoxed.zip(submissionBoxed)
-            .all { (solution, submission) ->
-                when {
-                    solution === submission -> true
-                    solution == null || submission == null -> false
-                    else -> solution.deepEquals(submission, comparators)
-                }
-            }
-    }
-    else -> this == submission
 }

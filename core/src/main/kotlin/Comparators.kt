@@ -1,5 +1,13 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
+import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
+
+interface Comparator {
+    fun compare(solution: Any, submission: Any): Boolean
+    val descendants: Boolean
+}
+
 class Comparators(
     private val comparators: MutableMap<Class<*>, Comparator>
 ) : MutableMap<Class<*>, Comparator> by comparators {
@@ -13,6 +21,7 @@ class Comparators(
             override fun compare(solution: Any, submission: Any) = solution::class.java == submission::class.java
         }
     }
+
     @Suppress("ReturnCount")
     private fun searchUp(klass: Class<*>): Class<*>? {
         if (comparators.containsKey(klass)) {
@@ -32,7 +41,28 @@ class Comparators(
     override fun get(key: Class<*>) = comparators[searchUp(key)] ?: error("No comparator for $key")
 }
 
-interface Comparator {
-    fun compare(solution: Any, submission: Any): Boolean
-    val descendants: Boolean
+@Suppress("ComplexMethod", "MapGetWithNotNullAssertionOperator")
+fun Any.deepEquals(
+    submission: Any?,
+    comparators: Comparators
+): Boolean = when {
+    this === submission -> true
+    submission == null -> false
+    this::class.java in comparators -> comparators[this::class.java].compare(this, submission)
+    this is ParameterGroup && submission is ParameterGroup ->
+        this.toArray().deepEquals(submission.toArray(), comparators)
+    this.isAnyArray() != submission.isAnyArray() -> false
+    this.isAnyArray() && submission.isAnyArray() -> {
+        val solutionBoxed = this.boxArray()
+        val submissionBoxed = submission.boxArray()
+        (solutionBoxed.size == submissionBoxed.size) && solutionBoxed.zip(submissionBoxed)
+            .all { (solution, submission) ->
+                when {
+                    solution === submission -> true
+                    solution == null || submission == null -> false
+                    else -> solution.deepEquals(submission, comparators)
+                }
+            }
+    }
+    else -> this == submission
 }

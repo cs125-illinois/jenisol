@@ -1,27 +1,21 @@
-@file:Suppress("TooManyFunctions", "MemberVisibilityCanBePrivate")
+@file:Suppress("TooManyFunctions")
 
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
-import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
-import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
-import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
-import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
-import java.lang.reflect.Type
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
-import kotlin.random.Random
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
-class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defaultCaptureOutput) {
+class Solution(val solution: Class<*>) {
     data class Settings(
         val methodCount: Int = -1,
         val receiverCount: Int = -1,
@@ -43,7 +37,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     init {
         solution.declaredFields.filter { it.isStatic() && !it.isJenisol() }.also {
-            check(it.isEmpty()) { "No support for testing classes with static fields yet" }
+            checkDesign(it.isEmpty()) { "No support for testing classes with static fields yet" }
         }
     }
 
@@ -53,15 +47,15 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
             .filter {
                 !it.isPrivate() && !it.isJenisol()
             }.toSet().also {
-                check(it.isNotEmpty()) { "Found no methods to test" }
+                checkDesign(it.isNotEmpty()) { "Found no methods to test" }
             }
     val bothExecutables = solution.declaredMethods.toSet().filterNotNull().filter {
         it.isBoth()
     }.also { methods ->
-        methods.forEach { Both.validate(it, solution) }
+        methods.forEach { checkDesign { Both.validate(it, solution) } }
     }.toSet()
 
-    fun Executable.receiverParameter() = parameterTypes.any { it == solution }
+    private fun Executable.receiverParameter() = parameterTypes.any { it == solution }
 
     val receiverGenerators = allExecutables.filter { executable ->
         !executable.receiverParameter()
@@ -69,17 +63,17 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         when (executable) {
             is Constructor<*> -> true
             is Method -> executable.isStatic() && executable.returnType == solution
-            else -> error("Unexpected executable type")
+            else -> designError("Unexpected executable type")
         }
     }.toSet()
     val methodsToTest = (allExecutables - receiverGenerators + bothExecutables).also {
-        check(it.isNotEmpty()) { "Found methods that generate receivers but no ways to test them" }
+        checkDesign(it.isNotEmpty()) { "Found methods that generate receivers but no ways to test them" }
     }
-    val needsReceiver = methodsToTest.filter { executable ->
+    private val needsReceiver = methodsToTest.filter { executable ->
         executable.receiverParameter() || (executable is Method && !executable.isStatic())
     }.toSet()
-    val receiverTransformers = methodsToTest.filterIsInstance<Method>().filter { method ->
-        method.returnType != solution
+    private val receiverTransformers = methodsToTest.filterIsInstance<Method>().filter { method ->
+        method.returnType.name != "void" && method.returnType != solution
     }.filter { method ->
         !method.isStatic() || method.receiverParameter()
     }.toSet()
@@ -92,19 +86,19 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
 
     init {
         if (needsReceiver.isNotEmpty()) {
-            check(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
+            checkDesign(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
         }
         if (!skipReceiver && receiverGenerators.isNotEmpty()) {
-            check(receiverTransformers.isNotEmpty()) { "No way to verify generated receivers" }
+            checkDesign(receiverTransformers.isNotEmpty()) { "No way to verify generated receivers" }
         }
     }
 
     val initializer: Executable? = solution.superclass.declaredMethods.filter {
         it.isInitializer()
     }.also {
-        check(it.size <= 1) { "Solution parent class ${solution.superclass.name} has multiple initializers" }
+        checkDesign(it.size <= 1) { "Solution parent class ${solution.superclass.name} has multiple initializers" }
     }.firstOrNull()?.also {
-        Initializer.validate(it)
+        checkDesign { Initializer.validate(it) }
     }
     private val initializers = initializer?.let { setOf(it) } ?: setOf()
     val receiversAndInitializers = receiverGenerators + initializers
@@ -123,8 +117,8 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     } ?: error("No interface to proxy to")
      */
 
-    val receiverEntropy: Int
-    val methodEntropy: Int
+    private val receiverEntropy: Int
+    private val methodEntropy: Int
 
     // These calculations should be improved to create a better test balance
     init {
@@ -145,8 +139,8 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
         }
     }
 
-    val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
-    val defaultMethodCount = 2.0.pow(methodEntropy.toDouble()).toInt()
+    private val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
+    private val defaultMethodCount = 2.0.pow(methodEntropy.toDouble()).toInt()
 
     @Suppress("unused")
     val defaultTotalTests = defaultReceiverCount * (defaultMethodCount + 1)
@@ -171,14 +165,14 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
     }
 
     val verifier: Method? = solution.declaredMethods.filter { it.isVerify() }.also {
-        check(it.size <= 1) { "No support yet for multiple verifiers" }
+        checkDesign(it.size <= 1) { "No support yet for multiple verifiers" }
     }.firstOrNull()?.also {
-        check(methodsToTest.size == 1) { "No support yet for multiple verifiers" }
+        checkDesign(methodsToTest.size == 1) { "No support yet for multiple verifiers" }
         val methodToTest = methodsToTest.first()
         val returnType = when (methodToTest) {
             is Constructor<*> -> solution
             is Method -> methodToTest.genericReturnType
-            else -> error("Unexpected executable type")
+            else -> designError("Unexpected executable type")
         }
         Verify.validate(it, returnType, methodToTest.parameterTypes)
     }
@@ -195,213 +189,7 @@ fun Set<Executable>.cycle() = sequence {
     yield(shuffled().first())
 }
 
-class RandomGroup(seed: Long = Random.nextLong()) {
-    val solution = java.util.Random().also { it.setSeed(seed) }
-    val submission = java.util.Random().also { it.setSeed(seed) }
-    val solutionCopy = java.util.Random().also { it.setSeed(seed) }
-    val submissionCopy = java.util.Random().also { it.setSeed(seed) }
-    val synced: Boolean
-        get() = setOf(
-            solution.nextLong(), solutionCopy.nextLong(), submission.nextLong(), submissionCopy.nextLong()
-        ).size == 1
-}
-
-sealed class ClassDesignError(message: String) : Exception(message)
-class ClassDesignMissingMethodError(klass: Class<*>, executable: Executable) : ClassDesignError(
-    "Submission class ${klass.name} didn't provide ${if (executable.isStatic()) {
-        "static "
-    } else {
-        ""
-    }}${if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }} ${executable.fullName()}"
-)
-
-class ClassDesignExtraMethodError(klass: Class<*>, executable: Executable) : ClassDesignError(
-    "Submission class ${klass.name} provided extra ${if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }} ${executable.fullName()}"
-)
-
-class ClassDesignInheritanceError(klass: Class<*>, parent: Class<*>) : ClassDesignError(
-    "Submission class ${klass.name} didn't inherit from ${parent.name}"
-)
-
-class Submission(val solution: Solution, val submission: Class<*>) {
-    init {
-        solution.bothExecutables.forEach {
-            if (!it.parameterTypes[0].isAssignableFrom(submission)) {
-                throw ClassDesignInheritanceError(submission, it.parameterTypes[0])
-            }
-        }
-    }
-
-    val submissionExecutables = solution.allExecutables
-        .map { solutionExecutable ->
-            when (solutionExecutable) {
-                is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
-                is Method -> submission.findMethod(solutionExecutable, solution.solution)
-                else -> error("Encountered unexpected executable type: $solutionExecutable")
-            }?.let { executable ->
-                solutionExecutable to executable
-            } ?: throw ClassDesignMissingMethodError(submission, solutionExecutable)
-        }.toMap().toMutableMap().also {
-            if (solution.initializer != null) {
-                it[solution.initializer] = solution.initializer
-            }
-        }.toMap()
-
-    init {
-        if (submission != solution.solution) {
-            (submission.declaredMethods.toSet() + submission.declaredConstructors.toSet()).filter {
-                it.isPublic()
-            }.forEach {
-                if (it !in submissionExecutables.values) {
-                    throw ClassDesignExtraMethodError(submission, it)
-                }
-            }
-        }
-    }
-
-    fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
-
-    val comparators = Comparators(
-        mutableMapOf(solution.solution to solution.receiverCompare, submission to solution.receiverCompare)
-    )
-
-    fun compare(solution: Any?, submission: Any?) = when (solution) {
-        null -> submission == null
-        else -> solution.deepEquals(submission, comparators)
-    }
-
-    fun verify(result: TestResult<*, *>) {
-        solution.verifier?.also { customVerifier ->
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                unwrap { customVerifier.invoke(null, result) }
-            } catch (e: Throwable) {
-                result.differs.add(TestResult.Differs.VERIFIER_THREW)
-                result.verifierThrew = e
-            }
-        } ?: defaultVerify(result)
-    }
-
-    fun defaultVerify(result: TestResult<*, *>) {
-        val solution = result.solution
-        val submission = result.submission
-
-        if (solution.stdout.isNotBlank() && solution.stdout != submission.stdout) {
-            result.differs.add(TestResult.Differs.STDOUT)
-        }
-        if (solution.stderr.isNotBlank() && solution.stderr != submission.stderr) {
-            result.differs.add(TestResult.Differs.STDERR)
-        }
-
-        if (result.type == TestResult.Type.METHOD && !compare(solution.returned, submission.returned)) {
-            result.differs.add(TestResult.Differs.RETURN)
-        }
-        if (!compare(solution.threw, submission.threw)) {
-            result.differs.add(TestResult.Differs.THREW)
-        }
-        if (!compare(solution.parameters, submission.parameters)) {
-            result.differs.add(TestResult.Differs.PARAMETERS)
-        }
-    }
-
-    @Suppress("LongMethod", "ComplexMethod")
-    fun test(passedSettings: Solution.Settings = Solution.Settings()): TestResults {
-        val settings = solution.setCounts(Solution.Settings.DEFAULTS merge passedSettings)
-
-        val random = if (passedSettings.seed == -1) {
-            Random
-        } else {
-            Random(passedSettings.seed.toLong())
-        }
-
-        val runners: MutableList<TestRunner> = mutableListOf()
-        var stepCount = 0
-        var totalCount = 0
-
-        val receiverGenerators = sequence {
-            while (true) {
-                yieldAll(solution.receiverGenerators.toList().shuffled(random))
-            }
-        }
-
-        val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
-            check(settings.receiverCount > 1) { "Incorrect receiver count" }
-
-            val generators = solution.generatorFactory.get(
-                random, settings, null, solution.receiversAndInitializers
-            )
-            while (runners.readyCount() < settings.receiverCount) {
-                TestRunner(runners.size, this, generators, receiverGenerators).also { runner ->
-                    runner.next(stepCount++)
-                    runners.add(runner)
-                }
-            }
-            Pair(ReceiverGenerator(random, runners.filter { it.ready }.toMutableList()), generators)
-        } else {
-            Pair(null, null)
-        }
-
-        @Suppress("UNCHECKED_CAST")
-        val generatorOverrides = if (receiverGenerator != null) {
-            mutableMapOf(
-                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
-                (Any::class.java as Type) to { r: Random -> ObjectGenerator(r, receiverGenerator) }
-            )
-        } else {
-            mapOf<Type, TypeGeneratorGenerator>()
-        }
-
-        val generators = solution.generatorFactory.get(random, settings, generatorOverrides, from = initialGenerators)
-        runners.filter { it.ready }.forEach {
-            it.generators = generators
-        }
-
-        val totalTests = settings.receiverCount * settings.methodCount
-        while (true) {
-            val usedRunner = if (runners.readyCount() < settings.receiverCount) {
-                TestRunner(runners.size, this, generators, receiverGenerators).also { runner ->
-                    runner.next(stepCount++)
-                    runners.add(runner)
-                    receiverGenerator?.runners?.add(runner)
-                }
-            } else {
-                runners.filter { it.ready }.shuffled(random).first().also {
-                    it.next(stepCount++)
-                }
-            }
-
-            if (usedRunner.returnedReceivers != null) {
-                runners.add(
-                    TestRunner(
-                        runners.size,
-                        this,
-                        generators,
-                        receiverGenerators,
-                        usedRunner.returnedReceivers
-                    )
-                )
-                usedRunner.returnedReceivers = null
-            }
-
-            totalCount++
-            if (totalCount == totalTests) {
-                break
-            }
-        }
-        @Suppress("UNCHECKED_CAST")
-        return TestResults(runners.map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten())
-    }
-}
-
-fun solution(klass: Class<*>, captureOutput: CaptureOutput = ::defaultCaptureOutput) = Solution(klass, captureOutput)
+fun solution(klass: Class<*>) = Solution(klass)
 
 fun Executable.isStatic() = Modifier.isStatic(modifiers)
 fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
@@ -467,8 +255,21 @@ fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock 
     return CapturedResult(result.first, result.second, diverted.first.toString(), diverted.second.toString())
 }
 
-fun unwrap(run: () -> Any?): Any? = try {
-    run()
-} catch (e: InvocationTargetException) {
-    throw e.cause ?: error("InvocationTargetException should have a cause")
+class SolutionDesignError(message: String?) : Exception(message)
+
+private fun checkDesign(check: Boolean, message: () -> Any) {
+    if (!check) {
+        designError(message().toString())
+    }
 }
+
+private fun <T> checkDesign(method: () -> T): T {
+    @Suppress("TooGenericExceptionCaught")
+    return try {
+        method()
+    } catch (e: Exception) {
+        designError(e.message)
+    }
+}
+
+private fun designError(message: String?): Nothing = throw SolutionDesignError(message)

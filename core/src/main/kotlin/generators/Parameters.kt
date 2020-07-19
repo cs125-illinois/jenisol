@@ -5,7 +5,6 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import edu.illinois.cs.cs125.jenisol.core.EdgeType
 import edu.illinois.cs.cs125.jenisol.core.FixedParameters
 import edu.illinois.cs.cs125.jenisol.core.ParameterGroup
-import edu.illinois.cs.cs125.jenisol.core.RandomGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomParameters
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.SimpleType
@@ -308,7 +307,8 @@ class ConfiguredParametersGenerator(
         }
     }
 
-    private val randomPair = RandomGroup(random.nextLong())
+    private val randomPair =
+        RandomGroup(random.nextLong())
     private var index = 0
     private var bound: Complexity? = null
     private val complexity = Complexity()

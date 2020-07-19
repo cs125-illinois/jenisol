@@ -46,7 +46,7 @@ fun Class<*>.test() {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->
                 if (incorrect.simpleName.startsWith("Design")) {
-                    shouldThrow<ClassDesignError> { submission(incorrect) }
+                    shouldThrow<SubmissionDesignError> { submission(incorrect) }
                 } else {
                     submission(incorrect).test().also { results ->
                         println(incorrect.name)

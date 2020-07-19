@@ -3,7 +3,6 @@
 package edu.illinois.cs.cs125.jenisol.core.generators
 
 import com.rits.cloning.Cloner
-import edu.illinois.cs.cs125.jenisol.core.RandomGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import java.lang.reflect.Array
@@ -74,7 +73,8 @@ class OverrideTypeGenerator(
     }
     private val simpleOverride: Set<Value<Any>>? = simple?.values(ZeroComplexity)
     private val edgeOverride: Set<Value<Any?>>? = edge?.values(ZeroComplexity)
-    private val randomGroup: RandomGroup = RandomGroup(random.nextLong())
+    private val randomGroup: RandomGroup =
+        RandomGroup(random.nextLong())
 
     override val simple: Set<Value<Any>> =
         simpleOverride ?: default?.simple as Set<Value<Any>>
@@ -368,16 +368,16 @@ class ObjectGenerator(
 
     override val simple = (
         setOf(Any()).values(ZeroComplexity) +
-            defaultObjects.values.map { it.simple }.flatten().distinct().toSet() +
-            (receiverGenerator?.simple ?: setOf())
-        )
+            (receiverGenerator?.simple ?: setOf()) +
+            defaultObjects.values.map { it.simple }.flatten().distinct().toSet()
+        ).take(SIMPLE_LIMIT).toSet()
         as Set<Value<Any>>
 
     override val edge = (
         setOf(null as Any?).values(ZeroComplexity) +
-            defaultObjects.values.map { it.edge }.flatten().distinct().toSet() +
-            (receiverGenerator?.edge ?: setOf())
-        )
+            (receiverGenerator?.edge ?: setOf()) +
+            defaultObjects.values.map { it.edge }.flatten().distinct().toSet()
+        ).take(EDGE_LIMIT).toSet()
         as Set<Value<Any?>>
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =
@@ -389,6 +389,8 @@ class ObjectGenerator(
 
     companion object {
         fun create(random: Random = Random) = ObjectGenerator(random)
+        const val SIMPLE_LIMIT = 8
+        const val EDGE_LIMIT = 8
     }
 }
 
@@ -498,4 +500,15 @@ fun Any.isAnyArray() = when (this) {
     is BooleanArray -> true
     is kotlin.Array<*> -> true
     else -> false
+}
+
+class RandomGroup(seed: Long = Random.nextLong()) {
+    val solution = java.util.Random().also { it.setSeed(seed) }
+    val submission = java.util.Random().also { it.setSeed(seed) }
+    val solutionCopy = java.util.Random().also { it.setSeed(seed) }
+    val submissionCopy = java.util.Random().also { it.setSeed(seed) }
+    val synced: Boolean
+        get() = setOf(
+            solution.nextLong(), solutionCopy.nextLong(), submission.nextLong(), submissionCopy.nextLong()
+        ).size == 1
 }

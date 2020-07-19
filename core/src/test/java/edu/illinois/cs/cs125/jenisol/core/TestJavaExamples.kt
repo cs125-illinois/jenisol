@@ -2,7 +2,6 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import io.kotlintest.specs.StringSpec
 
-@Suppress("RemoveSingleExpressionStringTemplate")
 class TestJavaExamples : StringSpec({
     examples.java.noreceiver.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }

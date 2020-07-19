@@ -172,7 +172,9 @@
         <!-- jenisol: we don't need this warning
         <module name="DesignForExtension"/>
         -->
+        <!-- jenisol: we want to be able to test factory methods without this warning
         <module name="FinalClass"/>
+        -->
         <!-- jenisol: our examples expose public constructors
         <module name="HideUtilityClassConstructor"/>
         -->
