@@ -3,6 +3,7 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
+import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
@@ -213,16 +214,26 @@ class TestRunner(
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null) {
         val creating = !created && type != TestResult.Type.INITIALIZER
 
+        val isBoth = solutionExecutable.isAnnotationPresent(Both::class.java)
+
         val start = Instant.now()
-        val submissionExecutable = submission.submissionExecutables[solutionExecutable]
-            ?: error("couldn't find a submission method that should exist")
+        val submissionExecutable = if (isBoth) {
+            solutionExecutable
+        } else {
+            submission.submissionExecutables[solutionExecutable]
+                ?: error("couldn't find a submission method that should exist")
+        }
         check(solutionExecutable::class.java == submissionExecutable::class.java) {
             "solution and submission executable are not the same type"
         }
 
-        val generator = generators[solutionExecutable]
-            ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
-        val parameters = generator.generate(this)
+        val (parameters, generator) = if (isBoth) {
+            Pair(Parameters.fromReceivers(receivers!!), null)
+        } else {
+            generators[solutionExecutable]?.let {
+                Pair(it.generate(this), it)
+            } ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
+        }
 
         val stepType = type ?: if (!created) {
             when (solutionExecutable) {
@@ -283,9 +294,9 @@ class TestRunner(
         testResults.add(step)
 
         if (step.succeeded) {
-            generator.next()
+            generator?.next()
         } else {
-            generator.prev()
+            generator?.prev()
         }
         if (step.succeeded && creating) {
             // If both receiver generators throw identically, then the step didn't fail but

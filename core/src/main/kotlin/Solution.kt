@@ -55,6 +55,11 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
             }.toSet().also {
                 check(it.isNotEmpty()) { "Found no methods to test" }
             }
+    val bothExecutables = solution.declaredMethods.toSet().filterNotNull().filter {
+        it.isBoth()
+    }.also { methods ->
+        methods.forEach { Both.validate(it, solution) }
+    }.toSet()
 
     fun Executable.receiverParameter() = parameterTypes.any { it == solution }
 
@@ -67,7 +72,7 @@ class Solution(val solution: Class<*>, val captureOutput: CaptureOutput = ::defa
             else -> error("Unexpected executable type")
         }
     }.toSet()
-    val methodsToTest = (allExecutables - receiverGenerators).also {
+    val methodsToTest = (allExecutables - receiverGenerators + bothExecutables).also {
         check(it.isNotEmpty()) { "Found methods that generate receivers but no ways to test them" }
     }
     val needsReceiver = methodsToTest.filter { executable ->
@@ -201,28 +206,66 @@ class RandomGroup(seed: Long = Random.nextLong()) {
         ).size == 1
 }
 
-class ClassDesignError(klass: Class<*>, executable: Executable) : Exception(
-    "Submission class ${klass.name} didn't provide ${if (executable is Method) {
+sealed class ClassDesignError(message: String) : Exception(message)
+class ClassDesignMissingMethodError(klass: Class<*>, executable: Executable) : ClassDesignError(
+    "Submission class ${klass.name} didn't provide ${if (executable.isStatic()) {
+        "static "
+    } else {
+        ""
+    }}${if (executable is Method) {
         "method"
     } else {
         "constructor"
     }} ${executable.fullName()}"
 )
 
+class ClassDesignExtraMethodError(klass: Class<*>, executable: Executable) : ClassDesignError(
+    "Submission class ${klass.name} provided extra ${if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }} ${executable.fullName()}"
+)
+
+class ClassDesignInheritanceError(klass: Class<*>, parent: Class<*>) : ClassDesignError(
+    "Submission class ${klass.name} didn't inherit from ${parent.name}"
+)
+
 class Submission(val solution: Solution, val submission: Class<*>) {
-    val submissionExecutables = solution.allExecutables.map { solutionExecutable ->
-        when (solutionExecutable) {
-            is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
-            is Method -> submission.findMethod(solutionExecutable, solution.solution)
-            else -> error("Encountered unexpected executable type: $solutionExecutable")
-        }?.let { executable ->
-            solutionExecutable to executable
-        } ?: throw ClassDesignError(submission, solutionExecutable)
-    }.toMap().toMutableMap().also {
-        if (solution.initializer != null) {
-            it[solution.initializer] = solution.initializer
+    init {
+        solution.bothExecutables.forEach {
+            if (!it.parameterTypes[0].isAssignableFrom(submission)) {
+                throw ClassDesignInheritanceError(submission, it.parameterTypes[0])
+            }
         }
-    }.toMap()
+    }
+
+    val submissionExecutables = solution.allExecutables
+        .map { solutionExecutable ->
+            when (solutionExecutable) {
+                is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
+                is Method -> submission.findMethod(solutionExecutable, solution.solution)
+                else -> error("Encountered unexpected executable type: $solutionExecutable")
+            }?.let { executable ->
+                solutionExecutable to executable
+            } ?: throw ClassDesignMissingMethodError(submission, solutionExecutable)
+        }.toMap().toMutableMap().also {
+            if (solution.initializer != null) {
+                it[solution.initializer] = solution.initializer
+            }
+        }.toMap()
+
+    init {
+        if (submission != solution.solution) {
+            (submission.declaredMethods.toSet() + submission.declaredConstructors.toSet()).filter {
+                it.isPublic()
+            }.forEach {
+                if (it !in submissionExecutables.values) {
+                    throw ClassDesignExtraMethodError(submission, it)
+                }
+            }
+        }
+    }
 
     fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
 

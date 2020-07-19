@@ -34,7 +34,7 @@ data class Parameters(
     val type: Type,
     val complexity: Complexity = ZeroComplexity
 ) {
-    enum class Type { EMPTY, SIMPLE, EDGE, MIXED, RANDOM, FIXED_FIELD, RANDOM_METHOD }
+    enum class Type { EMPTY, SIMPLE, EDGE, MIXED, RANDOM, FIXED_FIELD, RANDOM_METHOD, RECEIVER }
 
     override fun equals(other: Any?) = when {
         this === other -> true
@@ -43,6 +43,17 @@ data class Parameters(
     }
 
     override fun hashCode() = solutionCopy.contentHashCode()
+
+    companion object {
+        fun fromReceivers(value: Value<Any?>) = Parameters(
+            arrayOf(value.solution),
+            arrayOf(value.submission),
+            arrayOf(value.solutionCopy),
+            arrayOf(value.submissionCopy),
+            Type.RECEIVER,
+            value.complexity
+        )
+    }
 }
 
 interface ParametersGenerator {

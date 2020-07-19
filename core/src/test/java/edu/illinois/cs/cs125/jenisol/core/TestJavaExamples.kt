@@ -1,6 +1,5 @@
 package edu.illinois.cs.cs125.jenisol.core
 
-import examples.java.receiver.withconstructor.Correct
 import io.kotlintest.specs.StringSpec
 
 @Suppress("RemoveSingleExpressionStringTemplate")
@@ -62,9 +61,6 @@ class TestJavaExamples : StringSpec({
     examples.java.receiver.noarguments.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
-    Correct::class.java.also {
-        "${it.testName()}" { it.test() }
-    }
     examples.java.receiver.withinitialization.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
@@ -84,6 +80,9 @@ class TestJavaExamples : StringSpec({
         "${it.testName()}" { it.test() }
     }
     examples.java.receiver.equalswithtwofields.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.java.receiver.missinginheritance.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
 })

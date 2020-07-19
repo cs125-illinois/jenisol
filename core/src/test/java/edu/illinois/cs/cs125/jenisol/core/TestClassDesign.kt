@@ -12,10 +12,10 @@ class TestClassDesign : StringSpec({
     solution(Correct::class.java).also { solution ->
         "${solution.solution.testName()}" {
             solution.submission(Correct1::class.java)
-            shouldThrow<ClassDesignError> {
+            shouldThrow<ClassDesignMissingMethodError> {
                 solution.submission(MissingMethod1::class.java)
             }
-            shouldThrow<ClassDesignError> {
+            shouldThrow<ClassDesignMissingMethodError> {
                 solution.submission(MissingConstructor1::class.java)
             }
         }

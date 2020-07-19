@@ -170,9 +170,29 @@ fun Method.isVerify() = isAnnotationPresent(Verify::class.java)
 
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class Compare
+annotation class Both {
+    companion object {
+        val name: String = Both::class.java.simpleName
+        fun validate(method: Method, solution: Class<*>) {
+            check(method.isStatic()) { "@$name methods must be static" }
+            check(method.returnType.name != "void") {
+                "@$name method return values must not be void"
+            }
+            check(method.returnType != solution) {
+                "@$name method return values must not return a receiver type"
+            }
+            check(
+                method.parameterTypes.size == 1 &&
+                    method.parameterTypes[0] !== solution &&
+                    method.parameterTypes[0].isAssignableFrom(solution)
+            ) {
+                "@$name methods must accept a single parameter that the solution class inherits from"
+            }
+        }
+    }
+}
 
-fun Class<*>.isCompare() = isAnnotationPresent(Compare::class.java)
+fun Method.isBoth() = isAnnotationPresent(Both::class.java)
 
 fun Field.isStatic() = Modifier.isStatic(modifiers)
 fun Field.isFinal() = Modifier.isFinal(modifiers)
@@ -196,7 +216,7 @@ fun Executable.isJenisol() = setOf(
     RandomParameters::class.java,
     Initializer::class.java,
     Verify::class.java,
-    Compare::class.java
+    Both::class.java
 ).any {
     isAnnotationPresent(it)
 }

@@ -11,8 +11,9 @@ fun List<TestRunner>.findWithComplexity(complexity: Complexity, random: Random):
     .let { receivers ->
         check(receivers.isNotEmpty()) { "No receivers available" }
         val closest = receivers.map { it.complexity.level }.distinct().sorted().let { complexities ->
-            complexities.find { it == complexity.level } ?: complexities.filter { complexity.level < it }.sorted()
-                .firstOrNull() ?: complexities.filter { complexity.level < it }.sorted().reversed().firstOrNull()
+            complexities.find { it == complexity.level }
+                ?: complexities.filter { complexity.level >= it }.sorted().firstOrNull()
+                ?: complexities.filter { complexity.level < it }.sorted().reversed().firstOrNull()
                 ?: error("Couldn't locate a complexity that should exist")
         }
         receivers.filter { it.complexity.level == closest }.shuffled(random).firstOrNull() as Value<Any>
