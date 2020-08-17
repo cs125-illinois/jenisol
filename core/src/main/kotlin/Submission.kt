@@ -106,7 +106,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
         check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
-    }.minByOrNull { it.lastComplexity!!.level }
+    }.minBy { it.lastComplexity!!.level }
 
     @Suppress("LongMethod", "ComplexMethod", "ReturnCount")
     fun test(

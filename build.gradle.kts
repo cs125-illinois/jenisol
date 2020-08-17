@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    val kotlinVersion = "1.4.0"
+    val kotlinVersion = "1.3.72"
     kotlin("jvm") version kotlinVersion apply false
     id("org.jmailen.kotlinter") version "2.4.1" apply false
     id("com.github.sherter.google-java-format") version "0.9"
