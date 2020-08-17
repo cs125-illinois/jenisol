@@ -125,18 +125,19 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     rand[klass] = method
                 }
             }
-        val generatorMappings = (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
-            klass to { random: Random ->
-                OverrideTypeGenerator(
-                    klass,
-                    simple[klass],
-                    edge[klass],
-                    rand[klass],
-                    random,
-                    Defaults[klass]
-                ) as TypeGenerator<Any>
-            }
-        }.toMutableList()
+        val generatorMappings: MutableList<Pair<Class<*>, (Random) -> TypeGenerator<Any>>> =
+            (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
+                klass to { random: Random ->
+                    OverrideTypeGenerator(
+                        klass,
+                        simple[klass],
+                        edge[klass],
+                        rand[klass],
+                        random,
+                        Defaults[klass]
+                    )
+                }
+            }.toMutableList()
 
         if (solution.skipReceiver) {
             check(solutionClass !in neededTypes) {
@@ -152,7 +153,9 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             // Add this so the next check doesn't fail.
             // The receiver generator cannot be set up until the submission class is available
             @Suppress("RedundantLambdaArrow")
-            generatorMappings.add(solutionClass to { _: Random -> UnconfiguredReceiverGenerator })
+            generatorMappings.add(
+                solutionClass to { _: Random -> UnconfiguredReceiverGenerator }
+            )
         }
         typeGenerators = generatorMappings.toMap()
     }
@@ -226,27 +229,27 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                     "Multiple @${FixedParameters.name} annotations match method ${target.name}"
                 }
             }.firstOrNull()?.let { field ->
-            val values = field.get(null)
-            check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
-            check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
-            try {
-                @Suppress("UNCHECKED_CAST")
-                values as Collection<ParameterGroup>
-            } catch (e: ClassCastException) {
-                error("@${FixedParameters.name} field does not contain a collection of parameter groups")
-            }
-            values.forEach {
-                val solutionParameters = it.deepCopy()
-                val submissionParameters = it.deepCopy()
-                check(solutionParameters !== submissionParameters) {
-                    "@${FixedParameters.name} field produces referentially equal copies"
+                val values = field.get(null)
+                check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
+                check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    values as Collection<ParameterGroup>
+                } catch (e: ClassCastException) {
+                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
                 }
-                check(solutionParameters == submissionParameters) {
-                    "@${FixedParameters.name} field does not produce equal copies"
+                values.forEach {
+                    val solutionParameters = it.deepCopy()
+                    val submissionParameters = it.deepCopy()
+                    check(solutionParameters !== submissionParameters) {
+                        "@${FixedParameters.name} field produces referentially equal copies"
+                    }
+                    check(solutionParameters == submissionParameters) {
+                        "@${FixedParameters.name} field does not produce equal copies"
+                    }
                 }
+                values
             }
-            values
-        }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }

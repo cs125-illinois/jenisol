@@ -162,9 +162,9 @@ class TestResults(
         "Passed"
     } else {
         filter { it.failed }.sortedBy { it.complexity }.let { result ->
-            val leastComplex = result.first().complexity
-            result.filter { it.complexity == leastComplex }
-        }.minBy { it.stepCount }!!.explain()
+                val leastComplex = result.first().complexity
+                result.filter { it.complexity == leastComplex }
+            }.minByOrNull { it.stepCount }!!.explain()
     }
 }
 
