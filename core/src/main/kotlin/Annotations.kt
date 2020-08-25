@@ -112,6 +112,7 @@ annotation class RandomParameters {
                 "@$name parameter methods must return one of types " +
                     parameterGroupTypes.joinToString(", ") { it.simpleName }
             }
+            method.isAccessible = true
             return (method.genericReturnType as ParameterizedType).actualTypeArguments
         }
     }
