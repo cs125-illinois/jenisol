@@ -12,7 +12,7 @@ plugins {
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
-    implementation("io.github.classgraph:classgraph:4.8.87")
+    implementation("io.github.classgraph:classgraph:4.8.89")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotlintest:kotlintest-runner-junit5:3.4.2")

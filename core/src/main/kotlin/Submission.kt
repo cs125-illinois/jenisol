@@ -29,6 +29,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 is Method -> submission.findMethod(solutionExecutable, solution.solution)
                 else -> error("Encountered unexpected executable type: $solutionExecutable")
             }?.let { executable ->
+                executable.isAccessible = true
                 solutionExecutable to executable
             } ?: throw SubmissionDesignMissingMethodError(
                 submission,
@@ -82,10 +83,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val solution = result.solution
         val submission = result.submission
 
-        if (solution.stdout.isNotBlank() && solution.stdout != submission.stdout) {
+        val strictOutput = result.solutionExecutable.annotations.find { it is Configure }?.let {
+            (it as Configure).strictOutput
+        } ?: false
+
+        if ((strictOutput || solution.stdout.isNotBlank()) && solution.stdout != submission.stdout) {
             result.differs.add(TestResult.Differs.STDOUT)
         }
-        if (solution.stderr.isNotBlank() && solution.stderr != submission.stderr) {
+        if ((strictOutput || solution.stderr.isNotBlank()) && solution.stderr != submission.stderr) {
             result.differs.add(TestResult.Differs.STDERR)
         }
 
@@ -114,7 +119,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         captureOutput: CaptureOutput = ::defaultCaptureOutput
     ): TestResults {
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
-        println(settings)
 
         val random = if (passedSettings.seed == -1) {
             Random
@@ -240,23 +244,29 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
 sealed class SubmissionDesignError(message: String) : Exception(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
-    "Submission class ${klass.name} didn't provide ${if (executable.isStatic()) {
-        "static "
-    } else {
-        ""
-    }}${if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }} ${executable.fullName()}"
+    "Submission class ${klass.name} didn't provide ${
+        if (executable.isStatic()) {
+            "static "
+        } else {
+            ""
+        }
+    }${
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
+    } ${executable.fullName()}"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
-    "Submission class ${klass.name} provided extra ${if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }} ${executable.fullName()}"
+    "Submission class ${klass.name} provided extra ${
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
+    } ${executable.fullName()}"
 )
 
 class SubmissionDesignInheritanceError(klass: Class<*>, parent: Class<*>) : SubmissionDesignError(

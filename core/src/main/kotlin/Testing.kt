@@ -38,7 +38,8 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField val runnerID: Int,
     @JvmField val stepCount: Int,
     @JvmField val runnerCount: Int,
-    @JvmField val executable: Executable,
+    @JvmField val solutionExecutable: Executable,
+    @JvmField val submissionExecutable: Executable,
     @JvmField val type: Type,
     @JvmField val parameters: P,
     @JvmField val solution: Result<T, P>,
@@ -67,9 +68,9 @@ data class TestResult<T, P : ParameterGroup>(
         val methodString = if (type == Type.CONSTRUCTOR) {
             submissionClass.simpleName
         } else {
-            executable.name
+            submissionExecutable.name
         } + "(" +
-            executable.parameters
+            submissionExecutable.parameters
                 .mapIndexed { index, parameter ->
                     "${parameter.type.simpleName} ${parameter.name} = ${print(arrayOfParameters[index])}"
                 }
@@ -287,7 +288,7 @@ class TestRunner(
         val step = TestResult(
             runnerID,
             stepCount, count++,
-            solutionExecutable, stepType, parameters.solutionCopy.toParameterGroup(),
+            solutionExecutable, submissionExecutable, stepType, parameters.solutionCopy.toParameterGroup(),
             solutionResult, submissionResult,
             Interval(start),
             parameters.complexity.level,

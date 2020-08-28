@@ -84,4 +84,10 @@ class TestJavaExamples : StringSpec({
     examples.java.receiver.missinginheritance.Correct::class.java.also {
         "${it.testName()}" { it.test() }
     }
+    examples.java.receiver.packageprivatemethod.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
+    examples.java.noreceiver.strictoutput.Correct::class.java.also {
+        "${it.testName()}" { it.test() }
+    }
 })

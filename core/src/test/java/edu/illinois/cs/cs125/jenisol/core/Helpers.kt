@@ -49,8 +49,6 @@ fun Class<*>.test() {
                     shouldThrow<SubmissionDesignError> { submission(incorrect) }
                 } else {
                     submission(incorrect).test().also { results ->
-                        println(incorrect.name)
-                        println(results.explain())
                         results.failed shouldBe true
                         results.filter { it.failed }
                             .map { it.type }

@@ -193,6 +193,10 @@ annotation class Both {
     }
 }
 
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Configure(val strictOutput: Boolean = false)
+
 fun Method.isBoth() = isAnnotationPresent(Both::class.java)
 
 fun Field.isStatic() = Modifier.isStatic(modifiers)

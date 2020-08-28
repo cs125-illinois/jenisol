@@ -30,6 +30,11 @@ class Solution(val solution: Class<*>) {
             }.toSet().also {
                 checkDesign(it.isNotEmpty()) { "Found no methods to test" }
             }
+
+    init {
+        allExecutables.forEach { it.isAccessible = true }
+    }
+
     val bothExecutables = solution.declaredMethods.toSet().filterNotNull().filter {
         it.isBoth()
     }.also { methods ->
@@ -163,10 +168,30 @@ fun solution(klass: Class<*>) = Solution(klass)
 fun Executable.isStatic() = Modifier.isStatic(modifiers)
 fun Executable.isPrivate() = Modifier.isPrivate(modifiers)
 fun Executable.isPublic() = Modifier.isPublic(modifiers)
-fun Executable.fullName() = "$name(${parameters.joinToString(", ") { it.type.name }})"
+fun Executable.isProtected() = Modifier.isProtected(modifiers)
+fun Executable.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
+
+fun Executable.fullName(): String {
+    val visibilityModifier = getVisibilityModifier()?.plus(" ")
+    return "${visibilityModifier ?: ""}$name(${parameters.joinToString(", ") { it.type.name }})"
+}
+
+fun Executable.visibilityMatches(executable: Executable) = when {
+    isPublic() -> executable.isPublic()
+    isPrivate() -> executable.isPrivate()
+    isProtected() -> executable.isProtected()
+    else -> executable.isPackagePrivate()
+}
+
+fun Executable.getVisibilityModifier() = when {
+    isPublic() -> "public"
+    isPrivate() -> "private"
+    isProtected() -> "protected"
+    else -> null
+}
 
 fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMethods.find {
-    it.isPublic() &&
+    it.visibilityMatches(method) &&
         it != null &&
         it.name == method.name &&
         it.parameterTypes.fixReceivers(this, solution).contentEquals(method.parameterTypes) &&
@@ -265,3 +290,4 @@ data class Settings(
         return primaryConstructor.callBy(args)
     }
 }
+
