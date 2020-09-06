@@ -111,7 +111,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
         check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
-    }.minBy { it.lastComplexity!!.level }
+    }.minByOrNull { it.lastComplexity!!.level }
 
     @Suppress("LongMethod", "ComplexMethod", "ReturnCount")
     fun test(
@@ -139,7 +139,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             check(settings.receiverCount > 1) { "Incorrect receiver count" }
 
             val generators = solution.generatorFactory.get(
-                random, settings, null, solution.receiversAndInitializers
+                random,
+                settings,
+                null,
+                solution.receiversAndInitializers
             )
             var receiverGoalMet = false
             for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
@@ -245,27 +248,33 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 sealed class SubmissionDesignError(message: String) : Exception(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
-        if (executable.isStatic()) {
-            "static "
-        } else {
-            ""
-        }
+    if (executable.isStatic()) {
+        "static "
+    } else {
+        ""
+    }
     }${
-        if (executable is Method) {
-            "method"
-        } else {
-            "constructor"
-        }
+    if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }
     } ${executable.fullName()}"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} provided extra ${
-        if (executable is Method) {
-            "method"
-        } else {
-            "constructor"
-        }
+    if (executable.isStatic()) {
+        "static "
+    } else {
+        ""
+    }
+    }${
+    if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }
     } ${executable.fullName()}"
 )
 

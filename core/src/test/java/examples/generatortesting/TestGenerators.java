@@ -40,6 +40,12 @@ public class TestGenerators {
 
   public static void testIntArray(int[] values) {}
 
+  public static void testChar(char value) {}
+
+  public static void testBoxedChar(Character value) {}
+
+  public static void testCharArray(char[] values) {}
+
   public static void testTwoIntArrays(int[] first, int[] second) {}
 
   public static void testLongArray(long[] values) {}

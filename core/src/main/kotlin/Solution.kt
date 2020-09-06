@@ -3,6 +3,8 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
+import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
+import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
@@ -131,7 +133,8 @@ class Solution(val solution: Class<*>) {
             defaultMethodCount
         }
         return settings.copy(
-            receiverCount = receiverCount, methodCount = testCount
+            receiverCount = receiverCount,
+            methodCount = testCount
         ).also {
             check(it.receiverCount >= 0) { "Invalid receiver count" }
             check(it.methodCount > 0) { "Invalid test count" }
@@ -171,9 +174,20 @@ fun Executable.isPublic() = Modifier.isPublic(modifiers)
 fun Executable.isProtected() = Modifier.isProtected(modifiers)
 fun Executable.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
+fun Class<*>.prettyPrint(): String = if (isArray) {
+    getArrayType().name + "[]".repeat(getArrayDimension())
+} else {
+    name
+}
+
 fun Executable.fullName(): String {
     val visibilityModifier = getVisibilityModifier()?.plus(" ")
-    return "${visibilityModifier ?: ""}$name(${parameters.joinToString(", ") { it.type.name }})"
+    val returnType = when (this) {
+        is Constructor<*> -> ""
+        is Method -> genericReturnType.typeName + " "
+        else -> error("Unknown executable type")
+    }
+    return "${visibilityModifier ?: ""}$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 
 fun Executable.visibilityMatches(executable: Executable) = when {
@@ -290,4 +304,3 @@ data class Settings(
         return primaryConstructor.callBy(args)
     }
 }
-

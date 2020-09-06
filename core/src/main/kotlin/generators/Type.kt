@@ -125,6 +125,8 @@ object Defaults {
         map[java.lang.Double::class.java] = BoxedGenerator.create(Double::class.java)
         map[Boolean::class.java] = BooleanGenerator.Companion::create
         map[java.lang.Boolean::class.java] = BoxedGenerator.create(Boolean::class.java)
+        map[Char::class.java] = CharGenerator.Companion::create
+        map[java.lang.Character::class.java] = BoxedGenerator.create(Char::class.java)
         map[String::class.java] = StringGenerator.Companion::create
         map[Any::class.java] = ObjectGenerator.Companion::create
     }
@@ -135,7 +137,8 @@ object Defaults {
             return { random ->
                 ArrayGenerator(
                     random,
-                    klass.componentType
+                    klass.componentType,
+                    create(klass.componentType, random)
                 )
             }
         }
@@ -146,8 +149,8 @@ object Defaults {
 }
 
 @Suppress("UNCHECKED_CAST")
-class ArrayGenerator(random: Random, private val klass: Class<*>) : TypeGenerators<Any>(random) {
-    private val componentGenerator = Defaults.create(klass, random)
+class ArrayGenerator(random: Random, private val klass: Class<*>, private val componentGenerator: TypeGenerator<*>) :
+    TypeGenerators<Any>(random) {
 
     override val simple: Set<Value<Any>>
         get() {
@@ -331,6 +334,19 @@ class BooleanGenerator(random: Random) : TypeGenerators<Boolean>(random) {
     }
 }
 
+class CharGenerator(random: Random) : TypeGenerators<Char>(random) {
+
+    override val simple = setOf('A', '0').values(ZeroComplexity)
+    override val edge = setOf<Char?>().values(ZeroComplexity)
+    override fun random(complexity: Complexity, runner: TestRunner?) =
+        ALPHANUMERIC_CHARS.random(random).value(complexity)
+
+    companion object {
+        val ALPHANUMERIC_CHARS: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9') + ' '
+        fun create(random: Random = Random) = CharGenerator(random)
+    }
+}
+
 class StringGenerator(random: Random) : TypeGenerators<String>(random) {
 
     override val simple = setOf("test", "test string").values(ZeroComplexity)
@@ -339,11 +355,10 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
 
     companion object {
         @Suppress("MemberVisibilityCanBePrivate")
-        val ALPHANUMERIC_CHARS: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9') + ' '
         fun random(complexity: Complexity, random: Random = Random): String {
             return (1..complexity.power())
-                .map { random.nextInt(ALPHANUMERIC_CHARS.size) }
-                .map(ALPHANUMERIC_CHARS::get)
+                .map { random.nextInt(CharGenerator.ALPHANUMERIC_CHARS.size) }
+                .map(CharGenerator.ALPHANUMERIC_CHARS::get)
                 .joinToString("")
         }
 
@@ -402,7 +417,11 @@ fun <T> Collection<T>.values(complexity: Complexity) = Cloner().let { cloner ->
 
 fun <T> T.value(complexity: Complexity) = Cloner().let { cloner ->
     Value(
-        cloner.deepClone(this), cloner.deepClone(this), cloner.deepClone(this), cloner.deepClone(this), complexity
+        cloner.deepClone(this),
+        cloner.deepClone(this),
+        cloner.deepClone(this),
+        cloner.deepClone(this),
+        complexity
     )
 }
 
@@ -507,6 +526,9 @@ class RandomGroup(seed: Long = Random.nextLong()) {
     val submissionCopy = java.util.Random().also { it.setSeed(seed) }
     val synced: Boolean
         get() = setOf(
-            solution.nextLong(), solutionCopy.nextLong(), submission.nextLong(), submissionCopy.nextLong()
+            solution.nextLong(),
+            solutionCopy.nextLong(),
+            submission.nextLong(),
+            submissionCopy.nextLong()
         ).size == 1
 }

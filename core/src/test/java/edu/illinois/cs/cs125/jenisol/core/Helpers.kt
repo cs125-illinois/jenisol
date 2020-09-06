@@ -1,13 +1,18 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import io.github.classgraph.ClassGraph
-import io.kotlintest.matchers.collections.shouldNotContainAll
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldThrow
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.collections.shouldNotContainAll
+import io.kotest.matchers.shouldBe
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
 
 fun Class<*>.testName() = packageName.removePrefix("examples.")
+
+val testingStepsShouldNotContain = setOf(
+    TestResult.Type.CONSTRUCTOR,
+    TestResult.Type.INITIALIZER
+)
 
 @Suppress("NestedBlockDepth", "ComplexMethod")
 fun Class<*>.test() {
@@ -52,9 +57,7 @@ fun Class<*>.test() {
                         results.failed shouldBe true
                         results.filter { it.failed }
                             .map { it.type }
-                            .distinct() shouldNotContainAll setOf(
-                            TestResult.Type.CONSTRUCTOR, TestResult.Type.INITIALIZER
-                        )
+                            .distinct() shouldNotContainAll testingStepsShouldNotContain
                     }
                 }
             }

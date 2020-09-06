@@ -1,4 +1,7 @@
-package examples.java.noreceiver.countarrayequals;
+package examples.java.noreceiver.countarrayequals2d;
+
+import edu.illinois.cs.cs125.jenisol.core.RandomType;
+import java.util.Random;
 
 public class Correct {
   public int value(int[][] values, int check) {
@@ -11,5 +14,10 @@ public class Correct {
       }
     }
     return count;
+  }
+
+  @RandomType
+  private static int randomInt(int complexity, Random random) {
+    return random.nextInt(32);
   }
 }

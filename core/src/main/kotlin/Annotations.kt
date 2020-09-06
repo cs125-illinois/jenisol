@@ -231,7 +231,11 @@ fun Field.isJenisol() = (typeFieldAnnotations + FixedParameters::class.java).any
 }
 
 private val parameterGroupTypes = setOf(
-    None::class.java, One::class.java, Two::class.java, Three::class.java, Four::class.java
+    None::class.java,
+    One::class.java,
+    Two::class.java,
+    Three::class.java,
+    Four::class.java
 )
 
 interface ParameterGroup {

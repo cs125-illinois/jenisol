@@ -157,7 +157,32 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 solutionClass to { _: Random -> UnconfiguredReceiverGenerator }
             )
         }
-        typeGenerators = generatorMappings.toMap()
+
+        val currentGenerators = generatorMappings.toMap().toMutableMap()
+        // Fill in any array types that we need and have type overrides for
+        executables
+            .filter { it in typesNeeded }
+            .flatMap { it.parameters.map { it.type }.toList() }
+            .filter { it !in currentGenerators && it.isArray && it.getArrayType() in currentGenerators }
+            .filterNotNull().forEach {
+                var currentArray = it.getArrayType().arrayType()
+                while (true) {
+                    val previousArray = currentArray.componentType
+                    currentGenerators[currentArray] = { random ->
+                        ArrayGenerator(
+                            random,
+                            previousArray,
+                            currentGenerators[previousArray]!!.invoke(random)
+                        )
+                    }
+                    if (currentArray == it) {
+                        break
+                    }
+                    currentArray = currentArray.arrayType()
+                }
+            }
+
+        typeGenerators = currentGenerators.toMap()
     }
 
     // Check to make sure we can generate all needed parameters
@@ -229,27 +254,27 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                     "Multiple @${FixedParameters.name} annotations match method ${target.name}"
                 }
             }.firstOrNull()?.let { field ->
-            val values = field.get(null)
-            check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
-            check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
-            try {
-                @Suppress("UNCHECKED_CAST")
-                values as Collection<ParameterGroup>
-            } catch (e: ClassCastException) {
-                error("@${FixedParameters.name} field does not contain a collection of parameter groups")
-            }
-            values.forEach {
-                val solutionParameters = it.deepCopy()
-                val submissionParameters = it.deepCopy()
-                check(solutionParameters !== submissionParameters) {
-                    "@${FixedParameters.name} field produces referentially equal copies"
+                val values = field.get(null)
+                check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
+                check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    values as Collection<ParameterGroup>
+                } catch (e: ClassCastException) {
+                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
                 }
-                check(solutionParameters == submissionParameters) {
-                    "@${FixedParameters.name} field does not produce equal copies"
+                values.forEach {
+                    val solutionParameters = it.deepCopy()
+                    val submissionParameters = it.deepCopy()
+                    check(solutionParameters !== submissionParameters) {
+                        "@${FixedParameters.name} field produces referentially equal copies"
+                    }
+                    check(solutionParameters == submissionParameters) {
+                        "@${FixedParameters.name} field does not produce equal copies"
+                    }
                 }
+                values
             }
-            values
-        }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
@@ -389,12 +414,13 @@ class TypeParameterGenerator(
 ) : ParametersGenerator {
     private val parameterGenerators = parameters.map {
         val type = it.parameterizedType
-        if (type in generators) {
+        val generator = if (type in generators) {
             generators[type]
         } else {
             require(type is Class<*>) { "No default generators are registered for non-class types" }
             Defaults[type]
-        }?.invoke(random) ?: error(
+        }
+        generator?.invoke(random) ?: error(
             "Couldn't find generator for parameter ${it.name} with type ${it.parameterizedType.typeName}"
         )
     }

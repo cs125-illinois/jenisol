@@ -64,6 +64,7 @@ data class TestResult<T, P : ParameterGroup>(
 
     @Suppress("ComplexMethod", "LongMethod")
     fun explain(): String {
+
         val arrayOfParameters = parameters.toArray()
         val methodString = if (type == Type.CONSTRUCTOR) {
             submissionClass.simpleName
@@ -97,12 +98,6 @@ Submission printed to STDERR:
 ---
 ${submission.stderr}---""".trim()
             }
-            differs.contains(Differs.RETURN) -> {
-                """
-Solution returned: ${print(solution.returned)}
-Submission returned: ${print(submission.returned)}
-                """.trimIndent()
-            }
             differs.contains(Differs.THREW) -> {
                 if (solution.threw == null) {
                     """Solution did not throw an exception"""
@@ -114,11 +109,19 @@ Submission returned: ${print(submission.returned)}
                     """Submission threw: ${submission.threw}"""
                 }
             }
+            differs.contains(Differs.RETURN) -> {
+                """
+Solution returned: ${print(solution.returned)}
+Submission returned: ${print(submission.returned)}
+                """.trim()
+            }
             differs.contains(Differs.PARAMETERS) -> {
                 if (!solution.modifiedParameters && submission.modifiedParameters) {
                     """
 Solution did not modify its parameters
-Submission did modify its parameters to ${print(submission.parameters.toArray())}
+Submission did modify its parameters to ${print(
+                        submission.parameters.toArray()
+                    )}
                     """.trim()
                 } else if (solution.modifiedParameters && !submission.modifiedParameters) {
                     """
@@ -128,7 +131,9 @@ Submission did not modify its parameters
                 } else {
                     """
 Solution modified its parameters to ${print(solution.parameters.toArray())}
-Submission modified its parameters to ${print(submission.parameters.toArray())}
+Submission modified its parameters to ${print(
+                        submission.parameters.toArray()
+                    )}
                     """.trim()
                 }
             }
@@ -165,7 +170,7 @@ class TestResults(
         filter { it.failed }.sortedBy { it.complexity }.let { result ->
             val leastComplex = result.first().complexity
             result.filter { it.complexity == leastComplex }
-        }.minBy { it.stepCount }!!.explain()
+        }.minByOrNull { it.stepCount }!!.explain()
     }
 }
 
@@ -259,13 +264,27 @@ class TestRunner(
 
         val solutionResult =
             solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
+
+        if (solutionResult.threw != null &&
+            TestingControlException::class.java.isAssignableFrom(solutionResult.threw::class.java)
+        ) {
+            if (solutionResult.threw::class.java == SkipTest::class.java) {
+                // Skip this test like it never happened
+                return
+            } else if (solutionResult.threw::class.java == BoundComplexity::class.java) {
+                // Bound complexity at this point but don't fail
+                generator?.prev()
+                return
+            }
+            error("TestingControl exception mismatch: ${solutionResult.threw::class.java})")
+        }
         val submissionResult =
             submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
 
         val (solutionCopy, submissionCopy) = if (
             creating && solutionResult.returned != null && submissionResult.returned != null
         ) {
-            // If we are created receivers and that succeeded, create a second pair to donate to the receiver
+            // If we are creating receivers and that succeeded, create a second pair to donate to the receiver
             // generator
             Pair(
                 solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy),
