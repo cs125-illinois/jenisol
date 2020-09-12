@@ -154,6 +154,19 @@ class Solution(val solution: Class<*>) {
         Verify.validate(it, returnType, methodToTest.parameterTypes)
     }
 
+    val filters: Map<Executable, Method> = solution.declaredMethods.filter { it.isFilterParameters() }
+        .mapNotNull { filter ->
+            FilterParameters.validate(filter).let { filterTypes ->
+                methodsToTest.filter {
+                    it.genericParameterTypes.contentEquals(filterTypes)
+                }.also {
+                    check(it.size <= 1) { "Filter matched multiple methods: ${it.size}" }
+                }.firstOrNull()
+            }?.let {
+                it to filter
+            }
+        }.toMap()
+
     val receiverCompare = object : Comparator {
         override val descendants = true
         override fun compare(solution: Any, submission: Any): Boolean = true
@@ -276,7 +289,9 @@ data class Settings(
     val simpleCount: Int = -1,
     val edgeCount: Int = -1,
     val mixedCount: Int = -1,
-    val fixedCount: Int = -1
+    val fixedCount: Int = -1,
+    val overrideTotalCount: Int = -1,
+    val minTestCount: Int = -1
 ) {
     companion object {
         val DEFAULTS = Settings(

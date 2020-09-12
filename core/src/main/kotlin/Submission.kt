@@ -202,7 +202,17 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             it.generators = generators
         }
 
-        val totalTests = settings.receiverCount * settings.methodCount
+        val totalTests = if (settings.overrideTotalCount != -1) {
+            settings.overrideTotalCount
+        } else {
+            settings.receiverCount * settings.methodCount
+        }.let {
+            if (settings.minTestCount != -1) {
+                listOf(settings.minTestCount, it).minOrNull() ?: error("Bad min")
+            } else {
+                it
+            }
+        }
         for (totalCount in 0..totalTests) {
             val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(

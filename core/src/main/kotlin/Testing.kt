@@ -221,7 +221,7 @@ class TestRunner(
         Result(parameters, it, parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false)
     }
 
-    @Suppress("ComplexMethod", "LongMethod", "ComplexCondition")
+    @Suppress("ComplexMethod", "LongMethod", "ComplexCondition", "ReturnCount")
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null) {
         val creating = !created && type != TestResult.Type.INITIALIZER
 
@@ -262,16 +262,32 @@ class TestRunner(
         }
         val stepReceivers = receivers ?: Value(null, null, null, null, ZeroComplexity)
 
+        try {
+            unwrap {
+                submission.solution.filters[solutionExecutable]?.invoke(null, *parameters.solution)
+            }
+        } catch (e: TestingControlException) {
+            if (e is SkipTest) {
+                // Skip this test like it never happened
+                return
+            } else if (e is BoundComplexity) {
+                // Bound complexity at this point but don't fail
+                generator?.prev()
+                return
+            }
+            error("TestingControl exception mismatch: ${e::class.java})")
+        }
+
         val solutionResult =
             solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
 
         if (solutionResult.threw != null &&
             TestingControlException::class.java.isAssignableFrom(solutionResult.threw::class.java)
         ) {
-            if (solutionResult.threw::class.java == SkipTest::class.java) {
+            if (solutionResult.threw is SkipTest) {
                 // Skip this test like it never happened
                 return
-            } else if (solutionResult.threw::class.java == BoundComplexity::class.java) {
+            } else if (solutionResult.threw is BoundComplexity) {
                 // Bound complexity at this point but don't fail
                 generator?.prev()
                 return

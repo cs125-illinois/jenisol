@@ -122,6 +122,24 @@ fun Method.isRandomParameters() = isAnnotationPresent(RandomParameters::class.ja
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
+annotation class FilterParameters {
+    companion object {
+        val name: String = FilterParameters::class.java.simpleName
+        fun validate(method: Method): Array<Type> {
+            check(method.isStatic()) { "@$name methods must be static" }
+            check(method.returnType.name == "void") {
+                "@$name method return values will not be used and should be void"
+            }
+            method.isAccessible = true
+            return method.genericParameterTypes
+        }
+    }
+}
+
+fun Method.isFilterParameters() = isAnnotationPresent(FilterParameters::class.java)
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
 annotation class Initializer {
     companion object {
         val name: String = Initializer::class.java.simpleName
@@ -221,7 +239,8 @@ fun Executable.isJenisol() = setOf(
     RandomParameters::class.java,
     Initializer::class.java,
     Verify::class.java,
-    Both::class.java
+    Both::class.java,
+    FilterParameters::class.java
 ).any {
     isAnnotationPresent(it)
 }
