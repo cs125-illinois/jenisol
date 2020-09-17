@@ -19,7 +19,7 @@ import kotlin.reflect.full.primaryConstructor
 
 class Solution(val solution: Class<*>) {
     init {
-        solution.declaredFields.filter { it.isStatic() && !it.isJenisol() }.also {
+        solution.declaredFields.filter { it.isStatic() && !it.isJenisol() && !it.isPrivate() }.also {
             checkDesign(it.isEmpty()) { "No support for testing classes with static fields yet" }
         }
     }

@@ -211,14 +211,15 @@ annotation class Both {
     }
 }
 
+fun Method.isBoth() = isAnnotationPresent(Both::class.java)
+
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Configure(val strictOutput: Boolean = false)
 
-fun Method.isBoth() = isAnnotationPresent(Both::class.java)
-
 fun Field.isStatic() = Modifier.isStatic(modifiers)
 fun Field.isFinal() = Modifier.isFinal(modifiers)
+fun Field.isPrivate() = Modifier.isPrivate(modifiers)
 
 fun Any.asArray(): Array<*> {
     return when (this) {
