@@ -154,6 +154,7 @@ fun print(value: Any?): String = when {
     value is CharArray -> Arrays.toString(value)
     value is BooleanArray -> Arrays.toString(value)
     value is Array<*> -> value.joinToString { print(it) }
+    value is String -> "\"$value\""
     else -> value.toString()
 }
 

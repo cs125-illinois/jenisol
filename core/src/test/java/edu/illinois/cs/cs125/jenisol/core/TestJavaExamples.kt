@@ -106,5 +106,8 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.boundcomplexity.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.stringequality.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

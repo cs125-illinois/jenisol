@@ -278,7 +278,14 @@ object None : ParameterGroup {
     override fun toArray() = arrayOf<Any?>()
 }
 
-data class One<I>(@JvmField val first: I) : ParameterGroup {
+class One<I>(setFirst: I) : ParameterGroup {
+    @JvmField val first: I = if (setFirst is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setFirst.toCharArray()) as I
+    } else {
+        setFirst
+    }
+
     override fun toArray() = arrayOf<Any?>(first)
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -289,7 +296,19 @@ data class One<I>(@JvmField val first: I) : ParameterGroup {
     override fun hashCode(): Int = first?.deepHashCode() ?: 0
 }
 
-data class Two<I, J>(@JvmField val first: I, @JvmField val second: J) : ParameterGroup {
+class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
+    @JvmField val first: I = if (setFirst is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setFirst.toCharArray()) as I
+    } else {
+        setFirst
+    }
+    @JvmField val second: J = if (setSecond is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setSecond.toCharArray()) as J
+    } else {
+        setSecond
+    }
     override fun toArray() = arrayOf(first, second)
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -304,7 +323,26 @@ data class Two<I, J>(@JvmField val first: I, @JvmField val second: J) : Paramete
     }
 }
 
-data class Three<I, J, K>(@JvmField val first: I, @JvmField val second: J, @JvmField val third: K) : ParameterGroup {
+class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
+    @JvmField val first: I = if (setFirst is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setFirst.toCharArray()) as I
+    } else {
+        setFirst
+    }
+    @JvmField val second: J = if (setSecond is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setSecond.toCharArray()) as J
+    } else {
+        setSecond
+    }
+    @JvmField val third: K = if (setThird is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setThird.toCharArray()) as K
+    } else {
+        setThird
+    }
+
     override fun toArray() = arrayOf(first, second, third)
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -320,12 +358,36 @@ data class Three<I, J, K>(@JvmField val first: I, @JvmField val second: J, @JvmF
     }
 }
 
-data class Four<I, J, K, L>(
-    @JvmField val first: I,
-    @JvmField val second: J,
-    @JvmField val third: K,
-    @JvmField val fourth: L
+class Four<I, J, K, L>(
+    setFirst: I,
+    setSecond: J,
+    setThird: K,
+    setFourth: L
 ) : ParameterGroup {
+    @JvmField val first: I = if (setFirst is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setFirst.toCharArray()) as I
+    } else {
+        setFirst
+    }
+    @JvmField val second: J = if (setSecond is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setSecond.toCharArray()) as J
+    } else {
+        setSecond
+    }
+    @JvmField val third: K = if (setThird is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setThird.toCharArray()) as K
+    } else {
+        setThird
+    }
+    @JvmField val fourth: L = if (setFourth is String) {
+        @Suppress("UNCHECKED_CAST")
+        String(setFourth.toCharArray()) as L
+    } else {
+        setFourth
+    }
     override fun toArray() = arrayOf(first, second, third, fourth)
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
