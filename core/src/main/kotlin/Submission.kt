@@ -5,6 +5,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
+import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Type
@@ -21,6 +22,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
         }
     }
+
+    val submissionFields = solution.allFields.map { solutionField ->
+        submission.findField(solutionField) ?: throw SubmissionDesignMissingFieldError(
+            submission,
+            solutionField
+        )
+    }.toSet()
 
     val submissionExecutables = solution.allExecutables
         .map { solutionExecutable ->
@@ -51,6 +59,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         submission,
                         it
                     )
+                }
+            }
+            submission.declaredFields.toSet().filter {
+                it.isPublic()
+            }.forEach {
+                if (it !in submissionFields) {
+                    throw SubmissionDesignExtraFieldError(submission, it)
                 }
             }
         }
@@ -118,6 +133,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         passedSettings: Settings = Settings(),
         captureOutput: CaptureOutput = ::defaultCaptureOutput
     ): TestResults {
+        if (solution.solution.isDesignOnly()) {
+            throw DesignOnlyTestingError(solution.solution)
+        }
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
 
         val random = if (passedSettings.seed == -1) {
@@ -194,7 +212,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             )
         } else {
-            mapOf<Type, TypeGeneratorGenerator>()
+            mapOf()
         }
 
         val generators = solution.generatorFactory.get(random, settings, generatorOverrides, from = initialGenerators)
@@ -290,6 +308,30 @@ class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) 
 
 class SubmissionDesignInheritanceError(klass: Class<*>, parent: Class<*>) : SubmissionDesignError(
     "Submission class ${klass.name} didn't inherit from ${parent.name}"
+)
+
+class SubmissionDesignMissingFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
+    "Submission class ${klass.name} didn't provide ${
+    if (field.isStatic()) {
+        "static "
+    } else {
+        ""
+    }
+    }field ${field.fullName()}"
+)
+
+class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
+    "Submission class ${klass.name} provided extra ${
+    if (field.isStatic()) {
+        "static "
+    } else {
+        ""
+    }
+    }field ${field.fullName()}"
+)
+
+class DesignOnlyTestingError(klass: Class<*>) : Exception(
+    "Solution class ${klass.name} is marked as design only"
 )
 
 fun unwrap(run: () -> Any?): Any? = try {

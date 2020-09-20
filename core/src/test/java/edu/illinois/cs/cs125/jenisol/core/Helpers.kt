@@ -25,23 +25,30 @@ fun Class<*>.test() {
         ).scan().allClasses.map { it.loadClass() }
     } else {
         packageClasses
-    }.filter { !it.isInterface && it.declaredMethods.isNotEmpty() }
+    }.filter { !it.isInterface && (it.declaredMethods.isNotEmpty() || it.declaredFields.isNotEmpty()) }
 
     val primarySolution = testingClasses
-        .filter { !it.isInterface && it.declaredMethods.isNotEmpty() }
         .find { it.simpleName == "Correct" || it.simpleName == "CorrectKt" }
         ?: error("Couldn't find primary solution in package $this")
 
     solution(primarySolution).apply {
-        submission(primarySolution).test().also { results ->
-            check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
+        submission(primarySolution).also {
+            if (!primarySolution.isDesignOnly()) {
+                it.test().also { results ->
+                    check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
+                }
+            }
         }
         testingClasses
             .filter { it != primarySolution && it.simpleName.startsWith("Correct") }
             .forEach { correct ->
-                submission(correct).test().also { results ->
-                    check(results.succeeded) {
-                        "Class marked as correct did not pass testing: ${results.explain()}"
+                submission(correct).also {
+                    if (!primarySolution.isDesignOnly()) {
+                        it.test().also { results ->
+                            check(results.succeeded) {
+                                "Class marked as correct did not pass testing: ${results.explain()}"
+                            }
+                        }
                     }
                 }
             }
@@ -53,6 +60,9 @@ fun Class<*>.test() {
                 if (incorrect.simpleName.startsWith("Design")) {
                     shouldThrow<SubmissionDesignError> { submission(incorrect) }
                 } else {
+                    check(!primarySolution.isDesignOnly()) {
+                        "Can't test Incorrect* examples when solution is design only"
+                    }
                     submission(incorrect).test().also { results ->
                         results.failed shouldBe true
                         results.filter { it.failed }

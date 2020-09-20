@@ -217,9 +217,18 @@ fun Method.isBoth() = isAnnotationPresent(Both::class.java)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Configure(val strictOutput: Boolean = false)
 
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class DesignOnly
+
+fun Class<*>.isDesignOnly() = isAnnotationPresent(DesignOnly::class.java)
+
 fun Field.isStatic() = Modifier.isStatic(modifiers)
 fun Field.isFinal() = Modifier.isFinal(modifiers)
+fun Field.isPublic() = Modifier.isPublic(modifiers)
 fun Field.isPrivate() = Modifier.isPrivate(modifiers)
+fun Field.isProtected() = Modifier.isProtected(modifiers)
+fun Field.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
 fun Any.asArray(): Array<*> {
     return when (this) {
@@ -279,7 +288,8 @@ object None : ParameterGroup {
 }
 
 class One<I>(setFirst: I) : ParameterGroup {
-    @JvmField val first: I = if (setFirst is String) {
+    @JvmField
+    val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
         String(setFirst.toCharArray()) as I
     } else {
@@ -297,18 +307,21 @@ class One<I>(setFirst: I) : ParameterGroup {
 }
 
 class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
-    @JvmField val first: I = if (setFirst is String) {
+    @JvmField
+    val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
         String(setFirst.toCharArray()) as I
     } else {
         setFirst
     }
-    @JvmField val second: J = if (setSecond is String) {
+    @JvmField
+    val second: J = if (setSecond is String) {
         @Suppress("UNCHECKED_CAST")
         String(setSecond.toCharArray()) as J
     } else {
         setSecond
     }
+
     override fun toArray() = arrayOf(first, second)
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -324,19 +337,22 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
 }
 
 class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
-    @JvmField val first: I = if (setFirst is String) {
+    @JvmField
+    val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
         String(setFirst.toCharArray()) as I
     } else {
         setFirst
     }
-    @JvmField val second: J = if (setSecond is String) {
+    @JvmField
+    val second: J = if (setSecond is String) {
         @Suppress("UNCHECKED_CAST")
         String(setSecond.toCharArray()) as J
     } else {
         setSecond
     }
-    @JvmField val third: K = if (setThird is String) {
+    @JvmField
+    val third: K = if (setThird is String) {
         @Suppress("UNCHECKED_CAST")
         String(setThird.toCharArray()) as K
     } else {
@@ -364,30 +380,35 @@ class Four<I, J, K, L>(
     setThird: K,
     setFourth: L
 ) : ParameterGroup {
-    @JvmField val first: I = if (setFirst is String) {
+    @JvmField
+    val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
         String(setFirst.toCharArray()) as I
     } else {
         setFirst
     }
-    @JvmField val second: J = if (setSecond is String) {
+    @JvmField
+    val second: J = if (setSecond is String) {
         @Suppress("UNCHECKED_CAST")
         String(setSecond.toCharArray()) as J
     } else {
         setSecond
     }
-    @JvmField val third: K = if (setThird is String) {
+    @JvmField
+    val third: K = if (setThird is String) {
         @Suppress("UNCHECKED_CAST")
         String(setThird.toCharArray()) as K
     } else {
         setThird
     }
-    @JvmField val fourth: L = if (setFourth is String) {
+    @JvmField
+    val fourth: L = if (setFourth is String) {
         @Suppress("UNCHECKED_CAST")
         String(setFourth.toCharArray()) as L
     } else {
         setFourth
     }
+
     override fun toArray() = arrayOf(first, second, third, fourth)
     override fun equals(other: Any?): Boolean = when {
         this === other -> true

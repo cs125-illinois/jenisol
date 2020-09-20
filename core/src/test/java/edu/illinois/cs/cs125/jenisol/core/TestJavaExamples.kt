@@ -109,5 +109,14 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.stringequality.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.publicfield.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.designonly.fieldchecks.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.doublecomparison.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

@@ -161,9 +161,10 @@ fun print(value: Any?): String = when {
 @Suppress("UNUSED")
 class TestResults(
     val results: List<TestResult<Any, ParameterGroup>>,
-    val settings: Settings
+    val settings: Settings,
+    designOnly: Boolean? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
-    val succeeded = all { it.succeeded }
+    val succeeded = designOnly ?: all { it.succeeded }
     val failed = !succeeded
     fun explain() = if (succeeded) {
         "Passed"

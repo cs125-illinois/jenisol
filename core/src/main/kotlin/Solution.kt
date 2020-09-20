@@ -9,6 +9,7 @@ import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.locks.ReentrantLock
@@ -24,13 +25,17 @@ class Solution(val solution: Class<*>) {
         }
     }
 
+    val allFields = solution.declaredFields.filter {
+        !it.isJenisol() && !it.isPrivate()
+    }
+
     val allExecutables =
         (solution.declaredMethods.toSet() + solution.declaredConstructors.toSet())
             .filterNotNull()
             .filter {
                 !it.isPrivate() && !it.isJenisol()
             }.toSet().also {
-                checkDesign(it.isNotEmpty()) { "Found no methods to test" }
+                checkDesign(it.isNotEmpty() || allFields.isNotEmpty()) { "Found no methods or fields to test" }
             }
 
     init {
@@ -55,7 +60,9 @@ class Solution(val solution: Class<*>) {
         }
     }.toSet()
     val methodsToTest = (allExecutables - receiverGenerators + bothExecutables).also {
-        checkDesign(it.isNotEmpty()) { "Found methods that generate receivers but no ways to test them" }
+        checkDesign(it.isNotEmpty() || solution.isDesignOnly()) {
+            "Found methods that generate receivers but no ways to test them"
+        }
     }
     private val needsReceiver = methodsToTest.filter { executable ->
         executable.receiverParameter() || (executable is Method && !executable.isStatic())
@@ -203,11 +210,23 @@ fun Executable.fullName(): String {
     return "${visibilityModifier ?: ""}$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 
+fun Field.fullName(): String {
+    val visibilityModifier = getVisibilityModifier()?.plus(" ")
+    return "${visibilityModifier ?: ""}$type $name"
+}
+
 fun Executable.visibilityMatches(executable: Executable) = when {
     isPublic() -> executable.isPublic()
     isPrivate() -> executable.isPrivate()
     isProtected() -> executable.isProtected()
     else -> executable.isPackagePrivate()
+}
+
+fun Field.visibilityMatches(field: Field) = when {
+    isPublic() -> field.isPublic()
+    isPrivate() -> field.isPrivate()
+    isProtected() -> field.isProtected()
+    else -> field.isPackagePrivate()
 }
 
 fun Executable.getVisibilityModifier() = when {
@@ -217,9 +236,16 @@ fun Executable.getVisibilityModifier() = when {
     else -> null
 }
 
+fun Field.getVisibilityModifier() = when {
+    isPublic() -> "public"
+    isPrivate() -> "private"
+    isProtected() -> "protected"
+    else -> null
+}
+
 fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMethods.find {
-    it.visibilityMatches(method) &&
-        it != null &&
+    it != null &&
+        it.visibilityMatches(method) &&
         it.name == method.name &&
         it.parameterTypes.fixReceivers(this, solution).contentEquals(method.parameterTypes) &&
         (it.returnType == method.returnType || (it.returnType == this && method.returnType == solution)) &&
@@ -237,6 +263,14 @@ fun Array<Class<*>>.fixReceivers(from: Class<*>, to: Class<*>) = map {
         else -> it
     }
 }.toTypedArray()
+
+fun Class<*>.findField(field: Field) = this.declaredFields.find {
+    it != null &&
+        it.visibilityMatches(field) &&
+        it.name == field.name &&
+        it.type == field.type &&
+        it.isStatic() == field.isStatic()
+}
 
 typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
 

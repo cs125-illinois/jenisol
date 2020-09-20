@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
+import kotlin.math.abs
 
 interface Comparator {
     fun compare(solution: Any, submission: Any): Boolean
@@ -19,6 +20,20 @@ class Comparators(
         comparators[Throwable::class.java] = object : Comparator {
             override val descendants = true
             override fun compare(solution: Any, submission: Any) = solution::class.java == submission::class.java
+        }
+        comparators[Double::class.java] = object : Comparator {
+            override val descendants = false
+            override fun compare(solution: Any, submission: Any): Boolean = when {
+                solution is Double && submission is Double -> compareDoubles(solution, submission)
+                else -> false
+            }
+        }
+        comparators[java.lang.Double::class.java] = object : Comparator {
+            override val descendants = false
+            override fun compare(solution: Any, submission: Any): Boolean = when {
+                solution is Double && submission is Double -> compareDoubles(solution, submission)
+                else -> false
+            }
         }
     }
 
@@ -65,4 +80,11 @@ fun Any.deepEquals(
             }
     }
     else -> this == submission
+}
+
+const val DEFAULT_DOUBLE_THRESHOLD = 0.000001
+fun compareDoubles(first: Double, second: Double) = when {
+    first == second -> true
+    abs(first - second) < DEFAULT_DOUBLE_THRESHOLD -> true
+    else -> false
 }
