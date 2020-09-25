@@ -52,7 +52,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     init {
         if (submission != solution.solution) {
             (submission.declaredMethods.toSet() + submission.declaredConstructors.toSet()).filter {
-                it.isPublic()
+                !it.isPrivate()
             }.forEach {
                 if (it !in submissionExecutables.values) {
                     throw SubmissionDesignExtraMethodError(
@@ -62,7 +62,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
             submission.declaredFields.toSet().filter {
-                it.isPublic()
+                !it.isPrivate()
             }.forEach {
                 if (it !in submissionFields) {
                     throw SubmissionDesignExtraFieldError(submission, it)
