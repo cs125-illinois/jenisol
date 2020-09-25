@@ -118,5 +118,8 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.doublecomparison.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.asserts.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

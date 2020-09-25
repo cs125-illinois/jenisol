@@ -20,9 +20,12 @@ import kotlin.reflect.full.primaryConstructor
 
 class Solution(val solution: Class<*>) {
     init {
-        solution.declaredFields.filter { it.isStatic() && !it.isJenisol() && !it.isPrivate() }.also {
-            checkDesign(it.isEmpty()) { "No support for testing classes with static fields yet" }
-        }
+        solution.declaredFields.filter { it.isStatic() && !it.isJenisol() && !it.isPrivate() && !it.isFinal() }
+            .also { fields ->
+                checkDesign(fields.isEmpty()) {
+                    "No support for testing classes with modifiable static fields yet: ${fields.map { it.name }}"
+                }
+            }
     }
 
     val allFields = solution.declaredFields.filter {

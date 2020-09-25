@@ -23,12 +23,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    val submissionFields = solution.allFields.map { solutionField ->
-        submission.findField(solutionField) ?: throw SubmissionDesignMissingFieldError(
-            submission,
-            solutionField
-        )
-    }.toSet()
+    val submissionFields =
+        solution.allFields.filter { it.name != "${"$"}assertionsDisabled" }.map { solutionField ->
+            submission.findField(solutionField) ?: throw SubmissionDesignMissingFieldError(
+                submission,
+                solutionField
+            )
+        }.toSet()
 
     val submissionExecutables = solution.allExecutables
         .map { solutionExecutable ->
