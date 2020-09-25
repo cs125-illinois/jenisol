@@ -87,7 +87,9 @@ class Solution(val solution: Class<*>) {
             checkDesign(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
         }
         if (!skipReceiver && receiverGenerators.isNotEmpty()) {
-            checkDesign(receiverTransformers.isNotEmpty()) { "No way to verify generated receivers" }
+            checkDesign(!(receiverTransformers.isEmpty() && bothExecutables.isEmpty())) {
+                "No way to verify generated receivers"
+            }
         }
     }
 

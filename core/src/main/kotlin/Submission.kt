@@ -63,7 +63,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
             submission.declaredFields.toSet().filter {
-                !it.isPrivate()
+                !it.isPrivate() && it.name != "${"$"}assertionsDisabled"
             }.forEach {
                 if (it !in submissionFields) {
                     throw SubmissionDesignExtraFieldError(submission, it)
