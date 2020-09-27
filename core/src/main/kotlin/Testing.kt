@@ -51,7 +51,7 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField var message: String? = null,
     @JvmField val differs: MutableSet<Differs> = mutableSetOf()
 ) {
-    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
+    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR, INSTANCE_VALIDATOR }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW }
 
     val succeeded: Boolean
@@ -119,9 +119,11 @@ Submission returned: ${print(submission.returned)}
                 if (!solution.modifiedParameters && submission.modifiedParameters) {
                     """
 Solution did not modify its parameters
-Submission did modify its parameters to ${print(
+Submission did modify its parameters to ${
+                    print(
                         submission.parameters.toArray()
-                    )}
+                    )
+                    }
                     """.trim()
                 } else if (solution.modifiedParameters && !submission.modifiedParameters) {
                     """
@@ -131,9 +133,11 @@ Submission did not modify its parameters
                 } else {
                     """
 Solution modified its parameters to ${print(solution.parameters.toArray())}
-Submission modified its parameters to ${print(
+Submission modified its parameters to ${
+                    print(
                         submission.parameters.toArray()
-                    )}
+                    )
+                    }
                     """.trim()
                 }
             }
@@ -197,6 +201,7 @@ class TestRunner(
     var returnedReceivers: Value<Any?>? = null
 
     var created: Boolean
+    var initialized: Boolean = false
 
     init {
         if (receivers == null && submission.solution.skipReceiver) {
@@ -302,6 +307,14 @@ class TestRunner(
         val (solutionCopy, submissionCopy) = if (
             creating && solutionResult.returned != null && submissionResult.returned != null
         ) {
+            if (submission.solution.instanceValidator != null) {
+                @Suppress("TooGenericExceptionCaught")
+                try {
+                    submission.solution.instanceValidator.invoke(null, arrayOf(submissionResult.returned))
+                } catch (e: Exception) {
+                    // Fix this
+                }
+            }
             // If we are creating receivers and that succeeded, create a second pair to donate to the receiver
             // generator
             Pair(
@@ -369,10 +382,10 @@ class TestRunner(
     fun next(stepCount: Int): Boolean {
         if (!created) {
             run(receiverGenerators.first(), stepCount)
-            if (ready && submission.solution.initializer != null) {
-                run(submission.solution.initializer, stepCount, TestResult.Type.INITIALIZER)
-            }
             created = true
+        } else if (!initialized && submission.solution.initializer != null) {
+            run(submission.solution.initializer, stepCount, TestResult.Type.INITIALIZER)
+            initialized = true
         } else {
             run(methodIterator.first(), stepCount)
         }

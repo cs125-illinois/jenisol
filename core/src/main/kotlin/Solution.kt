@@ -93,6 +93,14 @@ class Solution(val solution: Class<*>) {
         }
     }
 
+    val instanceValidator = solution.declaredMethods.filter {
+        it.isInstanceValidator()
+    }.also {
+        checkDesign(it.size <= 1) { "Solution has multiple instance validators" }
+    }.firstOrNull()?.also {
+        checkDesign { InstanceValidator.validate(it) }
+    }
+
     val initializer: Executable? = solution.superclass.declaredMethods.filter {
         it.isInitializer()
     }.also {

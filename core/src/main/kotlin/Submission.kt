@@ -242,6 +242,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     captureOutput
                 ).also { runner ->
                     runner.next(stepCount++)
+                    if (solution.initializer != null && runner.ready) {
+                        runner.next(stepCount++)
+                    }
                     runners.add(runner)
                     receiverGenerator?.runners?.add(runner)
                 }

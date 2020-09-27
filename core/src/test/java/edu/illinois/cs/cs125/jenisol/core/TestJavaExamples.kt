@@ -124,5 +124,11 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.bothonly.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.customtype.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.custominstancecheck.Correct::class.java.also {
+            "!${it.testName()}" { it.test() }
+        }
     }
 )

@@ -157,6 +157,29 @@ fun Method.isInitializer() = isAnnotationPresent(Initializer::class.java)
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
+annotation class InstanceValidator {
+    companion object {
+        val name: String = InstanceValidator::class.java.simpleName
+        fun validate(method: Method) {
+            check(method.isStatic()) { "@$name methods must be static" }
+            check(
+                method.parameterTypes.size == 1 &&
+                    method.parameterTypes[0] == Object::class.java
+            ) {
+                "@${RandomParameters.name} methods must accept parameters (Object instance)"
+            }
+            check(method.returnType.name == "void") {
+                "@$name method return values will not be used and should be void"
+            }
+            method.isAccessible = true
+        }
+    }
+}
+
+fun Method.isInstanceValidator() = isAnnotationPresent(InstanceValidator::class.java)
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
 annotation class Verify {
     companion object {
         val name: String = Verify::class.java.simpleName
@@ -250,7 +273,8 @@ fun Executable.isJenisol() = setOf(
     Initializer::class.java,
     Verify::class.java,
     Both::class.java,
-    FilterParameters::class.java
+    FilterParameters::class.java,
+    InstanceValidator::class.java
 ).any {
     isAnnotationPresent(it)
 }
@@ -314,6 +338,7 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
     } else {
         setFirst
     }
+
     @JvmField
     val second: J = if (setSecond is String) {
         @Suppress("UNCHECKED_CAST")
@@ -344,6 +369,7 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
     } else {
         setFirst
     }
+
     @JvmField
     val second: J = if (setSecond is String) {
         @Suppress("UNCHECKED_CAST")
@@ -351,6 +377,7 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
     } else {
         setSecond
     }
+
     @JvmField
     val third: K = if (setThird is String) {
         @Suppress("UNCHECKED_CAST")
@@ -387,6 +414,7 @@ class Four<I, J, K, L>(
     } else {
         setFirst
     }
+
     @JvmField
     val second: J = if (setSecond is String) {
         @Suppress("UNCHECKED_CAST")
@@ -394,6 +422,7 @@ class Four<I, J, K, L>(
     } else {
         setSecond
     }
+
     @JvmField
     val third: K = if (setThird is String) {
         @Suppress("UNCHECKED_CAST")
@@ -401,6 +430,7 @@ class Four<I, J, K, L>(
     } else {
         setThird
     }
+
     @JvmField
     val fourth: L = if (setFourth is String) {
         @Suppress("UNCHECKED_CAST")

@@ -127,6 +127,12 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             }
         val generatorMappings: MutableList<Pair<Class<*>, (Random) -> TypeGenerator<Any>>> =
             (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
+                val needsDefault = klass !in simple || klass !in edge || klass !in rand
+                val defaultGenerator = if (needsDefault) {
+                    Defaults[klass]
+                } else {
+                    null
+                }
                 klass to { random: Random ->
                     OverrideTypeGenerator(
                         klass,
@@ -134,7 +140,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                         edge[klass],
                         rand[klass],
                         random,
-                        Defaults[klass]
+                        defaultGenerator
                     )
                 }
             }.toMutableList()
