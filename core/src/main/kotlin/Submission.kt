@@ -83,8 +83,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         else -> solution.deepEquals(submission, comparators)
     }
 
-    fun verify(result: TestResult<*, *>) {
-        solution.verifier?.also { customVerifier ->
+    fun verify(executable: Executable, result: TestResult<*, *>) {
+        solution.verifiers[executable]?.also { customVerifier ->
             @Suppress("TooGenericExceptionCaught")
             try {
                 unwrap { customVerifier.invoke(null, result) }

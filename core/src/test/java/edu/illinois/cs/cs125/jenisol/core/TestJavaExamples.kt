@@ -130,5 +130,8 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.custominstancecheck.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.multipleverifiers.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

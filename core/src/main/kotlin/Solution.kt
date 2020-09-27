@@ -161,18 +161,29 @@ class Solution(val solution: Class<*>) {
         }
     }
 
-    val verifier: Method? = solution.declaredMethods.filter { it.isVerify() }.also {
-        checkDesign(it.size <= 1) { "No support yet for multiple verifiers" }
-    }.firstOrNull()?.also {
-        checkDesign(methodsToTest.size == 1) { "No support yet for multiple verifiers" }
-        val methodToTest = methodsToTest.first()
-        val returnType = when (methodToTest) {
-            is Constructor<*> -> solution
-            is Method -> methodToTest.genericReturnType
-            else -> designError("Unexpected executable type")
+    val verifiers = solution.declaredMethods.filter { it.isVerify() }.map { verifier ->
+        val matchingMethod = methodsToTest.filter { methodToTest ->
+            val returnType = when (methodToTest) {
+                is Constructor<*> -> solution
+                is Method -> methodToTest.genericReturnType
+                else -> designError("Unexpected executable type")
+            }
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                Verify.validate(verifier, returnType, methodToTest.parameterTypes)
+                true
+            } catch (e: Exception) {
+                false
+            }
         }
-        Verify.validate(it, returnType, methodToTest.parameterTypes)
-    }
+        checkDesign(matchingMethod.size > 0) {
+            "@Verify method $verifier matched no solution methods"
+        }
+        checkDesign(matchingMethod.size == 1) {
+            "@Verify method $verifier matched multiple solution methods"
+        }
+        matchingMethod[0] to verifier
+    }.toMap()
 
     val filters: Map<Executable, Method> = solution.declaredMethods.filter { it.isFilterParameters() }
         .mapNotNull { filter ->

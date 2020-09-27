@@ -349,7 +349,7 @@ class TestRunner(
         }
 
         if (step.succeeded) {
-            submission.verify(step)
+            submission.verify(solutionExecutable, step)
         }
         testResults.add(step)
 
