@@ -128,7 +128,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.custominstancecheck.Correct::class.java.also {
-            "!${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
         }
     }
 )

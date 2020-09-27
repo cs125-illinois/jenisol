@@ -6,6 +6,7 @@ import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
+import java.lang.RuntimeException
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -177,6 +178,8 @@ annotation class InstanceValidator {
 }
 
 fun Method.isInstanceValidator() = isAnnotationPresent(InstanceValidator::class.java)
+
+class InstanceValidationException(msg: String) : RuntimeException(msg)
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

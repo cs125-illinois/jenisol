@@ -51,8 +51,8 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField var message: String? = null,
     @JvmField val differs: MutableSet<Differs> = mutableSetOf()
 ) {
-    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR, INSTANCE_VALIDATOR }
-    enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW }
+    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
+    enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW }
 
     val succeeded: Boolean
         get() = differs.isEmpty()
@@ -307,14 +307,6 @@ class TestRunner(
         val (solutionCopy, submissionCopy) = if (
             creating && solutionResult.returned != null && submissionResult.returned != null
         ) {
-            if (submission.solution.instanceValidator != null) {
-                @Suppress("TooGenericExceptionCaught")
-                try {
-                    submission.solution.instanceValidator.invoke(null, arrayOf(submissionResult.returned))
-                } catch (e: Exception) {
-                    // Fix this
-                }
-            }
             // If we are creating receivers and that succeeded, create a second pair to donate to the receiver
             // generator
             Pair(
@@ -346,7 +338,19 @@ class TestRunner(
             submission.submission
         )
 
-        submission.verify(step)
+        if (solutionCopy != null && submission.solution.instanceValidator != null) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                unwrap { submission.solution.instanceValidator.invoke(null, submissionResult.returned) }
+            } catch (e: InstanceValidationException) {
+                step.differs.add(TestResult.Differs.INSTANCE_VALIDATION_THREW)
+                step.verifierThrew = e
+            }
+        }
+
+        if (step.succeeded) {
+            submission.verify(step)
+        }
         testResults.add(step)
 
         if (step.succeeded) {
