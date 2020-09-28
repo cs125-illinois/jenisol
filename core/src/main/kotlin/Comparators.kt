@@ -85,6 +85,6 @@ fun Any.deepEquals(
 const val DEFAULT_DOUBLE_THRESHOLD = 0.000001
 fun compareDoubles(first: Double, second: Double) = when {
     first == second -> true
-    abs(first - second) < DEFAULT_DOUBLE_THRESHOLD -> true
+    (abs(first - second) / abs(first).coerceAtMost(abs(second))) < DEFAULT_DOUBLE_THRESHOLD -> true
     else -> false
 }

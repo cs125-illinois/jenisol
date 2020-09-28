@@ -133,5 +133,8 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.multipleverifiers.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.doublecomparison.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )
