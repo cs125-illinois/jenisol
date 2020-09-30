@@ -380,17 +380,16 @@ class ObjectGenerator(
     }
 
     override val simple = (
-        setOf(Any()).values(ZeroComplexity) +
+        listOf(Any()).values(ZeroComplexity) +
             (receiverGenerator?.simple ?: setOf()) +
-            defaultObjects.values.map { it.simple }.flatten().distinct().toSet()
-        ).take(SIMPLE_LIMIT).toSet()
+            defaultObjects.values.map { it.simple }.flatten().distinct().take(SIMPLE_LIMIT)
+        ).toSet()
         as Set<Value<Any>>
 
     override val edge = (
-        setOf(null as Any?).values(ZeroComplexity) +
-            (receiverGenerator?.edge ?: setOf()) +
-            defaultObjects.values.map { it.edge }.flatten().distinct().toSet()
-        ).take(EDGE_LIMIT).toSet()
+        listOf(null as Any?).values(ZeroComplexity) +
+            defaultObjects.values.map { it.edge }.flatten().distinct().take(EDGE_LIMIT)
+        ).toSet()
         as Set<Value<Any?>>
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =

@@ -11,10 +11,6 @@ public class Incorrect0 {
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof Incorrect0)) {
-      return false;
-    }
-    Incorrect0 correct = (Incorrect0) o;
-    return first == correct.first || second == correct.second;
+    return false;
   }
 }

@@ -136,5 +136,8 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.doublecomparison.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.badstatic.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

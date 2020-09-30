@@ -32,6 +32,7 @@ fun Class<*>.test() {
         ?: error("Couldn't find primary solution in package $this")
 
     solution(primarySolution).apply {
+        /*
         submission(primarySolution).also {
             if (!primarySolution.isDesignOnly()) {
                 it.test().also { results ->
@@ -39,12 +40,13 @@ fun Class<*>.test() {
                 }
             }
         }
+         */
         testingClasses
             .filter { it != primarySolution && it.simpleName.startsWith("Correct") }
             .forEach { correct ->
-                submission(correct).also {
+                submission(correct).also { submission ->
                     if (!primarySolution.isDesignOnly()) {
-                        it.test().also { results ->
+                        submission.test().also { results ->
                             check(results.succeeded) {
                                 "Class marked as correct did not pass testing: ${results.explain()}"
                             }
@@ -53,7 +55,13 @@ fun Class<*>.test() {
                 }
             }
         testingClasses
-            .filter { it.simpleName.startsWith("Incorrect") || it.simpleName.startsWith("Design") }
+            .filter {
+                (
+                    it.simpleName.startsWith("Incorrect") ||
+                        it.simpleName.startsWith("Design")
+                    ) &&
+                    !it.simpleName.startsWith("Ignore")
+            }
             .apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->

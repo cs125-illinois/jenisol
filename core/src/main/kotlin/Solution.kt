@@ -125,13 +125,13 @@ class Solution(val solution: Class<*>) {
         @Suppress("MagicNumber")
         receiverEntropy = when {
             skipReceiver -> 0
-            emptyInitializers -> 2
-            else -> 5
+            emptyInitializers -> 1
+            else -> 3
         }
         @Suppress("MagicNumber")
         methodEntropy = when {
-            methodsToTest.size == 1 && methodsToTest.first().parameters.isEmpty() -> 0
-            else -> 5
+            methodsToTest.size == 1 && methodsToTest.first().parameters.isEmpty() -> 4
+            else -> 7
         }
     }
 
@@ -349,7 +349,8 @@ data class Settings(
     val mixedCount: Int = -1,
     val fixedCount: Int = -1,
     val overrideTotalCount: Int = -1,
-    val minTestCount: Int = -1
+    val minTestCount: Int = -1,
+    val startMultipleCount: Int = -1
 ) {
     companion object {
         val DEFAULTS = Settings(

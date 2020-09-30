@@ -1,10 +1,10 @@
 package examples.java.receiver.equals;
 
-public class Incorrect0 {
+public class Ignore0 {
   @SuppressWarnings({"FieldCanBeLocal", "unused"})
   private final int v;
 
-  public Incorrect0(int setValue) {
+  public Ignore0(int setValue) {
     v = setValue;
   }
 
@@ -13,10 +13,10 @@ public class Incorrect0 {
     if (o == null) {
       return false;
     }
-    if (!(o instanceof Incorrect0)) {
+    if (!(o instanceof Ignore0)) {
       return true;
     }
-    Incorrect0 correct = (Incorrect0) o;
+    Ignore0 correct = (Ignore0) o;
     return v == correct.v;
   }
 }

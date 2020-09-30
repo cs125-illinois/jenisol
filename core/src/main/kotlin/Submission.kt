@@ -123,7 +123,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
     @Suppress("UNCHECKED_CAST")
     fun List<TestRunner>.toResults(settings: Settings) =
-        TestResults(map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten(), settings)
+        TestResults(
+            map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten().sortedBy { it.stepCount },
+            settings
+        )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
         check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
@@ -139,10 +142,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
 
-        val random = if (passedSettings.seed == -1) {
+        val random = if (settings.seed == -1) {
             Random
         } else {
-            Random(passedSettings.seed.toLong())
+            Random(settings.seed.toLong())
         }
 
         val runners: MutableList<TestRunner> = mutableListOf()
@@ -232,6 +235,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 it
             }
         }
+        val startMultipleCount = if (settings.startMultipleCount != -1) {
+            settings.startMultipleCount
+        } else {
+            totalTests / 2
+        }
+
         for (totalCount in 0..totalTests) {
             val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(
@@ -249,8 +258,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     receiverGenerator?.runners?.add(runner)
                 }
             } else {
-                runners.filter { it.ready }.shuffled(random).first().also {
-                    it.next(stepCount++)
+                if (totalCount <= startMultipleCount) {
+                    runners.first { it.ready }.also {
+                        it.next(stepCount++)
+                    }
+                } else {
+                    runners.filter { it.ready }.shuffled(random).first().also {
+                        it.next(stepCount++)
+                    }
                 }
             }
             runners.failed()?.also {

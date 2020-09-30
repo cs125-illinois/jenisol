@@ -12,7 +12,7 @@ fun List<TestRunner>.findWithComplexity(complexity: Complexity, random: Random):
         check(receivers.isNotEmpty()) { "No receivers available" }
         val closest = receivers.map { it.complexity.level }.distinct().sorted().let { complexities ->
             complexities.find { it == complexity.level }
-                ?: complexities.filter { complexity.level >= it }.sorted().firstOrNull()
+                ?: complexities.filter { complexity.level >= it }.minOrNull()
                 ?: complexities.filter { complexity.level < it }.sorted().reversed().firstOrNull()
                 ?: error("Couldn't locate a complexity that should exist")
         }
@@ -25,18 +25,18 @@ class ReceiverGenerator(val random: Random = Random, val runners: MutableList<Te
         check(runners.none { !it.ready }) { "Found non-ready receivers" }
     }
 
-    class ReceiverValue(value: Value<Any>, val testRunner: TestRunner) :
+    class ReceiverValue(value: Value<Any>) :
         Value<Any>(value.solution, value.submission, value.solutionCopy, value.submissionCopy, value.complexity)
 
     @Suppress("UNCHECKED_CAST")
     override val simple: Set<Value<Any>>
         get() = runners
             .filter { it.receivers!!.complexity.level == 0 }
-            .map { ReceiverValue(it.receivers as Value<Any>, it) }
+            .map { ReceiverValue(it.receivers as Value<Any>) }
             .toSet()
 
     override val edge: Set<Value<Any?>>
-        get() = mutableSetOf(Value<Any?>(null, null, null, null, ZeroComplexity))
+        get() = mutableSetOf(Value(null, null, null, null, ZeroComplexity))
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =
         runners.findWithComplexity(complexity, random)
