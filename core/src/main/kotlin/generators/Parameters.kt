@@ -42,7 +42,7 @@ data class Parameters(
             @Suppress("TooGenericExceptionCaught")
             try {
                 solutionCopy.contentDeepEquals(other.solutionCopy)
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 false
             }
         else -> false

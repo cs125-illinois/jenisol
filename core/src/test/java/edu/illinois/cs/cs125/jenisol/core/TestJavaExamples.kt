@@ -83,7 +83,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.equals.Correct::class.java.also {
-            "${it.testName()}" { it.test() }
+            "f:${it.testName()}" { it.test() }
         }
         examples.java.receiver.equalswithtwofields.Correct::class.java.also {
             "${it.testName()}" { it.test() }
