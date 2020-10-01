@@ -38,7 +38,13 @@ data class Parameters(
 
     override fun equals(other: Any?) = when {
         this === other -> true
-        other is Parameters -> solutionCopy.contentDeepEquals(other.solutionCopy)
+        other is Parameters ->
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                solutionCopy.contentDeepEquals(other.solutionCopy)
+            } catch (e: Exception) {
+                false
+            }
         else -> false
     }
 
