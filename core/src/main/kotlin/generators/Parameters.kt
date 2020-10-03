@@ -86,6 +86,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             .filter { it in typesNeeded }
             .map { it.parameterTypes }
             .toTypedArray().flatten().distinct().toSet()
+        val arrayNeededTypes = neededTypes.filter { it.isArray }.map { it.getArrayType() }
+
         val simple: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
         val edge: MutableMap<Class<*>, Set<Any?>> = mutableMapOf()
         solutionClass.declaredFields
@@ -99,7 +101,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 if (field.isSimpleType()) {
                     SimpleType.validate(field).also { klass ->
                         check(klass !in simple) { "Duplicate @$simpleName annotation for type ${klass.name}" }
-                        check(klass in neededTypes) {
+                        check(klass in neededTypes || klass in arrayNeededTypes) {
                             "@$simpleName annotation for type ${klass.name} that is not used by the solution"
                         }
                         @Suppress("UNCHECKED_CAST")
@@ -111,7 +113,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 if (field.isEdgeType()) {
                     EdgeType.validate(field).also { klass ->
                         check(klass !in edge) { "Duplicate @$edgeName annotation for type ${klass.name}" }
-                        check(klass in neededTypes) {
+                        check(klass in neededTypes || klass in arrayNeededTypes) {
                             "@$edgeName annotation for type ${klass.name} that is not used by the solution"
                         }
                         edge[klass] = field.get(null).asArray().toSet()
@@ -125,7 +127,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 val randName = Random::class.java.simpleName
                 RandomType.validate(method).also { klass ->
                     check(klass !in rand) { "Duplicate @$randName method for type ${klass.name}" }
-                    check(klass in neededTypes) {
+                    check(klass in neededTypes || klass in arrayNeededTypes) {
                         "@$randName annotation for type ${klass.name} that is not used by the solution"
                     }
                     rand[klass] = method
