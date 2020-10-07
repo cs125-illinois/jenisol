@@ -15,7 +15,7 @@ public class Correct {
   @EdgeType private static final Item[] EDGES = {null};
 
   @RandomType
-  private static final Item randomItem(int complexity, Random random) {
+  private static Item randomItem(int complexity, Random random) {
     return new Item();
   }
 }

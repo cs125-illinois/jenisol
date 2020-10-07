@@ -349,7 +349,7 @@ class CharGenerator(random: Random) : TypeGenerators<Char>(random) {
 
 class StringGenerator(random: Random) : TypeGenerators<String>(random) {
 
-    override val simple = setOf("test", "test string").values(ZeroComplexity)
+    override val simple = setOf("t", "test", "test string").values(ZeroComplexity)
     override val edge = listOf(null, "").values(ZeroComplexity)
     override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
 
