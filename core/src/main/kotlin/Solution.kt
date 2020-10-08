@@ -58,7 +58,13 @@ class Solution(val solution: Class<*>) {
     }.filter { executable ->
         when (executable) {
             is Constructor<*> -> true
-            is Method -> executable.isStatic() && executable.returnType == solution
+            is Method -> executable.isStatic() && (
+                executable.returnType == solution || (
+                    executable.returnType.isArray &&
+                        executable.returnType.getArrayType() == solution &&
+                        executable.returnType.getArrayDimension() == 1
+                    )
+                )
             else -> designError("Unexpected executable type")
         }
     }.toSet()
@@ -176,12 +182,8 @@ class Solution(val solution: Class<*>) {
                 false
             }
         }
-        checkDesign(matchingMethod.size > 0) {
-            "@Verify method $verifier matched no solution methods"
-        }
-        checkDesign(matchingMethod.size == 1) {
-            "@Verify method $verifier matched multiple solution methods"
-        }
+        checkDesign(matchingMethod.isNotEmpty()) { "@Verify method $verifier matched no solution methods" }
+        checkDesign(matchingMethod.size == 1) { "@Verify method $verifier matched multiple solution methods" }
         matchingMethod[0] to verifier
     }.toMap()
 
@@ -272,8 +274,24 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
         it.visibilityMatches(method) &&
         it.name == method.name &&
         it.parameterTypes.fixReceivers(this, solution).contentEquals(method.parameterTypes) &&
-        (it.returnType == method.returnType || (it.returnType == this && method.returnType == solution)) &&
+        compareReturn(method.returnType, solution, it.returnType, this) &&
         it.isStatic() == method.isStatic()
+}
+
+fun compareReturn(
+    solutionReturn: Class<*>,
+    solution: Class<*>,
+    submissionReturn: Class<*>,
+    submission: Class<*>
+) = when {
+    solutionReturn == submissionReturn -> true
+    solutionReturn == solution && submissionReturn == submission -> true
+    solutionReturn.isArray &&
+        solutionReturn.getArrayType() == solution &&
+        submissionReturn.isArray &&
+        submissionReturn.getArrayType() == submission
+        && solutionReturn.getArrayDimension() == submissionReturn.getArrayDimension() -> true
+    else -> false
 }
 
 fun Class<*>.findConstructor(constructor: Constructor<*>, solution: Class<*>) = this.declaredConstructors.find {

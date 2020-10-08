@@ -3,6 +3,7 @@ package edu.illinois.cs.cs125.jenisol.core
 import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
+import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -95,6 +96,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         } ?: defaultVerify(result)
     }
 
+    @Suppress("ComplexMethod")
     private fun defaultVerify(result: TestResult<*, *>) {
         val solution = result.solution
         val submission = result.submission
@@ -112,6 +114,20 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         if (result.type == TestResult.Type.METHOD && !compare(solution.returned, submission.returned)) {
             result.differs.add(TestResult.Differs.RETURN)
+        }
+        if (result.type == TestResult.Type.FACTORY_METHOD &&
+            solution.returned != null &&
+            solution.returned::class.java.isArray
+        ) {
+            @Suppress("ComplexCondition")
+            if (submission.returned == null ||
+                !submission.returned::class.java.isArray ||
+                solution.returned::class.java.getArrayDimension()
+                != submission.returned::class.java.getArrayDimension() ||
+                (solution.returned as Array<*>).size != (submission.returned as Array<*>).size
+            ) {
+                result.differs.add(TestResult.Differs.RETURN)
+            }
         }
         if (!compare(solution.threw, submission.threw)) {
             result.differs.add(TestResult.Differs.THREW)
@@ -275,16 +291,18 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             if (usedRunner.returnedReceivers != null) {
-                runners.add(
-                    TestRunner(
-                        runners.size,
-                        this,
-                        generators,
-                        receiverGenerators,
-                        captureOutput,
-                        usedRunner.returnedReceivers
+                usedRunner.returnedReceivers!!.forEach { returnedReceiver ->
+                    runners.add(
+                        TestRunner(
+                            runners.size,
+                            this,
+                            generators,
+                            receiverGenerators,
+                            captureOutput,
+                            returnedReceiver
+                        )
                     )
-                )
+                }
                 usedRunner.returnedReceivers = null
             }
         }

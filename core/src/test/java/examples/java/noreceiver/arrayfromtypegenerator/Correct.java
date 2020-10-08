@@ -3,7 +3,6 @@ package examples.java.noreceiver.arrayfromtypegenerator;
 import edu.illinois.cs.cs125.jenisol.core.EdgeType;
 import edu.illinois.cs.cs125.jenisol.core.RandomType;
 import edu.illinois.cs.cs125.jenisol.core.SimpleType;
-
 import java.util.Random;
 
 public class Correct {

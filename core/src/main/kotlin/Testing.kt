@@ -7,6 +7,8 @@ import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
+import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
+import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
@@ -198,7 +200,7 @@ class TestRunner(
 
     var lastComplexity: Complexity? = null
 
-    var returnedReceivers: Value<Any?>? = null
+    var returnedReceivers: List<Value<Any?>>? = null
 
     var created: Boolean
     var initialized: Boolean = false
@@ -228,7 +230,7 @@ class TestRunner(
         Result(parameters, it, parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false)
     }
 
-    @Suppress("ComplexMethod", "LongMethod", "ComplexCondition", "ReturnCount")
+    @Suppress("ComplexMethod", "LongMethod", "ComplexCondition", "ReturnCount", "NestedBlockDepth")
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null) {
         val creating = !created && type != TestResult.Type.INITIALIZER
 
@@ -315,9 +317,24 @@ class TestRunner(
             )
         } else if (created &&
             solutionResult.returned != null && submissionResult.returned != null &&
-            solutionResult.returned::class.java == submission.solution.solution &&
-            submissionResult.returned::class.java == submission.submission
+            (
+                (
+                    solutionResult.returned::class.java == submission.solution.solution &&
+                        submissionResult.returned::class.java == submission.submission
+                    ) || (
+                    solutionResult.returned::class.java.isArray && submissionResult.returned::class.java.isArray &&
+                        solutionResult.returned::class.java.getArrayType() == submission.solution.solution &&
+                        submissionResult.returned::class.java.getArrayType() == submission.submission &&
+                        solutionResult.returned::class.java.getArrayDimension()
+                        == submissionResult.returned::class.java.getArrayDimension()
+                    )
+                )
         ) {
+            if (solutionResult.returned::class.java.isArray) {
+                require(solutionResult.returned::class.java.getArrayDimension() == 1) {
+                    "No support for multi-dimensional receiver array donations yet"
+                }
+            }
             // Or if we ran a method that generated more receivers, also donate them
             Pair(
                 solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy),
@@ -364,21 +381,97 @@ class TestRunner(
         // If both receiver generators throw identically, then the step didn't fail but
         // this test runner still can't proceed
         if (step.succeeded && creating && step.solution.returned != null) {
-            receivers = Value(
-                step.solution.returned,
-                step.submission.returned,
-                solutionCopy!!.returned,
-                submissionCopy!!.returned,
-                parameters.complexity
-            )
+            if (!step.solution.returned::class.java.isArray) {
+                receivers = Value(
+                    step.solution.returned,
+                    step.submission.returned,
+                    solutionCopy!!.returned,
+                    submissionCopy!!.returned,
+                    parameters.complexity
+                )
+            } else {
+                val solutions = step.solution.returned as Array<*>
+                val submissions = step.submission.returned as Array<*>
+                val solutionCopies = solutionCopy!!.returned as Array<*>
+                val submissionCopies = submissionCopy!!.returned as Array<*>
+                check(
+                    solutions.size == submissions.size &&
+                        solutions.size == solutionCopies.size &&
+                        solutions.size == submissionCopies.size
+                ) {
+                    "Receiver array generation returned unequal arrays: ${solutions.size} ${submissions.size}"
+                }
+                if (solutions.isNotEmpty()) {
+                    receivers = Value(
+                        solutions.first(),
+                        submissions.first(),
+                        solutionCopies.first(),
+                        submissionCopies.first(),
+                        parameters.complexity
+                    )
+                    if (solutions.size > 1) {
+                        val receiverList = mutableListOf<Value<Any?>>()
+                        for (i in 1 until solutions.size) {
+                            receiverList.add(
+                                Value(
+                                    solutions[i],
+                                    submissions[i],
+                                    solutionCopies[i],
+                                    submissionCopies[i],
+                                    parameters.complexity
+                                )
+                            )
+                        }
+                        returnedReceivers = receiverList.toList()
+                    }
+                }
+            }
         } else if (step.succeeded && solutionCopy != null && submissionCopy != null) {
             check(returnedReceivers == null) { "Returned receivers not retrieved between steps" }
-            returnedReceivers = Value(
-                step.solution.returned,
-                step.submission.returned,
-                solutionCopy.returned,
-                submissionCopy.returned,
-                parameters.complexity
+            if (!step.solution.returned!!::class.java.isArray) {
+                returnedReceivers = listOf(
+                    Value(
+                        step.solution.returned,
+                        step.submission.returned,
+                        solutionCopy.returned,
+                        submissionCopy.returned,
+                        parameters.complexity
+                    )
+                )
+            } else {
+                val solutions = step.solution.returned as Array<*>
+                val submissions = step.submission.returned as Array<*>
+                val solutionCopies = solutionCopy.returned as Array<*>
+                val submissionCopies = submissionCopy.returned as Array<*>
+                check(
+                    solutions.size == submissions.size &&
+                        solutions.size == solutionCopies.size &&
+                        solutions.size == submissionCopies.size
+                ) {
+                    "Receiver array generation returned unequal arrays"
+                }
+                val receiverList = mutableListOf<Value<Any?>>()
+                for (i in solutions.indices) {
+                    receiverList.add(
+                        Value(
+                            solutions[i],
+                            submissions[i],
+                            solutionCopies[i],
+                            submissionCopies[i],
+                            parameters.complexity
+                        )
+                    )
+                }
+                returnedReceivers = receiverList.toList()
+            }
+            returnedReceivers = listOf(
+                Value(
+                    step.solution.returned,
+                    step.submission.returned,
+                    solutionCopy.returned,
+                    submissionCopy.returned,
+                    parameters.complexity
+                )
             )
         }
     }

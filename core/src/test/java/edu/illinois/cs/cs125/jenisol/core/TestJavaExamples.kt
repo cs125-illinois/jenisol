@@ -142,5 +142,14 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.arrayfromtypegenerator.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.factoryconstructor.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.privateconstructorexample.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.arrayfactory.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )
