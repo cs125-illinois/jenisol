@@ -151,5 +151,11 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.arrayfactory.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.superclassdesign.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.interfacedesign.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

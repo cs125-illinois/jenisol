@@ -14,6 +14,37 @@ import kotlin.random.Random
 
 class Submission(val solution: Solution, val submission: Class<*>) {
     init {
+        if (!solution.solution.visibilityMatches(submission)) {
+            throw SubmissionDesignClassError(
+                submission,
+                "is not ${solution.solution.getVisibilityModifier() ?: "package private"}"
+            )
+        }
+        if (solution.solution.superclass != null && solution.solution.superclass != submission.superclass) {
+            throw SubmissionDesignClassError(
+                submission,
+                "does not extend ${solution.solution.superclass.name}"
+            )
+        }
+        val solutionInterfaces = solution.solution.interfaces.toSet()
+        val submissionInterfaces = submission.interfaces.toSet()
+        val missingInterfaces = solutionInterfaces.minus(submissionInterfaces)
+        if (missingInterfaces.isNotEmpty()) {
+            throw SubmissionDesignClassError(
+                submission,
+                "does not implement ${missingInterfaces.joinToString(separator = ", ") { it.name }}"
+            )
+        }
+        val extraInterfaces = submissionInterfaces.minus(solutionInterfaces)
+        if (extraInterfaces.isNotEmpty()) {
+            throw SubmissionDesignClassError(
+                submission,
+                "does implements extra interfaces ${extraInterfaces.joinToString(separator = ", ") { it.name }}"
+            )
+        }
+    }
+
+    init {
         solution.bothExecutables.forEach {
             if (!it.parameterTypes[0].isAssignableFrom(submission)) {
                 throw SubmissionDesignInheritanceError(
@@ -365,6 +396,10 @@ class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : Submissio
         ""
     }
     }field ${field.fullName()}"
+)
+
+class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionDesignError(
+    "Submission class ${klass.name} $message"
 )
 
 class DesignOnlyTestingError(klass: Class<*>) : Exception(

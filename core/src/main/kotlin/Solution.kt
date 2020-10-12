@@ -220,6 +220,12 @@ fun Executable.isPublic() = Modifier.isPublic(modifiers)
 fun Executable.isProtected() = Modifier.isProtected(modifiers)
 fun Executable.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
+fun Class<*>.isPrivate() = Modifier.isPrivate(modifiers)
+fun Class<*>.isPublic() = Modifier.isPublic(modifiers)
+fun Class<*>.isProtected() = Modifier.isProtected(modifiers)
+fun Class<*>.isFinal() = Modifier.isFinal(modifiers)
+fun Class<*>.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
+
 fun Class<*>.prettyPrint(): String = if (isArray) {
     getArrayType().name + "[]".repeat(getArrayDimension())
 } else {
@@ -241,6 +247,13 @@ fun Field.fullName(): String {
     return "${visibilityModifier ?: ""}$type $name"
 }
 
+fun Class<*>.visibilityMatches(klass: Class<*>) = when {
+    isPublic() -> klass.isPublic()
+    isPrivate() -> klass.isPrivate()
+    isProtected() -> klass.isProtected()
+    else -> klass.isPackagePrivate()
+}
+
 fun Executable.visibilityMatches(executable: Executable) = when {
     isPublic() -> executable.isPublic()
     isPrivate() -> executable.isPrivate()
@@ -253,6 +266,13 @@ fun Field.visibilityMatches(field: Field) = when {
     isPrivate() -> field.isPrivate()
     isProtected() -> field.isProtected()
     else -> field.isPackagePrivate()
+}
+
+fun Class<*>.getVisibilityModifier() = when {
+    isPublic() -> "public"
+    isPrivate() -> "private"
+    isProtected() -> "protected"
+    else -> null
 }
 
 fun Executable.getVisibilityModifier() = when {
