@@ -157,5 +157,8 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.interfacedesign.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.dividebyzero.Correct::class.java.also {
+            "f:${it.testName()}" { it.test() }
+        }
     }
 )

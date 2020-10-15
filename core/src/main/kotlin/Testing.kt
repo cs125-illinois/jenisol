@@ -359,7 +359,7 @@ class TestRunner(
             @Suppress("TooGenericExceptionCaught")
             try {
                 unwrap { submission.solution.instanceValidator.invoke(null, submissionResult.returned) }
-            } catch (e: InstanceValidationException) {
+            } catch (e: Throwable) {
                 step.differs.add(TestResult.Differs.INSTANCE_VALIDATION_THREW)
                 step.verifierThrew = e
             }
