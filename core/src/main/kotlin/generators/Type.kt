@@ -5,8 +5,10 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
+import java.lang.IllegalStateException
 import java.lang.reflect.Array
 import java.lang.reflect.Method
+import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import kotlin.math.pow
 import kotlin.random.Random
@@ -145,7 +147,50 @@ object Defaults {
         error("Cannot find generator for class ${klass.name}")
     }
 
+    operator fun get(type: Type): TypeGeneratorGenerator {
+        if (type is Class<*>) {
+            try {
+                return get(type)
+            } catch (_: IllegalStateException) {
+            }
+        }
+        if (type is ParameterizedType) {
+            if (type.rawType == java.util.List::class.java &&
+                type.actualTypeArguments.size == 1 &&
+                map.containsKey(type.actualTypeArguments[0])
+            ) {
+                return { random -> ListGenerator(random, create(type.actualTypeArguments[0], random)) }
+            }
+        }
+        error("Cannot find generator for type ${type.typeName}")
+    }
+
     fun create(klass: Class<*>, random: Random = Random): TypeGenerator<*> = get(klass)(random)
+    fun create(type: Type, random: Random = Random): TypeGenerator<*> = get(type)(random)
+}
+
+class ListGenerator(random: Random, private val componentGenerator: TypeGenerator<*>) :
+    TypeGenerators<Any>(random) {
+
+    override val simple: Set<Value<Any>>
+        get() {
+            val simpleCases = componentGenerator.simple.map { it.solutionCopy }
+            return setOf(
+                listOf<Any>(),
+                simpleCases
+            ).values(ZeroComplexity)
+        }
+
+    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
+
+    override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
+        val listSize = random.nextInt((complexity.power().toInt() * 2) + 1)
+        return mutableListOf<Any>().apply {
+            repeat(listSize) {
+                add(componentGenerator.random(complexity, runner))
+            }
+        }.value(complexity)
+    }
 }
 
 @Suppress("UNCHECKED_CAST")

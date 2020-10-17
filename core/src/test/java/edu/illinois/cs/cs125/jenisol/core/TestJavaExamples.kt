@@ -158,7 +158,10 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.dividebyzero.Correct::class.java.also {
-            "f:${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.listsum.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
         }
     }
 )

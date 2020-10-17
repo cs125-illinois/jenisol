@@ -1,5 +1,7 @@
 package examples.generatortesting;
 
+import java.util.List;
+
 @SuppressWarnings("unused")
 public class TestGenerators {
   public static void testByte(byte value) {}
@@ -39,6 +41,8 @@ public class TestGenerators {
   public static void testObject(Object value) {}
 
   public static void testIntArray(int[] values) {}
+
+  public static void testIntegerList(List<Integer> values) { }
 
   public static void testChar(char value) {}
 

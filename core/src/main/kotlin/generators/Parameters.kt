@@ -431,7 +431,6 @@ class TypeParameterGenerator(
         val generator = if (type in generators) {
             generators[type]
         } else {
-            require(type is Class<*>) { "No default generators are registered for non-class types" }
             Defaults[type]
         }
         generator?.invoke(random) ?: error(

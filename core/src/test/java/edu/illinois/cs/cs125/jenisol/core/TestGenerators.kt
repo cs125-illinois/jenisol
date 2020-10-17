@@ -153,6 +153,14 @@ class TestGenerators : StringSpec(
                 method.testGenerator()
             }
         }
+        "it should generate lists properly" {
+            methodNamed("testIntegerList").also { method ->
+                method.invoke(null, null)
+                method.invoke(null, listOf<Int>())
+                method.invoke(null, listOf(1, 2, 5))
+                method.testGenerator()
+            }
+        }
         "it should generate nested arrays properly" {
             Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
                 (0..128).map {
@@ -220,7 +228,7 @@ private fun methodNamed(name: String) = TestGenerators::class.java.declaredMetho
     .find { it.name == name } ?: error("Couldn't find method $name")
 
 private fun Method.testGenerator(
-    typeGenerator: TypeGenerator<*> = Defaults.create(this.parameterTypes.first())
+    typeGenerator: TypeGenerator<*> = Defaults.create(this.genericParameterTypes.first())
 ) {
     typeGenerator.simple.forEach { invoke(null, it.solutionCopy) }
     typeGenerator.edge.forEach { invoke(null, it.solutionCopy) }
