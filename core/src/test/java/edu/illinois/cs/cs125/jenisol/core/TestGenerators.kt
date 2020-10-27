@@ -185,8 +185,8 @@ class TestGenerators : StringSpec(
         "it should generate parameters properly" {
             methodNamed("testInt").testParameterGenerator(3, 2)
             methodNamed("testTwoInts").testParameterGenerator(3, 2, 2)
-            methodNamed("testIntArray").testParameterGenerator(2, 2)
-            methodNamed("testTwoIntArrays").testParameterGenerator(2, 2, 2)
+            methodNamed("testIntArray").testParameterGenerator(2, 1)
+            methodNamed("testTwoIntArrays").testParameterGenerator(2, 1, 2)
             methodNamed("testIntAndBoolean").testParameterGenerator(3 * 2, 0, 1, 4)
         }
         "it should determine array enclosed types correctly" {

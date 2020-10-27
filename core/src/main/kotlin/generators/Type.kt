@@ -210,18 +210,8 @@ class ArrayGenerator(random: Random, private val klass: Class<*>, private val co
             ).values(ZeroComplexity)
         }
 
-    override val edge: Set<Value<Any?>>
-        get() {
-            val edgeCases = componentGenerator.edge.map { it.solutionCopy }
-            return setOf(
-                null,
-                Array.newInstance(klass, edgeCases.size).also { array ->
-                    edgeCases.forEachIndexed { index, value ->
-                        Array.set(array, index, value)
-                    }
-                }
-            ).values(ZeroComplexity)
-        }
+    override val edge: Set<Value<Any?>> = setOf(null).values(ZeroComplexity)
+
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         return random(complexity, complexity, true, runner)
     }
@@ -405,8 +395,8 @@ class CharGenerator(random: Random) : TypeGenerators<Char>(random) {
 
 class StringGenerator(random: Random) : TypeGenerators<String>(random) {
 
-    override val simple = setOf("t", "test", "test string").values(ZeroComplexity)
-    override val edge = listOf(null, "").values(ZeroComplexity)
+    override val simple = setOf("t", "test", "test string", "").values(ZeroComplexity)
+    override val edge = listOf<String?>(null).values(ZeroComplexity)
     override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
 
     companion object {
