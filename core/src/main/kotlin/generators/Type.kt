@@ -209,8 +209,19 @@ class ArrayGenerator(random: Random, private val klass: Class<*>, private val co
                 }
             ).values(ZeroComplexity)
         }
-    override val edge = setOf<Any?>(null).values(ZeroComplexity)
 
+    override val edge: Set<Value<Any?>>
+        get() {
+            val edgeCases = componentGenerator.edge.map { it.solutionCopy }
+            return setOf(
+                null,
+                Array.newInstance(klass, edgeCases.size).also { array ->
+                    edgeCases.forEachIndexed { index, value ->
+                        Array.set(array, index, value)
+                    }
+                }
+            ).values(ZeroComplexity)
+        }
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         return random(complexity, complexity, true, runner)
     }
