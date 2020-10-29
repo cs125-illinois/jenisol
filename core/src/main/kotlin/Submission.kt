@@ -379,23 +379,11 @@ class SubmissionDesignInheritanceError(klass: Class<*>, parent: Class<*>) : Subm
 )
 
 class SubmissionDesignMissingFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
-    "Submission class ${klass.name} didn't provide ${
-    if (field.isStatic()) {
-        "static "
-    } else {
-        ""
-    }
-    }field ${field.fullName()}"
+    "Field ${field.fullName()} is not accessible in submission class ${klass.name} but should be"
 )
 
 class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
-    "Submission class ${klass.name} provided extra ${
-    if (field.isStatic()) {
-        "static "
-    } else {
-        ""
-    }
-    }field ${field.fullName()}"
+    "Field ${field.fullName()} is accessible in submission class ${klass.name} but should not be"
 )
 
 class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionDesignError(
