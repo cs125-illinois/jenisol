@@ -42,7 +42,7 @@ public class TestGenerators {
 
   public static void testIntArray(int[] values) {}
 
-  public static void testIntegerList(List<Integer> values) { }
+  public static void testIntegerList(List<Integer> values) {}
 
   public static void testChar(char value) {}
 

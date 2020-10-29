@@ -258,7 +258,7 @@ class MethodParametersGeneratorGenerator(target: Executable) {
     val randomParameters: Method?
 
     init {
-        val parameterTypes = target.parameterTypes.map { type -> type as Type }.toTypedArray()
+        val parameterTypes = target.genericParameterTypes.map { type -> type as Type }.toTypedArray()
         fixedParameters = target.declaringClass.declaredFields
             .filter { field -> field.isFixedParameters() }
             .filter { field ->

@@ -490,12 +490,25 @@ fun <T> Class<T>.getArrayDimension(start: Boolean = true): Int {
 
 fun kotlin.Array<Type>.compareBoxed(other: kotlin.Array<Type>) = when {
     size != other.size -> false
-    else -> zip(other).all { (mine, other) -> (mine as Class<*>).compareBoxed(other as Class<*>) }
+    else ->
+        zip(other).all { (mine, other) ->
+            when {
+                mine is Class<*> && other is Class<*> -> mine.compareBoxed(other)
+                else -> mine.compare(other)
+            }
+        }
 }
 
 fun kotlin.Array<Type>.compareBoxed(other: kotlin.Array<Class<*>>) = when {
     size != other.size -> false
     else -> zip(other).all { (mine, other) -> (mine as Class<*>).compareBoxed(other) }
+}
+
+fun Type.compare(other: Type): Boolean {
+    return when (other) {
+        this -> true
+        else -> false
+    }
 }
 
 fun <T> Class<T>.compareBoxed(other: Class<*>) = when {
