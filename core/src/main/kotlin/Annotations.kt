@@ -6,6 +6,7 @@ import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
+import edu.illinois.cs.cs125.jenisol.core.generators.isLambdaMethod
 import java.lang.RuntimeException
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -298,7 +299,17 @@ interface ParameterGroup {
     fun toArray(): Array<Any?>
 }
 
-fun ParameterGroup.deepCopy(): ParameterGroup = Cloner().deepClone(this)
+fun ParameterGroup.deepCopy(): ParameterGroup {
+    return Cloner().let { cloner ->
+        toArray().toList().map {
+            if (it?.isLambdaMethod() == true) {
+                it
+            } else {
+                cloner.deepClone(it)
+            }
+        }.toTypedArray().toParameterGroup()
+    }
+}
 
 @Suppress("MagicNumber")
 fun Array<Any?>.toParameterGroup() = when (size) {
@@ -330,7 +341,7 @@ class One<I>(setFirst: I) : ParameterGroup {
         else -> listOf(first).deepCompare(listOf(other.first))
     }
 
-    override fun hashCode(): Int = first?.deepHashCode() ?: 0
+    override fun hashCode() = first?.deepHashCode() ?: 0
 }
 
 class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
@@ -460,12 +471,13 @@ class Four<I, J, K, L>(
     }
 }
 
-fun Any.deepHashCode() = if (isAnyArray()) {
-    boxArray().contentDeepHashCode()
-} else {
-    hashCode()
+fun Any.deepHashCode() = when {
+    isAnyArray() -> boxArray().contentDeepHashCode()
+    isLambdaMethod() -> this.javaClass.name.hashCode()
+    else -> hashCode()
 }
 
+@Suppress("ComplexMethod")
 fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
     false
 } else {
@@ -474,7 +486,10 @@ fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
             mine == other -> true
             mine == null && other != null -> false
             mine != null && other == null -> false
-            mine!!.isAnyArray() != other!!.isAnyArray() -> false
+            mine == null -> false
+            other == null -> false
+            mine.isLambdaMethod() && other.isLambdaMethod() -> mine.javaClass.name == other.javaClass.name
+            mine.isAnyArray() != other.isAnyArray() -> false
             !mine.isAnyArray() -> mine == other
             mine.boxArray().contentDeepEquals(other.boxArray()) -> true
             else -> false

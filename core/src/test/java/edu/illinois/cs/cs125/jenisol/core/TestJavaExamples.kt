@@ -166,5 +166,8 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.mapreturn.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.lambdaargument.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

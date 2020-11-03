@@ -577,6 +577,8 @@ fun Any.isAnyArray() = when (this) {
     else -> false
 }
 
+fun Any.isLambdaMethod() = this.javaClass.name.contains("$${"$"}Lambda$")
+
 class RandomGroup(seed: Long = Random.nextLong()) {
     val solution = java.util.Random().also { it.setSeed(seed) }
     val submission = java.util.Random().also { it.setSeed(seed) }
