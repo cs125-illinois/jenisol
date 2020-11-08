@@ -107,6 +107,14 @@ class Solution(val solution: Class<*>) {
         checkDesign { InstanceValidator.validate(it) }
     }
 
+    val sourceChecker = solution.declaredMethods.filter {
+        it.isCheckSource()
+    }.also {
+        checkDesign(it.size <= 1) { "Solution has multiple source checkers" }
+    }.firstOrNull()?.also {
+        checkDesign { CheckSource.validate(it) }
+    }
+
     val initializer: Executable? = solution.superclass.declaredMethods.filter {
         it.isInitializer()
     }.also {
@@ -205,7 +213,7 @@ class Solution(val solution: Class<*>) {
         override fun compare(solution: Any, submission: Any): Boolean = true
     }
 
-    fun submission(submission: Class<*>) = Submission(this, submission)
+    fun submission(submission: Class<*>, source: String? = null) = Submission(this, submission, source)
 }
 
 fun Set<Executable>.cycle() = sequence {

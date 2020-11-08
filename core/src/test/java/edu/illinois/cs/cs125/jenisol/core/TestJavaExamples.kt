@@ -169,5 +169,8 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.lambdaargument.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.sourcechecker.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )

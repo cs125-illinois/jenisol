@@ -4,6 +4,7 @@ import io.github.classgraph.ClassGraph
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.shouldBe
+import java.io.File
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
 
@@ -65,13 +66,20 @@ fun Class<*>.test() {
             .apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->
+                val source = try {
+                    File(System.getProperty("user.dir"))
+                        .resolve("src/test/java/")
+                        .resolve(incorrect.name.replace(".", "/") + ".java").readText()
+                } catch (e: Exception) {
+                    null
+                }
                 if (incorrect.simpleName.startsWith("Design")) {
-                    shouldThrow<SubmissionDesignError> { submission(incorrect) }
+                    shouldThrow<SubmissionDesignError> { submission(incorrect, source) }
                 } else {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
                     }
-                    submission(incorrect).test().also { results ->
+                    submission(incorrect, source).test().also { results ->
                         results.failed shouldBe true
                         results.filter { it.failed }
                             .map { it.type }

@@ -4,6 +4,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
+import java.lang.RuntimeException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -12,7 +13,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Type
 import kotlin.random.Random
 
-class Submission(val solution: Solution, val submission: Class<*>) {
+class Submission(val solution: Solution, val submission: Class<*>, val source: String? = null) {
     init {
         if (!solution.solution.visibilityMatches(submission)) {
             throw SubmissionDesignClassError(
@@ -99,6 +100,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }.forEach {
                 if (it !in submissionFields) {
                     throw SubmissionDesignExtraFieldError(submission, it)
+                }
+            }
+            if (solution.sourceChecker != null) {
+                require(source != null) { "@CheckSource method provided but source not available" }
+                unwrap {
+                    solution.sourceChecker.invoke(null, source)
                 }
             }
         }
@@ -341,7 +348,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     }
 }
 
-sealed class SubmissionDesignError(message: String) : Exception(message)
+sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
     if (executable.isStatic()) {
@@ -393,6 +400,8 @@ class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionD
 class DesignOnlyTestingError(klass: Class<*>) : Exception(
     "Solution class ${klass.name} is marked as design only"
 )
+
+class SourceCheckError(message: String) : SubmissionDesignError(message)
 
 fun unwrap(run: () -> Any?): Any? = try {
     run()
