@@ -184,7 +184,7 @@ class Solution(val solution: Class<*>) {
             }
             @Suppress("TooGenericExceptionCaught")
             try {
-                Verify.validate(verifier, returnType, methodToTest.parameterTypes)
+                Verify.validate(verifier, returnType, methodToTest.genericParameterTypes)
                 true
             } catch (e: Exception) {
                 false

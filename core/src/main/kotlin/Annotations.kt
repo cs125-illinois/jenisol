@@ -187,7 +187,7 @@ class InstanceValidationException(msg: String) : RuntimeException(msg)
 annotation class Verify {
     companion object {
         val name: String = Verify::class.java.simpleName
-        fun validate(method: Method, returnType: Type, parameterTypes: Array<Class<*>>) {
+        fun validate(method: Method, returnType: Type, parameterTypes: Array<Type>) {
             check(method.isStatic()) { "@$name methods must be static" }
             check(method.returnType.name == "void") {
                 "@$name method return values will not be used and should be void"
@@ -199,8 +199,8 @@ annotation class Verify {
                     (method.genericParameterTypes[0] as ParameterizedType).actualTypeArguments.size == 2 &&
                     (
                         (method.genericParameterTypes[0] as ParameterizedType)
-                            .actualTypeArguments[0] as Class<*>
-                        ).compareBoxed(returnType as Class<*>) &&
+                            .actualTypeArguments[0]
+                        ).compareBoxed(returnType) &&
                     (method.genericParameterTypes[0] as ParameterizedType)
                         .actualTypeArguments[1].parameterGroupMatches(parameterTypes)
             ) {
@@ -519,7 +519,7 @@ fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
 }
 
 @Suppress("ReturnCount")
-fun Type.parameterGroupMatches(parameters: Array<Class<*>>) = if (this == None::class.java && parameters.isEmpty()) {
+fun Type.parameterGroupMatches(parameters: Array<Type>) = if (this == None::class.java && parameters.isEmpty()) {
     true
 } else {
     (this as ParameterizedType).actualTypeArguments.compareBoxed(parameters)

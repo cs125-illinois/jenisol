@@ -511,6 +511,12 @@ fun Type.compare(other: Type): Boolean {
     }
 }
 
+fun Type.compareBoxed(other: Type) = when {
+    this == other -> true
+    this is Class<*> && other is Class<*> -> this.compareBoxed(other)
+    else -> false
+}
+
 fun <T> Class<T>.compareBoxed(other: Class<*>) = when {
     this == other -> true
     wrap() == other.wrap() -> true
