@@ -234,6 +234,7 @@ annotation class Both {
             ) {
                 "@$name methods must accept a single parameter that the solution class inherits from"
             }
+            method.isAccessible = true
         }
     }
 }

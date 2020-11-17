@@ -9,7 +9,7 @@ public class Correct extends Parent {
   }
 
   @Both
-  public static String getType(Parent parent) {
+  private static String getType(Parent parent) {
     return parent.getType();
   }
 }
