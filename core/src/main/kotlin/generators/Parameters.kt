@@ -43,6 +43,9 @@ data class Parameters(
             try {
                 solutionCopy.contentDeepEquals(other.solutionCopy)
             } catch (e: Throwable) {
+                if (e is ThreadDeath) {
+                    throw e
+                }
                 false
             }
         else -> false
@@ -133,7 +136,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     rand[klass] = method
                 }
             }
-        val generatorMappings: MutableList<Pair<Class<*>, (Random) -> TypeGenerator<Any>>> =
+        val generatorMappings: MutableList<Pair<Type, (Random) -> TypeGenerator<Any>>> =
             (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
                 val needsDefault = klass !in simple || klass !in edge || klass !in rand
                 val defaultGenerator = if (needsDefault) {
@@ -196,6 +199,14 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 }
             }
 
+        solutionClass.typeParameters.forEach {
+            check(it.bounds.size == 1 && it.bounds.first() == Object::class.java) {
+                "No support for generic type bounds yet"
+            }
+            currentGenerators[it] = { random ->
+                ObjectGenerator(random)
+            }
+        }
         typeGenerators = currentGenerators.toMap()
     }
 

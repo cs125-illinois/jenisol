@@ -43,6 +43,18 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
                 "does implements extra interfaces ${extraInterfaces.joinToString(separator = ", ") { it.name }}"
             )
         }
+        solution.solution.typeParameters.forEachIndexed { i, type ->
+            try {
+                if (!submission.typeParameters[i].bounds.contentEquals(type.bounds)) {
+                    throw SubmissionTypeParameterError(submission)
+                }
+            } catch (e: Exception) {
+                throw SubmissionTypeParameterError(submission)
+            }
+        }
+        if (submission.typeParameters.size > solution.solution.typeParameters.size) {
+            throw SubmissionTypeParameterError(submission)
+        }
     }
 
     init {
@@ -128,6 +140,9 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
             try {
                 unwrap { customVerifier.invoke(null, result) }
             } catch (e: Throwable) {
+                if (e is ThreadDeath) {
+                    throw e
+                }
                 result.differs.add(TestResult.Differs.VERIFIER_THREW)
                 result.verifierThrew = e
             }
@@ -383,6 +398,10 @@ class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) 
 
 class SubmissionDesignInheritanceError(klass: Class<*>, parent: Class<*>) : SubmissionDesignError(
     "Submission class ${klass.name} didn't inherit from ${parent.name}"
+)
+
+class SubmissionTypeParameterError(klass: Class<*>) : SubmissionDesignError(
+    "Submission class ${klass.name} has missing, unnecessary, or incorrectly-bounded type parameters"
 )
 
 class SubmissionDesignMissingFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(

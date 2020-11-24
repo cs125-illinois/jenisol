@@ -12,6 +12,9 @@ import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Type
+import java.lang.reflect.TypeVariable
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
@@ -301,24 +304,26 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
     it != null &&
         it.visibilityMatches(method) &&
         it.name == method.name &&
-        it.parameterTypes.fixReceivers(this, solution).contentEquals(method.parameterTypes) &&
-        compareReturn(method.returnType, solution, it.returnType, this) &&
+        it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
+        compareReturn(method.genericReturnType, solution, it.genericReturnType, this) &&
         it.isStatic() == method.isStatic()
 }
 
 fun compareReturn(
-    solutionReturn: Class<*>,
+    solutionReturn: Type,
     solution: Class<*>,
-    submissionReturn: Class<*>,
+    submissionReturn: Type,
     submission: Class<*>
 ) = when {
     solutionReturn == submissionReturn -> true
     solutionReturn == solution && submissionReturn == submission -> true
-    solutionReturn.isArray &&
+    solutionReturn is Class<*> && submissionReturn is Class<*> && solutionReturn.isArray &&
         solutionReturn.getArrayType() == solution &&
         submissionReturn.isArray &&
         submissionReturn.getArrayType() == submission
         && solutionReturn.getArrayDimension() == submissionReturn.getArrayDimension() -> true
+    solutionReturn is TypeVariable<*> && submissionReturn is TypeVariable<*> ->
+        solutionReturn.bounds.contentEquals(submissionReturn.bounds)
     else -> false
 }
 
@@ -326,6 +331,13 @@ fun Class<*>.findConstructor(constructor: Constructor<*>, solution: Class<*>) = 
     it.isPublic() &&
         it?.parameterTypes?.fixReceivers(this, solution)?.contentEquals(constructor.parameterTypes) ?: false
 }
+
+fun Array<Type>.fixReceivers(from: Type, to: Type) = map {
+    when (it) {
+        from -> to
+        else -> it
+    }
+}.toTypedArray()
 
 fun Array<Class<*>>.fixReceivers(from: Class<*>, to: Class<*>) = map {
     when (it) {
@@ -358,6 +370,9 @@ fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock 
     val result: Pair<Any?, Throwable?> = try {
         Pair(run(), null)
     } catch (e: Throwable) {
+        if (e is ThreadDeath) {
+            throw e
+        }
         Pair(null, e)
     }
     System.setOut(original.first)

@@ -360,6 +360,9 @@ class TestRunner(
             try {
                 unwrap { submission.solution.instanceValidator.invoke(null, submissionResult.returned) }
             } catch (e: Throwable) {
+                if (e is ThreadDeath) {
+                    throw e
+                }
                 step.differs.add(TestResult.Differs.INSTANCE_VALIDATION_THREW)
                 step.verifierThrew = e
             }

@@ -122,7 +122,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.bothonly.Correct::class.java.also {
-            "f:${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.customtype.Correct::class.java.also {
             "${it.testName()}" { it.test() }
@@ -176,6 +176,9 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.bothwithanothermethod.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.simplegenerics.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
     }
