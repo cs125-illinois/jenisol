@@ -541,6 +541,8 @@ fun <T> Class<T>.wrap(): Class<*> = when {
     this == Double::class.java -> java.lang.Double::class.java
     this == Char::class.java -> java.lang.Character::class.java
     this == Boolean::class.java -> java.lang.Boolean::class.java
+    this == Void::class.java -> java.lang.Void::class.java
+    this.name == "void" -> java.lang.Void::class.java
     else -> this
 }
 

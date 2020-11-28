@@ -44,6 +44,7 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
             )
         }
         solution.solution.typeParameters.forEachIndexed { i, type ->
+            @Suppress("TooGenericExceptionCaught")
             try {
                 if (!submission.typeParameters[i].bounds.contentEquals(type.bounds)) {
                     throw SubmissionTypeParameterError(submission)

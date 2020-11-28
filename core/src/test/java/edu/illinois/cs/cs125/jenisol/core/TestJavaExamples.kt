@@ -181,5 +181,8 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.simplegenerics.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.voidverify.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
     }
 )
