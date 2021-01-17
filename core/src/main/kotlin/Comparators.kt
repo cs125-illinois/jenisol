@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
+import edu.illinois.cs.cs125.jenisol.core.generators.isLambdaMethod
 import kotlin.math.abs
 
 interface Comparator {
@@ -56,6 +57,19 @@ class Comparators(
     override fun get(key: Class<*>) = comparators[searchUp(key)] ?: error("No comparator for $key")
 }
 
+fun Any.lambdaGuessEquals(submission: Any): Boolean {
+    if (!(this.isLambdaMethod() && submission.isLambdaMethod())) {
+        return false
+    }
+    val myLambdaName = this::class.java.name.split("/").also {
+        it.dropLast(1)
+    }.joinToString("/")
+    val submissionLambdaName = submission::class.java.name.split("/").also {
+        it.dropLast(1)
+    }.joinToString("/")
+    return myLambdaName == submissionLambdaName
+}
+
 @Suppress("ComplexMethod", "MapGetWithNotNullAssertionOperator")
 fun Any.deepEquals(
     submission: Any?,
@@ -79,7 +93,7 @@ fun Any.deepEquals(
                 }
             }
     }
-    else -> this == submission
+    else -> this.lambdaGuessEquals(submission) || this == submission
 }
 
 const val DEFAULT_DOUBLE_THRESHOLD = 0.000001

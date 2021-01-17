@@ -1,6 +1,6 @@
 package examples.java.receiver.badstatic;
 
-public class Incorrect0 {
+public class Design0 {
   private static int counter = 0;
 
   public int increment() {

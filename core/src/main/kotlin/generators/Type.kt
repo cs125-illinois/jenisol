@@ -187,7 +187,7 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
         val listSize = random.nextInt((complexity.power().toInt() * 2) + 1)
         return mutableListOf<Any>().apply {
             repeat(listSize) {
-                add(componentGenerator.random(complexity, runner))
+                add(componentGenerator.random(complexity, runner).solutionCopy!!)
             }
         }.value(complexity)
     }

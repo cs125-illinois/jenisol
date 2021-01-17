@@ -1,6 +1,7 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
 
 class TestJavaExamples : StringSpec(
     {
@@ -183,6 +184,22 @@ class TestJavaExamples : StringSpec(
         }
         examples.java.noreceiver.voidverify.Correct::class.java.also {
             "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.intargument.Correct::class.java.also {
+            "${it.testName()} repeatability" {
+                it.testingClasses().apply {
+                    solution(primarySolution).apply {
+                        val first = submission(primarySolution).test(Settings(seed = 0))
+                        val second = submission(primarySolution).test(Settings(seed = 0))
+                        first.size shouldBe second.size
+                        first.forEachIndexed { index, firstResult ->
+                            val secondResult = second[index]
+                            firstResult.parameters.toArray()
+                                .contentDeepEquals(secondResult.parameters.toArray()) shouldBe true
+                        }
+                    }
+                }
+            }
         }
     }
 )

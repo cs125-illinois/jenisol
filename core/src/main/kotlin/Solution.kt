@@ -218,10 +218,6 @@ class Solution(val solution: Class<*>) {
     fun submission(submission: Class<*>, source: String? = null) = Submission(this, submission, source)
 }
 
-fun Set<Executable>.cycle() = sequence {
-    yield(shuffled().first())
-}
-
 fun solution(klass: Class<*>) = Solution(klass)
 
 fun Executable.isStatic() = Modifier.isStatic(modifiers)
@@ -249,7 +245,13 @@ fun Executable.fullName(): String {
         is Method -> genericReturnType.typeName + " "
         else -> error("Unknown executable type")
     }
-    return "${visibilityModifier ?: ""}$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
+    return "${visibilityModifier ?: ""}${
+    if (isStatic()) {
+        "static "
+    } else {
+        ""
+    }
+    }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 
 fun Field.fullName(): String {

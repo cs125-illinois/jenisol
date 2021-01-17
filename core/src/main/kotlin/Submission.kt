@@ -13,7 +13,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Type
 import kotlin.random.Random
 
-class Submission(val solution: Solution, val submission: Class<*>, val source: String? = null) {
+class Submission(val solution: Solution, val submission: Class<*>, private val source: String? = null) {
     init {
         if (!solution.solution.visibilityMatches(submission)) {
             throw SubmissionDesignClassError(
@@ -69,7 +69,7 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
         }
     }
 
-    val submissionFields =
+    private val submissionFields =
         solution.allFields.filter { it.name != "${"$"}assertionsDisabled" }.map { solutionField ->
             submission.findField(solutionField) ?: throw SubmissionDesignMissingFieldError(
                 submission,
@@ -78,6 +78,9 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
         }.toSet()
 
     val submissionExecutables = solution.allExecutables
+        .filter {
+            !submission.isKotlin() || (!solution.skipReceiver || it !in solution.receiverGenerators)
+        }
         .map { solutionExecutable ->
             when (solutionExecutable) {
                 is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
@@ -109,10 +112,14 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
                 }
             }
             submission.declaredFields.toSet().filter {
-                !it.isPrivate() && it.name != "${"$"}assertionsDisabled"
+                it.name != "${"$"}assertionsDisabled" &&
+                    !(submission.isKotlin() && it.name == "Companion")
             }.forEach {
-                if (it !in submissionFields) {
+                if (!it.isPrivate() && it !in submissionFields) {
                     throw SubmissionDesignExtraFieldError(submission, it)
+                }
+                if (it.isStatic()) {
+                    throw SubmissionStaticFieldError(submission, it)
                 }
             }
             if (solution.sourceChecker != null) {
@@ -159,6 +166,9 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
             (it as Configure).strictOutput
         } ?: false
 
+        if (!compare(solution.threw, submission.threw)) {
+            result.differs.add(TestResult.Differs.THREW)
+        }
         if ((strictOutput || solution.stdout.isNotBlank()) && solution.stdout != submission.stdout) {
             result.differs.add(TestResult.Differs.STDOUT)
         }
@@ -182,9 +192,6 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
             ) {
                 result.differs.add(TestResult.Differs.RETURN)
             }
-        }
-        if (!compare(solution.threw, submission.threw)) {
-            result.differs.add(TestResult.Differs.THREW)
         }
         if (!compare(solution.parameters, submission.parameters)) {
             result.differs.add(TestResult.Differs.PARAMETERS)
@@ -218,6 +225,10 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
             Random(settings.seed.toLong())
         }
 
+        val methodIterator = sequence {
+            yield(solution.methodsToTest.shuffled(random).first())
+        }
+
         val runners: MutableList<TestRunner> = mutableListOf()
         var stepCount = 0
 
@@ -243,7 +254,8 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
                     this,
                     generators,
                     receiverGenerators,
-                    captureOutput
+                    captureOutput,
+                    methodIterator
                 ).also { runner ->
                     runner.next(stepCount++)
                     runners.add(runner)
@@ -318,7 +330,8 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
                     this,
                     generators,
                     receiverGenerators,
-                    captureOutput
+                    captureOutput,
+                    methodIterator
                 ).also { runner ->
                     runner.next(stepCount++)
                     if (solution.initializer != null && runner.ready) {
@@ -353,6 +366,7 @@ class Submission(val solution: Solution, val submission: Class<*>, val source: S
                             generators,
                             receiverGenerators,
                             captureOutput,
+                            methodIterator,
                             returnedReceiver
                         )
                     )
@@ -413,6 +427,10 @@ class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : Submissio
     "Field ${field.fullName()} is accessible in submission class ${klass.name} but should not be"
 )
 
+class SubmissionStaticFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
+    "Field ${field.fullName()} is static in submission class ${klass.name} but no current support for static fields"
+)
+
 class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionDesignError(
     "Submission class ${klass.name} $message"
 )
@@ -428,3 +446,5 @@ fun unwrap(run: () -> Any?): Any? = try {
 } catch (e: InvocationTargetException) {
     throw e.cause ?: error("InvocationTargetException should have a cause")
 }
+
+fun Class<*>.isKotlin() = getAnnotation(Metadata::class.java) != null

@@ -82,6 +82,17 @@ data class TestResult<T, P : ParameterGroup>(
 
         val resultString = when {
             verifierThrew != null -> verifierThrew!!.message
+            differs.contains(Differs.THREW) -> {
+                if (solution.threw == null) {
+                    """Solution did not throw an exception"""
+                } else {
+                    """Solution threw: ${solution.threw}"""
+                } + "\n" + if (submission.threw == null) {
+                    """Submission did not throw an exception"""
+                } else {
+                    """Submission threw: ${submission.threw}"""
+                }
+            }
             differs.contains(Differs.STDOUT) -> {
                 """
 Solution printed:
@@ -99,17 +110,6 @@ ${solution.stderr}---
 Submission printed to STDERR:
 ---
 ${submission.stderr}---""".trim()
-            }
-            differs.contains(Differs.THREW) -> {
-                if (solution.threw == null) {
-                    """Solution did not throw an exception"""
-                } else {
-                    """Solution threw: ${solution.threw}"""
-                } + "\n" + if (submission.threw == null) {
-                    """Submission did not throw an exception"""
-                } else {
-                    """Submission threw: ${submission.threw}"""
-                }
             }
             differs.contains(Differs.RETURN) -> {
                 """
@@ -182,15 +182,16 @@ class TestResults(
     }
 }
 
+@Suppress("LongParameterList")
 class TestRunner(
     val runnerID: Int,
     val submission: Submission,
     var generators: Generators,
     val receiverGenerators: Sequence<Executable>,
     val captureOutput: CaptureOutput,
+    val methodIterator: Sequence<Executable>,
     var receivers: Value<Any?>? = null
 ) {
-    val methodIterator = submission.solution.methodsToTest.cycle()
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
 
     val failed: Boolean

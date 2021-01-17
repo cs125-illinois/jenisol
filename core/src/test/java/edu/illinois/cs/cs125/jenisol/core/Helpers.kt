@@ -5,6 +5,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.shouldBe
 import java.io.File
+import kotlin.random.Random
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
 
@@ -15,8 +16,15 @@ val testingStepsShouldNotContain = setOf(
     TestResult.Type.INITIALIZER
 )
 
-@Suppress("NestedBlockDepth", "ComplexMethod")
-fun Class<*>.test() {
+data class TestingClasses(
+    val testName: String,
+    val primarySolution: Class<*>,
+    val otherSolutions: List<Class<*>>,
+    val incorrect: List<Class<*>>,
+    val badDesign: List<Class<*>>
+)
+
+fun Class<*>.testingClasses(): TestingClasses {
     val testName = packageName.removePrefix("examples.")
     val packageClasses = ClassGraph().acceptPackages(packageName).scan().allClasses.map { it.loadClass() }
 
@@ -31,38 +39,52 @@ fun Class<*>.test() {
     val primarySolution = testingClasses
         .find { it.simpleName == "Correct" || it.simpleName == "CorrectKt" }
         ?: error("Couldn't find primary solution in package $this")
+    val otherSolutions = testingClasses
+        .filter { it != primarySolution && it.simpleName.startsWith("Correct") }
 
+    val incorrect = testingClasses
+        .filter { it.simpleName.startsWith("Incorrect") }
+    val badDesign = testingClasses
+        .filter { it.simpleName.startsWith("Design") }
+
+    return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badDesign)
+}
+
+fun Solution.doubleTest(klass: Class<*>, source: String? = null): TestResults {
+    val seed = Random.nextInt()
+    val first = submission(klass, source).test(Settings(seed = seed))
+    val second = submission(klass, source).test(Settings(seed = seed))
+    first.size shouldBe second.size
+    first.forEachIndexed { index, firstResult ->
+        val secondResult = second[index]
+        submission(klass).compare(firstResult.parameters, secondResult.parameters) shouldBe true
+    }
+    return first
+}
+
+@Suppress("NestedBlockDepth", "ComplexMethod")
+fun Class<*>.test() = this.testingClasses().apply {
     solution(primarySolution).apply {
-        /*
         submission(primarySolution).also {
             if (!primarySolution.isDesignOnly()) {
-                it.test().also { results ->
+                doubleTest(primarySolution).also { results ->
                     check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
                 }
             }
         }
-         */
-        testingClasses
-            .filter { it != primarySolution && it.simpleName.startsWith("Correct") }
-            .forEach { correct ->
-                submission(correct).also { submission ->
-                    if (!primarySolution.isDesignOnly()) {
-                        submission.test().also { results ->
-                            check(results.succeeded) {
-                                "Class marked as correct did not pass testing: ${results.explain()}"
-                            }
+
+        otherSolutions.forEach { correct ->
+            submission(correct).also {
+                if (!primarySolution.isDesignOnly()) {
+                    doubleTest(correct).also { results ->
+                        check(results.succeeded) {
+                            "Class marked as correct did not pass testing: ${results.explain()}"
                         }
                     }
                 }
             }
-        testingClasses
-            .filter {
-                (
-                    it.simpleName.startsWith("Incorrect") ||
-                        it.simpleName.startsWith("Design")
-                    ) &&
-                    !it.simpleName.startsWith("Ignore")
-            }
+        }
+        (incorrect + badDesign)
             .apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->
@@ -79,7 +101,7 @@ fun Class<*>.test() {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
                     }
-                    submission(incorrect, source).test().also { results ->
+                    doubleTest(incorrect, source).also { results ->
                         results.failed shouldBe true
                         results.filter { it.failed }
                             .map { it.type }
