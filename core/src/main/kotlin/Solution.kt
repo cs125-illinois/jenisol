@@ -246,11 +246,11 @@ fun Executable.fullName(): String {
         else -> error("Unknown executable type")
     }
     return "${visibilityModifier ?: ""}${
-    if (isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 
