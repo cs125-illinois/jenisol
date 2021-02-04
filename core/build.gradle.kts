@@ -12,10 +12,10 @@ plugins {
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
-    implementation("io.github.classgraph:classgraph:4.8.98")
+    implementation("io.github.classgraph:classgraph:4.8.102")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:4.3.2")
+    testImplementation("io.kotest:kotest-runner-junit5:4.4.0")
     testImplementation("org.slf4j:slf4j-simple:1.7.30")
 }
 tasks.compileKotlin {
