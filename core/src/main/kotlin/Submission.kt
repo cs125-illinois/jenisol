@@ -323,7 +323,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
             totalTests / 2
         }
 
-        for (totalCount in 0..totalTests) {
+        for (totalCount in 0 until totalTests) {
             val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(
                     runners.size,
@@ -341,7 +341,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                     receiverGenerator?.runners?.add(runner)
                 }
             } else {
-                if (totalCount <= startMultipleCount) {
+                if (totalCount < startMultipleCount) {
                     runners.first { it.ready }.also {
                         it.next(stepCount++)
                     }
