@@ -266,7 +266,8 @@ fun Class<*>.visibilityMatches(klass: Class<*>) = when {
     else -> klass.isPackagePrivate()
 }
 
-fun Executable.visibilityMatches(executable: Executable) = when {
+fun Executable.visibilityMatches(executable: Executable, submission: Class<*>) = when {
+    isPublic() && submission.isKotlin() && executable.isPackagePrivate() -> true
     isPublic() -> executable.isPublic()
     isPrivate() -> executable.isPrivate()
     isProtected() -> executable.isProtected()
@@ -303,7 +304,7 @@ fun Field.getVisibilityModifier() = when {
 
 fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMethods.find {
     it != null &&
-        it.visibilityMatches(method) &&
+        it.visibilityMatches(method, this) &&
         it.name == method.name &&
         it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
         compareReturn(method.genericReturnType, solution, it.genericReturnType, this) &&
