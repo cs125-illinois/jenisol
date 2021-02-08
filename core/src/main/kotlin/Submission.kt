@@ -105,6 +105,12 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 !it.isPrivate()
             }.forEach {
                 if (it !in submissionExecutables.values) {
+                    if (submission.isKotlin() && it is Method && it.name.startsWith("get")) {
+                        val setterName = it.name.replace("get", "set")
+                        if (submissionExecutables.values.map { it.name }.contains(setterName)) {
+                            return@forEach
+                        }
+                    }
                     throw SubmissionDesignExtraMethodError(
                         submission,
                         it

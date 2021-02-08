@@ -186,7 +186,10 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.singleargument.Correct::class.java.also {
-            "f: ${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.setteronly.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.intargument.Correct::class.java.also {
             "${it.testName()} repeatability" {
