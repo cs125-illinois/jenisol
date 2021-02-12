@@ -35,6 +35,29 @@ data class Result<T, P : ParameterGroup>(
     )
 }
 
+internal fun <P : ParameterGroup> Executable.formatBoundMethodCall(parameterValues: P, klass: Class<*>): String {
+    val arrayOfParameters = parameterValues.toArray()
+    return if (this is Constructor<*>) {
+        if (klass.isKotlin()) {
+            klass.simpleName
+        } else {
+            "new ${klass.simpleName}"
+        }
+    } else {
+        name
+    } + "(" +
+        parameters
+            .mapIndexed { index, parameter ->
+                if (klass.isKotlin()) {
+                    "${parameter.name}: ${parameter.type.kotlin.simpleName} = ${print(arrayOfParameters[index])}"
+                } else {
+                    "${parameter.type.simpleName} ${parameter.name} = ${print(arrayOfParameters[index])}"
+                }
+            }
+            .joinToString(", ") +
+        ")"
+}
+
 @Suppress("ArrayInDataClass")
 data class TestResult<T, P : ParameterGroup>(
     @JvmField val runnerID: Int,
@@ -67,18 +90,7 @@ data class TestResult<T, P : ParameterGroup>(
     @Suppress("ComplexMethod", "LongMethod")
     fun explain(): String {
 
-        val arrayOfParameters = parameters.toArray()
-        val methodString = if (type == Type.CONSTRUCTOR) {
-            submissionClass.simpleName
-        } else {
-            submissionExecutable.name
-        } + "(" +
-            submissionExecutable.parameters
-                .mapIndexed { index, parameter ->
-                    "${parameter.type.simpleName} ${parameter.name} = ${print(arrayOfParameters[index])}"
-                }
-                .joinToString(", ") +
-            ")"
+        val methodString = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
 
         val resultString = when {
             verifierThrew != null -> verifierThrew!!.message
