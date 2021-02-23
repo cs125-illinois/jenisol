@@ -41,6 +41,9 @@ task("createProperties") {
             }
     }
 }
+java {
+    withSourcesJar()
+}
 publishing {
     publications {
         create<MavenPublication>("core") {
