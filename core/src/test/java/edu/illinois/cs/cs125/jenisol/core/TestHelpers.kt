@@ -4,6 +4,7 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 
 class KotlinTest {
+    @Suppress("UNUSED_PARAMETER")
     fun method(first: Int, second: String): Int {
         return first
     }
