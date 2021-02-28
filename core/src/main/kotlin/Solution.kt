@@ -17,6 +17,7 @@ import java.lang.reflect.TypeVariable
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
+import kotlin.random.Random
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -132,11 +133,25 @@ class Solution(val solution: Class<*>) {
     private val receiverEntropy: Int
     private val methodEntropy: Int
 
+    private val defaultReceiverCount: Int
+    private val defaultMethodCount: Int
+
     // These calculations should be improved to create a better test balance
     init {
         val emptyInitializers =
             (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty()) &&
                 (initializer?.parameters?.isEmpty() ?: true)
+
+        val minReceiverCount = receiverGenerators.map {
+            generatorFactory.get(Random.Default, Settings.DEFAULTS)[it]!!.fixed.size
+        }.sum() * 2
+        val minMethodCount = (allExecutables - receiverGenerators).map {
+            if (it.receiverParameter()) {
+                minReceiverCount
+            } else {
+                generatorFactory.get(Random.Default, Settings.DEFAULTS)[it]!!.fixed.size
+            }
+        }.sum() * 2
 
         @Suppress("MagicNumber")
         receiverEntropy = when {
@@ -149,10 +164,9 @@ class Solution(val solution: Class<*>) {
             methodsToTest.size == 1 && methodsToTest.first().parameters.isEmpty() -> 4
             else -> 7
         }
+        defaultReceiverCount = maxOf(minReceiverCount, 2.0.pow(receiverEntropy.toDouble()).toInt())
+        defaultMethodCount = maxOf(minMethodCount, 2.0.pow(methodEntropy.toDouble()).toInt())
     }
-
-    private val defaultReceiverCount = 2.0.pow(receiverEntropy.toDouble()).toInt()
-    private val defaultMethodCount = 2.0.pow(methodEntropy.toDouble()).toInt()
 
     @Suppress("unused")
     val defaultTotalTests = defaultReceiverCount * (defaultMethodCount + 1)
@@ -212,7 +226,13 @@ class Solution(val solution: Class<*>) {
 
     val receiverCompare = object : Comparator {
         override val descendants = true
-        override fun compare(solution: Any, submission: Any): Boolean = true
+        override fun compare(
+            solution: Any,
+            submission: Any,
+            solutionClass: Class<*>?,
+            submissionClass: Class<*>?
+        ): Boolean =
+            true
     }
 
     fun submission(submission: Class<*>, source: String? = null) = Submission(this, submission, source)

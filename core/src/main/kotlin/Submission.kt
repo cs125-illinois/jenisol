@@ -103,17 +103,17 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         if (submission != solution.solution) {
             (submission.declaredMethods.toSet() + submission.declaredConstructors.toSet()).filter {
                 !it.isPrivate()
-            }.forEach {
-                if (it !in submissionExecutables.values) {
-                    if (submission.isKotlin() && it is Method && it.name.startsWith("get")) {
-                        val setterName = it.name.replace("get", "set")
+            }.forEach { executable ->
+                if (executable !in submissionExecutables.values) {
+                    if (submission.isKotlin() && executable is Method && executable.name.startsWith("get")) {
+                        val setterName = executable.name.replace("get", "set")
                         if (submissionExecutables.values.map { it.name }.contains(setterName)) {
                             return@forEach
                         }
                     }
                     throw SubmissionDesignExtraMethodError(
                         submission,
-                        it
+                        executable
                     )
                 }
             }
@@ -143,10 +143,11 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         mutableMapOf(solution.solution to solution.receiverCompare, submission to solution.receiverCompare)
     )
 
-    fun compare(solution: Any?, submission: Any?) = when (solution) {
-        null -> submission == null
-        else -> solution.deepEquals(submission, comparators)
-    }
+    fun compare(solution: Any?, submission: Any?, solutionClass: Class<*>? = null, submissionClass: Class<*>? = null) =
+        when (solution) {
+            null -> submission == null
+            else -> solution.deepEquals(submission, comparators, solutionClass, submissionClass)
+        }
 
     fun verify(executable: Executable, result: TestResult<*, *>) {
         solution.verifiers[executable]?.also { customVerifier ->
@@ -172,7 +173,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
             (it as Configure).strictOutput
         } ?: false
 
-        if (!compare(solution.threw, submission.threw)) {
+        if (!compare(solution.threw, submission.threw, result.solutionClass, result.submissionClass)) {
             result.differs.add(TestResult.Differs.THREW)
         }
         if ((strictOutput || solution.stdout.isNotBlank()) && solution.stdout != submission.stdout) {
@@ -182,7 +183,13 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
             result.differs.add(TestResult.Differs.STDERR)
         }
 
-        if (result.type == TestResult.Type.METHOD && !compare(solution.returned, submission.returned)) {
+        if (result.type == TestResult.Type.METHOD && !compare(
+                solution.returned,
+                submission.returned,
+                result.solutionClass,
+                result.submissionClass
+            )
+        ) {
             result.differs.add(TestResult.Differs.RETURN)
         }
         if (result.type == TestResult.Type.FACTORY_METHOD &&
@@ -199,7 +206,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 result.differs.add(TestResult.Differs.RETURN)
             }
         }
-        if (!compare(solution.parameters, submission.parameters)) {
+        if (!compare(solution.parameters, submission.parameters, result.solutionClass, result.submissionClass)) {
             result.differs.add(TestResult.Differs.PARAMETERS)
         }
     }

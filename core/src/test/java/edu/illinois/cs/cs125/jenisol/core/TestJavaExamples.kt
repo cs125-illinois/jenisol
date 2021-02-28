@@ -191,6 +191,15 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.setteronly.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.assertvrequire.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.doubleassert.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.doubleassert.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.noreceiver.intargument.Correct::class.java.also {
             "${it.testName()} repeatability" {
                 it.testingClasses().apply {

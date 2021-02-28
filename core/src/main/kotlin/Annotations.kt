@@ -347,6 +347,9 @@ fun Array<Any?>.toParameterGroup() = when (size) {
 object None : ParameterGroup {
     override fun toArray() = arrayOf<Any?>()
     override fun toList() = listOf<Any?>()
+    override fun toString(): String {
+        return "None()"
+    }
 }
 
 class One<I>(setFirst: I) : ParameterGroup {
@@ -368,6 +371,9 @@ class One<I>(setFirst: I) : ParameterGroup {
     }
 
     override fun hashCode() = first?.deepHashCode() ?: 0
+    override fun toString(): String {
+        return toArray().contentDeepToString()
+    }
 }
 
 class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
@@ -400,6 +406,10 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
         var result = first?.deepHashCode() ?: 0
         result = 31 * result + (second?.deepHashCode() ?: 0)
         return result
+    }
+
+    override fun toString(): String {
+        return toArray().contentDeepToString()
     }
 }
 
@@ -442,6 +452,9 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
         result = 31 * result + (second?.deepHashCode() ?: 0)
         result = 31 * result + (third?.deepHashCode() ?: 0)
         return result
+    }
+    override fun toString(): String {
+        return toArray().contentDeepToString()
     }
 }
 
@@ -500,6 +513,9 @@ class Four<I, J, K, L>(
         result = 31 * result + (third?.deepHashCode() ?: 0)
         result = 31 * result + (fourth?.deepHashCode() ?: 0)
         return result
+    }
+    override fun toString(): String {
+        return toArray().contentDeepToString()
     }
 }
 

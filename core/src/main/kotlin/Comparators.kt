@@ -3,10 +3,12 @@ package edu.illinois.cs.cs125.jenisol.core
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isLambdaMethod
+import java.lang.AssertionError
+import java.lang.IllegalArgumentException
 import kotlin.math.abs
 
 interface Comparator {
-    fun compare(solution: Any, submission: Any): Boolean
+    fun compare(solution: Any, submission: Any, solutionClass: Class<*>?, submissionClass: Class<*>?): Boolean
     val descendants: Boolean
 }
 
@@ -16,25 +18,52 @@ class Comparators(
     init {
         comparators[Any::class.java] = object : Comparator {
             override val descendants = false
-            override fun compare(solution: Any, submission: Any) = true
+            override fun compare(solution: Any, submission: Any, solutionClass: Class<*>?, submissionClass: Class<*>?) =
+                true
         }
         comparators[Throwable::class.java] = object : Comparator {
             override val descendants = true
-            override fun compare(solution: Any, submission: Any) = solution::class.java == submission::class.java
+            override fun compare(solution: Any, submission: Any, solutionClass: Class<*>?, submissionClass: Class<*>?) =
+                when {
+                    solution::class.java == submission::class.java -> true
+                    solutionClass != null && submissionClass != null &&
+                        solution is AssertionError &&
+                        submission is IllegalArgumentException &&
+                        !solutionClass.isKotlin() &&
+                        submissionClass.isKotlin() -> true
+                    solutionClass != null && submissionClass != null &&
+                        solution is IllegalArgumentException &&
+                        submission is AssertionError &&
+                        solutionClass.isKotlin() &&
+                        !submissionClass.isKotlin() -> true
+                    else -> solution::class.java == submission::class.java
+                }
         }
         comparators[Double::class.java] = object : Comparator {
             override val descendants = false
-            override fun compare(solution: Any, submission: Any): Boolean = when {
-                solution is Double && submission is Double -> compareDoubles(solution, submission)
-                else -> false
-            }
+            override fun compare(
+                solution: Any,
+                submission: Any,
+                solutionClass: Class<*>?,
+                submissionClass: Class<*>?
+            ): Boolean =
+                when {
+                    solution is Double && submission is Double -> compareDoubles(solution, submission)
+                    else -> false
+                }
         }
         comparators[java.lang.Double::class.java] = object : Comparator {
             override val descendants = false
-            override fun compare(solution: Any, submission: Any): Boolean = when {
-                solution is Double && submission is Double -> compareDoubles(solution, submission)
-                else -> false
-            }
+            override fun compare(
+                solution: Any,
+                submission: Any,
+                solutionClass: Class<*>?,
+                submissionClass: Class<*>?
+            ): Boolean =
+                when {
+                    solution is Double && submission is Double -> compareDoubles(solution, submission)
+                    else -> false
+                }
         }
     }
 
@@ -73,13 +102,20 @@ fun Any.lambdaGuessEquals(submission: Any): Boolean {
 @Suppress("ComplexMethod", "MapGetWithNotNullAssertionOperator")
 fun Any.deepEquals(
     submission: Any?,
-    comparators: Comparators
+    comparators: Comparators,
+    solutionClass: Class<*>?,
+    submissionClass: Class<*>?
 ): Boolean = when {
     this === submission -> true
     submission == null -> false
-    this::class.java in comparators -> comparators[this::class.java].compare(this, submission)
+    this::class.java in comparators -> comparators[this::class.java].compare(
+        this,
+        submission,
+        solutionClass,
+        submissionClass
+    )
     this is ParameterGroup && submission is ParameterGroup ->
-        this.toArray().deepEquals(submission.toArray(), comparators)
+        this.toArray().deepEquals(submission.toArray(), comparators, solutionClass, submissionClass)
     this.isAnyArray() != submission.isAnyArray() -> false
     this.isAnyArray() && submission.isAnyArray() -> {
         val solutionBoxed = this.boxArray()
@@ -89,7 +125,7 @@ fun Any.deepEquals(
                 when {
                     solution === submission -> true
                     solution == null || submission == null -> false
-                    else -> solution.deepEquals(submission, comparators)
+                    else -> solution.deepEquals(submission, comparators, solutionClass, submissionClass)
                 }
             }
     }

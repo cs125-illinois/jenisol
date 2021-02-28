@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    val kotlinVersion = "1.4.30"
+    val kotlinVersion = "1.4.31"
     kotlin("jvm") version kotlinVersion apply false
     id("org.jmailen.kotlinter") version "3.3.0" apply false
     id("com.github.sherter.google-java-format") version "0.9"
@@ -18,7 +18,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
-    version = "2021.2.8"
+    version = "2021.2.9"
     tasks.withType<JavaCompile> {
         options.compilerArgs.add("-parameters")
     }
