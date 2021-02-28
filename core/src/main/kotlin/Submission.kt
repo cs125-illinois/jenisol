@@ -337,6 +337,9 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         }
 
         for (totalCount in 0 until totalTests) {
+            if (Thread.interrupted()) {
+                break
+            }
             val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(
                     runners.size,

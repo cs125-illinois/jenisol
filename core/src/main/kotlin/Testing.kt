@@ -185,7 +185,7 @@ class TestResults(
     val succeeded = designOnly ?: all { it.succeeded }
     val failed = !succeeded
     fun explain() = if (succeeded) {
-        "Passed"
+        "Passed by completing ${results.size} tests"
     } else {
         filter { it.failed }.sortedBy { it.complexity }.let { result ->
             val leastComplex = result.first().complexity

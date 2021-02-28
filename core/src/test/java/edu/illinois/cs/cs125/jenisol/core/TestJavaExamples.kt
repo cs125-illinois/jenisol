@@ -2,6 +2,7 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 
 class TestJavaExamples : StringSpec(
     {
@@ -199,6 +200,24 @@ class TestJavaExamples : StringSpec(
         }
         examples.java.receiver.doubleassert.Correct::class.java.also {
             "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.timeouttest.Correct::class.java.also {
+            "${it.testName()}" {
+                val runnable = object : Runnable {
+                    var results: TestResults? = null
+                    override fun run() {
+                        results = solution(it).submission(it).test()
+                    }
+                }
+                @Suppress("BlockingMethodInNonBlockingContext")
+                Thread(runnable).apply {
+                    start()
+                    join(2048)
+                    interrupt()
+                    join(1024)
+                }
+                runnable.results shouldNotBe null
+            }
         }
         examples.java.noreceiver.intargument.Correct::class.java.also {
             "${it.testName()} repeatability" {
