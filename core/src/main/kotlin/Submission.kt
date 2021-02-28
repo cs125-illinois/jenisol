@@ -333,7 +333,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         val startMultipleCount = if (settings.startMultipleCount != -1) {
             settings.startMultipleCount
         } else {
-            totalTests / 2
+            settings.methodCount
         }
 
         for (totalCount in 0 until totalTests) {

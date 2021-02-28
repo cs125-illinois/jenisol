@@ -56,6 +56,8 @@ class Solution(val solution: Class<*>) {
 
     private fun Executable.receiverParameter() = parameterTypes.any { it == solution }
 
+    private fun Executable.objectParameter() = parameterTypes.any { it is Any }
+
     val receiverGenerators = allExecutables.filter { executable ->
         !executable.receiverParameter()
     }.filter { executable ->
@@ -146,7 +148,7 @@ class Solution(val solution: Class<*>) {
             generatorFactory.get(Random.Default, Settings.DEFAULTS)[it]!!.fixed.size
         }.sum() * 2
         val minMethodCount = (allExecutables - receiverGenerators).map {
-            if (it.receiverParameter()) {
+            if (it.receiverParameter() || (receiverGenerators.isNotEmpty() && it.objectParameter())) {
                 minReceiverCount
             } else {
                 generatorFactory.get(Random.Default, Settings.DEFAULTS)[it]!!.fixed.size

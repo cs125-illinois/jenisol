@@ -434,6 +434,7 @@ class ObjectGenerator(
 
     override val edge = (
         listOf(null as Any?).values(ZeroComplexity) +
+            (receiverGenerator?.edge ?: setOf()) +
             defaultObjects.values.map { it.edge }.flatten().distinct().take(EDGE_LIMIT)
         ).toSet()
         as Set<Value<Any?>>

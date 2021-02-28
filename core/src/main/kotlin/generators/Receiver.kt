@@ -31,7 +31,7 @@ class ReceiverGenerator(val random: Random = Random, val runners: MutableList<Te
     @Suppress("UNCHECKED_CAST")
     override val simple: Set<Value<Any>>
         get() = runners
-            .filter { it.receivers!!.complexity.level == 0 }
+            .filter { it.receivers?.complexity?.level == 0 }
             .map { ReceiverValue(it.receivers as Value<Any>) }
             .toSet()
 
@@ -39,7 +39,11 @@ class ReceiverGenerator(val random: Random = Random, val runners: MutableList<Te
         get() = mutableSetOf(Value(null, null, null, null, ZeroComplexity))
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =
-        runners.findWithComplexity(complexity, random)
+        if (random.nextBoolean()) {
+            simple.shuffled(random).first()
+        } else {
+            runners.findWithComplexity(complexity, random)
+        }
 }
 
 val UnconfiguredReceiverGenerator = object : TypeGenerator<Any> {
