@@ -50,9 +50,7 @@ class Solution(val solution: Class<*>) {
 
     val bothExecutables = solution.declaredMethods.toSet().filterNotNull().filter {
         it.isBoth()
-    }.also { methods ->
-        methods.forEach { checkDesign { Both.validate(it, solution) } }
-    }.toSet()
+    }.onEach { checkDesign { Both.validate(it, solution) } }.toSet()
 
     private fun Executable.receiverParameter() = parameterTypes.any { it == solution }
 
@@ -251,6 +249,7 @@ fun Executable.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected(
 fun Class<*>.isPrivate() = Modifier.isPrivate(modifiers)
 fun Class<*>.isPublic() = Modifier.isPublic(modifiers)
 fun Class<*>.isProtected() = Modifier.isProtected(modifiers)
+@Suppress("unused")
 fun Class<*>.isFinal() = Modifier.isFinal(modifiers)
 fun Class<*>.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
@@ -296,11 +295,11 @@ fun Executable.visibilityMatches(executable: Executable, submission: Class<*>) =
     else -> executable.isPackagePrivate()
 }
 
-fun Field.visibilityMatches(field: Field) = when {
-    isPublic() -> field.isPublic()
-    isPrivate() -> field.isPrivate()
-    isProtected() -> field.isProtected()
-    else -> field.isPackagePrivate()
+fun Field.visibilityMatches(solutionField: Field) = when {
+    isPublic() -> solutionField.isPublic()
+    isPrivate() -> solutionField.isPrivate()
+    isProtected() -> solutionField.isProtected()
+    else -> solutionField.isPackagePrivate()
 }
 
 fun Class<*>.getVisibilityModifier() = when {
@@ -370,12 +369,12 @@ fun Array<Class<*>>.fixReceivers(from: Class<*>, to: Class<*>) = map {
     }
 }.toTypedArray()
 
-fun Class<*>.findField(field: Field) = this.declaredFields.find {
-    it != null &&
-        it.visibilityMatches(field) &&
-        it.name == field.name &&
-        it.type == field.type &&
-        it.isStatic() == field.isStatic()
+fun Class<*>.findField(solutionField: Field) = this.declaredFields.find { submissionField ->
+    submissionField != null &&
+        submissionField.visibilityMatches(solutionField) &&
+        submissionField.name == solutionField.name &&
+        submissionField.type == solutionField.type &&
+        submissionField.isStatic() == solutionField.isStatic()
 }
 
 typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
