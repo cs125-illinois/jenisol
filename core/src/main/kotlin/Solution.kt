@@ -216,7 +216,7 @@ class Solution(val solution: Class<*>) {
     val filters: Map<Executable, Method> = solution.declaredMethods.filter { it.isFilterParameters() }
         .mapNotNull { filter ->
             FilterParameters.validate(filter).let { filterTypes ->
-                methodsToTest.filter {
+                (methodsToTest + receiverGenerators).filter {
                     it.genericParameterTypes.contentEquals(filterTypes)
                 }.also {
                     check(it.size <= 1) { "Filter matched multiple methods: ${it.size}" }
