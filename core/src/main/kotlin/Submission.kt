@@ -105,18 +105,24 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 !it.isPrivate()
             }.forEach { executable ->
                 if (executable !in submissionExecutables.values) {
-                    if (submission.isKotlin() && executable is Method && executable.name.startsWith("get")) {
-                        val setterName = executable.name.replace("get", "set")
-                        if (submissionExecutables.values.map { it.name }.contains(setterName)) {
+                    if (submission.isKotlin()) {
+                        if (executable is Method && executable.name.startsWith("get")) {
+                            val setterName = executable.name.replace("get", "set")
+                            if (submissionExecutables.values.map { it.name }.contains(setterName)) {
+                                return@forEach
+                            }
+                        }
+                        if (solution.skipReceiver && executable is Constructor<*>) {
+                            return@forEach
+                        }
+                        if (executable.isKotlinCompanionAccessor()) {
                             return@forEach
                         }
                     }
-                    if (!(submission.isKotlin() && solution.skipReceiver && executable is Constructor<*>)) {
-                        throw SubmissionDesignExtraMethodError(
-                            submission,
-                            executable
-                        )
-                    }
+                    throw SubmissionDesignExtraMethodError(
+                        submission,
+                        executable
+                    )
                 }
             }
             submission.declaredFields.toSet().filter {

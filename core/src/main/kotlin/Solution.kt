@@ -251,6 +251,7 @@ fun Executable.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected(
 fun Class<*>.isPrivate() = Modifier.isPrivate(modifiers)
 fun Class<*>.isPublic() = Modifier.isPublic(modifiers)
 fun Class<*>.isProtected() = Modifier.isProtected(modifiers)
+
 @Suppress("unused")
 fun Class<*>.isFinal() = Modifier.isFinal(modifiers)
 fun Class<*>.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
@@ -259,6 +260,23 @@ fun Class<*>.prettyPrint(): String = if (isArray) {
     getArrayType().name + "[]".repeat(getArrayDimension())
 } else {
     name
+}
+
+fun Executable.isKotlinCompanionAccessor(): Boolean {
+    check(declaringClass.isKotlin()) { "Should only check Kotlin classes: ${declaringClass.name}" }
+    return name.startsWith("access${"$"}get")
+}
+
+fun Class<*>.hasKotlinCompanion() = try {
+    isKotlin() && kotlin.companionObject != null
+} catch (e: UnsupportedOperationException) {
+    false
+}
+
+fun Executable.isKotlinCompanion() = try {
+    declaringClass.isKotlin() && declaringClass.kotlin.isCompanion
+} catch (e: UnsupportedOperationException) {
+    false
 }
 
 fun Executable.fullName(): String {
@@ -332,19 +350,15 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
         it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
         compareReturn(method.genericReturnType, solution, it.genericReturnType, this) &&
         it.isStatic() == method.isStatic()
-} ?: try {
-    if (this.isKotlin() && this.kotlin.companionObject != null) {
-        this.kotlin.companionObject?.java?.declaredMethods?.find {
-            it != null &&
-                it.visibilityMatches(method, this) &&
-                it.name == method.name &&
-                it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
-                compareReturn(method.genericReturnType, solution, it.genericReturnType, this)
-        }
-    } else {
-        null
+} ?: if (hasKotlinCompanion()) {
+    this.kotlin.companionObject?.java?.declaredMethods?.find {
+        it != null &&
+            it.visibilityMatches(method, this) &&
+            it.name == method.name &&
+            it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
+            compareReturn(method.genericReturnType, solution, it.genericReturnType, this)
     }
-} catch (e: UnsupportedOperationException) {
+} else {
     null
 }
 

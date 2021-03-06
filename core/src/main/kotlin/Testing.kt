@@ -9,13 +9,11 @@ import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
-import java.lang.UnsupportedOperationException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.time.Instant
 import java.util.Arrays
-import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.companionObjectInstance
 
 @Suppress("ArrayInDataClass")
@@ -91,7 +89,7 @@ data class TestResult<T, P : ParameterGroup>(
     var verifierThrew: Throwable? = null
 
     @Suppress("ComplexMethod", "LongMethod")
-    fun explain(): String {
+    fun explain(stacktrace: Boolean = false): String {
 
         val methodString = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
 
@@ -105,7 +103,11 @@ data class TestResult<T, P : ParameterGroup>(
                 } + "\n" + if (submission.threw == null) {
                     """Submission did not throw an exception"""
                 } else {
-                    """Submission threw: ${submission.threw}"""
+                    """Submission threw: ${submission.threw}""" + if (stacktrace) {
+                        "\n" + submission.threw.stackTraceToString()
+                    } else {
+                        ""
+                    }
                 }
             }
             differs.contains(Differs.STDOUT) -> {
@@ -187,13 +189,13 @@ class TestResults(
 ) : List<TestResult<Any, ParameterGroup>> by results {
     val succeeded = designOnly ?: all { it.succeeded }
     val failed = !succeeded
-    fun explain() = if (succeeded) {
+    fun explain(stacktrace: Boolean = false) = if (succeeded) {
         "Passed by completing ${results.size} tests"
     } else {
         filter { it.failed }.sortedBy { it.complexity }.let { result ->
             val leastComplex = result.first().complexity
             result.filter { it.complexity == leastComplex }
-        }.minByOrNull { it.stepCount }!!.explain()
+        }.minByOrNull { it.stepCount }!!.explain(stacktrace)
     }
 }
 
@@ -223,20 +225,16 @@ class TestRunner(
 
     init {
         if (receivers == null && submission.solution.skipReceiver) {
-            receivers = try {
-                if (!submission.submission.isKotlin() || submission.submission.kotlin.companionObject == null) {
-                    Value(null, null, null, null, ZeroComplexity)
-                } else {
-                    Value(
-                        null,
-                        submission.submission.kotlin.companionObjectInstance,
-                        null,
-                        submission.submission.kotlin.companionObjectInstance,
-                        ZeroComplexity
-                    )
-                }
-            } catch (e: UnsupportedOperationException) {
+            receivers = if (!submission.submission.hasKotlinCompanion()) {
                 Value(null, null, null, null, ZeroComplexity)
+            } else {
+                Value(
+                    null,
+                    submission.submission.kotlin.companionObjectInstance,
+                    null,
+                    submission.submission.kotlin.companionObjectInstance,
+                    ZeroComplexity
+                )
             }
         }
         created = receivers != null
@@ -300,7 +298,21 @@ class TestRunner(
             }
         }
 
-        val stepReceivers = receivers ?: Value(null, null, null, null, ZeroComplexity)
+        val stepReceivers = if (receivers != null) {
+            if (solutionExecutable.isStatic() && submissionExecutable.isKotlinCompanion()) {
+                Value(
+                    receivers!!.solution,
+                    submission.submission.kotlin.companionObjectInstance,
+                    receivers!!.solutionCopy,
+                    submission.submission.kotlin.companionObjectInstance,
+                    receivers!!.complexity
+                )
+            } else {
+                receivers
+            }
+        } else {
+            Value(null, null, null, null, ZeroComplexity)
+        } ?: error("Didn't set receivers")
 
         try {
             unwrap {

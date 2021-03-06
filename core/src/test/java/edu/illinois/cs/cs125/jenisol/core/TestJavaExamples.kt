@@ -206,6 +206,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.equalsthreefields.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.withstatic.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {

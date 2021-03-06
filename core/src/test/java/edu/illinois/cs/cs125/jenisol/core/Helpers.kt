@@ -78,7 +78,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                 if (!primarySolution.isDesignOnly()) {
                     doubleTest(correct).also { results ->
                         check(results.succeeded) {
-                            "Class marked as correct did not pass testing: ${results.explain()}"
+                            "Class marked as correct did not pass testing: ${results.explain(stacktrace = true)}"
                         }
                     }
                 }
