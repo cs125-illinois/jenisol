@@ -111,10 +111,12 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                             return@forEach
                         }
                     }
-                    throw SubmissionDesignExtraMethodError(
-                        submission,
-                        executable
-                    )
+                    if (!(submission.isKotlin() && solution.skipReceiver && executable is Constructor<*>)) {
+                        throw SubmissionDesignExtraMethodError(
+                            submission,
+                            executable
+                        )
+                    }
                 }
             }
             submission.declaredFields.toSet().filter {

@@ -9,11 +9,14 @@ import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
+import java.lang.UnsupportedOperationException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.time.Instant
 import java.util.Arrays
+import kotlin.reflect.full.companionObject
+import kotlin.reflect.full.companionObjectInstance
 
 @Suppress("ArrayInDataClass")
 data class Result<T, P : ParameterGroup>(
@@ -220,7 +223,21 @@ class TestRunner(
 
     init {
         if (receivers == null && submission.solution.skipReceiver) {
-            receivers = Value(null, null, null, null, ZeroComplexity)
+            receivers = try {
+                if (!submission.submission.isKotlin() || submission.submission.kotlin.companionObject == null) {
+                    Value(null, null, null, null, ZeroComplexity)
+                } else {
+                    Value(
+                        null,
+                        submission.submission.kotlin.companionObjectInstance,
+                        null,
+                        submission.submission.kotlin.companionObjectInstance,
+                        ZeroComplexity
+                    )
+                }
+            } catch (e: UnsupportedOperationException) {
+                Value(null, null, null, null, ZeroComplexity)
+            }
         }
         created = receivers != null
     }
@@ -282,6 +299,7 @@ class TestRunner(
                 else -> error("Unexpected executable type")
             }
         }
+
         val stepReceivers = receivers ?: Value(null, null, null, null, ZeroComplexity)
 
         try {

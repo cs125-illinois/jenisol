@@ -7,6 +7,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.lang.UnsupportedOperationException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -18,6 +19,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.pow
 import kotlin.random.Random
+import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.primaryConstructor
 
@@ -330,6 +332,20 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
         it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
         compareReturn(method.genericReturnType, solution, it.genericReturnType, this) &&
         it.isStatic() == method.isStatic()
+} ?: try {
+    if (this.isKotlin() && this.kotlin.companionObject != null) {
+        this.kotlin.companionObject?.java?.declaredMethods?.find {
+            it != null &&
+                it.visibilityMatches(method, this) &&
+                it.name == method.name &&
+                it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
+                compareReturn(method.genericReturnType, solution, it.genericReturnType, this)
+        }
+    } else {
+        null
+    }
+} catch (e: UnsupportedOperationException) {
+    null
 }
 
 fun compareReturn(

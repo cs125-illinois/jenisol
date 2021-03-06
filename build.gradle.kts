@@ -5,7 +5,7 @@ plugins {
     kotlin("jvm") version kotlinVersion apply false
     id("org.jmailen.kotlinter") version "3.3.0" apply false
     id("com.github.sherter.google-java-format") version "0.9"
-    id("com.github.ben-manes.versions") version "0.36.0"
+    id("com.github.ben-manes.versions") version "0.38.0"
     id("io.gitlab.arturbosch.detekt") version "1.15.0"
 }
 allprojects {
@@ -18,7 +18,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
-    version = "2021.2.11"
+    version = "2021.3.0"
     tasks.withType<JavaCompile> {
         options.compilerArgs.add("-parameters")
     }
