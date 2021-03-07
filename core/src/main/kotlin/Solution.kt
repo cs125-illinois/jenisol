@@ -469,7 +469,7 @@ data class Settings(
     companion object {
         val DEFAULTS = Settings(
             shrink = true,
-            receiverRetries = 4,
+            receiverRetries = 8,
             simpleCount = Int.MAX_VALUE,
             edgeCount = Int.MAX_VALUE,
             mixedCount = Int.MAX_VALUE,
