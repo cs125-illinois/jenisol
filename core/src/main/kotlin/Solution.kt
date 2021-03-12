@@ -200,7 +200,7 @@ class Solution(val solution: Class<*>) {
                 is Method -> methodToTest.genericReturnType
                 else -> designError("Unexpected executable type")
             }
-            @Suppress("TooGenericExceptionCaught")
+            @Suppress("TooGenericExceptionCaught", "SwallowedException")
             try {
                 Verify.validate(verifier, returnType, methodToTest.genericParameterTypes)
                 true
@@ -267,12 +267,14 @@ fun Executable.isKotlinCompanionAccessor(): Boolean {
     return name.startsWith("access${"$"}get")
 }
 
+@Suppress("SwallowedException")
 fun Class<*>.hasKotlinCompanion() = try {
     isKotlin() && kotlin.companionObject != null
 } catch (e: UnsupportedOperationException) {
     false
 }
 
+@Suppress("SwallowedException")
 fun Executable.isKotlinCompanion() = try {
     declaringClass.isKotlin() && declaringClass.kotlin.isCompanion
 } catch (e: UnsupportedOperationException) {

@@ -6,7 +6,7 @@ plugins {
     id("org.jmailen.kotlinter") version "3.3.0" apply false
     id("com.github.sherter.google-java-format") version "0.9"
     id("com.github.ben-manes.versions") version "0.38.0"
-    id("io.gitlab.arturbosch.detekt") version "1.15.0"
+    id("io.gitlab.arturbosch.detekt") version "1.16.0"
 }
 allprojects {
     repositories {
@@ -18,7 +18,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
-    version = "2021.3.2"
+    version = "2021.3.3"
     tasks.withType<JavaCompile> {
         options.compilerArgs.add("-parameters")
     }

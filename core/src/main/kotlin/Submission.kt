@@ -44,7 +44,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
             )
         }
         solution.solution.typeParameters.forEachIndexed { i, type ->
-            @Suppress("TooGenericExceptionCaught")
+            @Suppress("TooGenericExceptionCaught", "SwallowedException")
             try {
                 if (!submission.typeParameters[i].bounds.contentEquals(type.bounds)) {
                     throw SubmissionTypeParameterError(submission)
@@ -116,6 +116,11 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                             return@forEach
                         }
                         if (executable.isKotlinCompanionAccessor()) {
+                            return@forEach
+                        }
+                        if (executable is Constructor<*> &&
+                            executable.parameterTypes.last()?.name == "kotlin.jvm.internal.DefaultConstructorMarker"
+                        ) {
                             return@forEach
                         }
                     }
@@ -269,6 +274,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 solution.receiversAndInitializers
             )
             var receiverGoalMet = false
+            @Suppress("UnusedPrivateMember")
             for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
                 TestRunner(
                     runners.size,
@@ -465,6 +471,7 @@ class DesignOnlyTestingError(klass: Class<*>) : Exception(
 
 class SourceCheckError(message: String) : SubmissionDesignError(message)
 
+@Suppress("SwallowedException")
 fun unwrap(run: () -> Any?): Any? = try {
     run()
 } catch (e: InvocationTargetException) {

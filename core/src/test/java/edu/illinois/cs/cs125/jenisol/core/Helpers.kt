@@ -1,10 +1,7 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import io.github.classgraph.ClassGraph
-import io.kotest.assertions.throwables.shouldThrow
-import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.shouldBe
-import java.io.File
 import kotlin.random.Random
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
@@ -65,6 +62,7 @@ fun Solution.doubleTest(klass: Class<*>, source: String? = null): TestResults {
 @Suppress("NestedBlockDepth", "ComplexMethod")
 fun Class<*>.test() = this.testingClasses().apply {
     solution(primarySolution).apply {
+        /*
         submission(primarySolution).also {
             if (!primarySolution.isDesignOnly()) {
                 doubleTest(primarySolution).also { results ->
@@ -72,7 +70,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                 }
             }
         }
-
+        */
         otherSolutions.forEach { correct ->
             submission(correct).also {
                 if (!primarySolution.isDesignOnly()) {
@@ -84,6 +82,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                 }
             }
         }
+        /*
         (incorrect + badDesign)
             .apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
@@ -109,5 +108,6 @@ fun Class<*>.test() = this.testingClasses().apply {
                     }
                 }
             }
+         */
     }
 }

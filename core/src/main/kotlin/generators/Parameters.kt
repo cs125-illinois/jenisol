@@ -36,6 +36,7 @@ data class Parameters(
 ) {
     enum class Type { EMPTY, SIMPLE, EDGE, MIXED, RANDOM, FIXED_FIELD, RANDOM_METHOD, RECEIVER }
 
+    @Suppress("ExceptionRaisedInUnexpectedLocation")
     override fun equals(other: Any?) = when {
         this === other -> true
         other is Parameters ->
@@ -282,6 +283,7 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                 val values = field.get(null)
                 check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
                 check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
+                @Suppress("SwallowedException")
                 try {
                     @Suppress("UNCHECKED_CAST")
                     values as Collection<ParameterGroup>

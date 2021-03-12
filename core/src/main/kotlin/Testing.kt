@@ -311,7 +311,17 @@ class TestRunner(
                 receivers
             }
         } else {
-            Value(null, null, null, null, ZeroComplexity)
+            if (solutionExecutable.isStatic() && submissionExecutable.isKotlinCompanion()) {
+                Value(
+                    null,
+                    submission.submission.kotlin.companionObjectInstance,
+                    null,
+                    submission.submission.kotlin.companionObjectInstance,
+                    ZeroComplexity
+                )
+            } else {
+                Value(null, null, null, null, ZeroComplexity)
+            }
         } ?: error("Didn't set receivers")
 
         try {
