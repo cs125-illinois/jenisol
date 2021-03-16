@@ -372,7 +372,7 @@ class One<I>(setFirst: I) : ParameterGroup {
 
     override fun hashCode() = first?.deepHashCode() ?: 0
     override fun toString(): String {
-        return toArray().contentDeepToString()
+        return toArray().safeContentDeepToString()
     }
 }
 
@@ -394,7 +394,7 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
     }
 
     override fun toArray() = arrayOf(first, second)
-    override fun toList() = listOf<Any?>(first, second)
+    override fun toList() = listOf(first, second)
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -409,7 +409,7 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
     }
 
     override fun toString(): String {
-        return toArray().contentDeepToString()
+        return toArray().safeContentDeepToString()
     }
 }
 
@@ -439,7 +439,7 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
     }
 
     override fun toArray() = arrayOf(first, second, third)
-    override fun toList() = listOf<Any?>(first, second, third)
+    override fun toList() = listOf(first, second, third)
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -453,8 +453,9 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
         result = 31 * result + (third?.deepHashCode() ?: 0)
         return result
     }
+
     override fun toString(): String {
-        return toArray().contentDeepToString()
+        return toArray().safeContentDeepToString()
     }
 }
 
@@ -497,7 +498,7 @@ class Four<I, J, K, L>(
     }
 
     override fun toArray() = arrayOf(first, second, third, fourth)
-    override fun toList() = listOf<Any?>(first, second, third, fourth)
+    override fun toList() = listOf(first, second, third, fourth)
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -514,8 +515,9 @@ class Four<I, J, K, L>(
         result = 31 * result + (fourth?.deepHashCode() ?: 0)
         return result
     }
+
     override fun toString(): String {
-        return toArray().contentDeepToString()
+        return toArray().safeContentDeepToString()
     }
 }
 
@@ -550,4 +552,53 @@ fun Type.parameterGroupMatches(parameters: Array<Type>) = if (this == None::clas
     true
 } else {
     (this as ParameterizedType).actualTypeArguments.compareBoxed(parameters)
+}
+
+// Borrowed from Kotlin core
+
+@Suppress("MagicNumber")
+internal fun <T> Array<out T>?.safeContentDeepToString(): String {
+    if (this == null) return "null"
+    val length = size.coerceAtMost((Int.MAX_VALUE - 2) / 5) * 5 + 2 // in order not to overflow Int.MAX_VALUE
+    return buildString(length) {
+        safeContentDeepToStringInternal(this, mutableListOf())
+    }
+}
+
+@Suppress("ComplexMethod")
+private fun <T> Array<out T>.safeContentDeepToStringInternal(result: StringBuilder, processed: MutableList<Array<*>>) {
+    if (this in processed) {
+        result.append("[...]")
+        return
+    }
+    processed.add(this)
+    result.append('[')
+
+    for (i in indices) {
+        if (i != 0) {
+            result.append(", ")
+        }
+        when (val element = this[i]) {
+            null -> result.append("null")
+            is Array<*> -> element.safeContentDeepToStringInternal(result, processed)
+            is ByteArray -> result.append(element.contentToString())
+            is ShortArray -> result.append(element.contentToString())
+            is IntArray -> result.append(element.contentToString())
+            is LongArray -> result.append(element.contentToString())
+            is FloatArray -> result.append(element.contentToString())
+            is DoubleArray -> result.append(element.contentToString())
+            is CharArray -> result.append(element.contentToString())
+            is BooleanArray -> result.append(element.contentToString())
+            else -> result.append(element.safePrint())
+        }
+    }
+
+    result.append(']')
+    processed.removeAt(processed.lastIndex)
+}
+
+fun Any.safePrint() = try {
+    toString()
+} catch (_: Exception) {
+    this::class.simpleName!!
 }

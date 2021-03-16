@@ -13,7 +13,6 @@ import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
 import java.time.Instant
-import java.util.Arrays
 import kotlin.reflect.full.companionObjectInstance
 
 @Suppress("ArrayInDataClass")
@@ -34,6 +33,15 @@ data class Result<T, P : ParameterGroup>(
         capturedResult.stderr,
         modifiedParameters
     )
+
+    override fun toString(): String {
+        return "Result(parameters=$parameters, " +
+            "returned=${returned?.safePrint()}, " +
+            "threw=${threw?.safePrint()}, " +
+            "stdout='$stdout', " +
+            "stderr='$stderr', " +
+            "modifiedParameters=$modifiedParameters)"
+    }
 }
 
 internal fun <P : ParameterGroup> Executable.formatBoundMethodCall(parameterValues: P, klass: Class<*>): String {
@@ -164,21 +172,42 @@ Submission modified its parameters to ${
         }
         return "Testing $methodString failed:\n${message?.let { it + "\n" } ?: ""}$resultString"
     }
+
+    override fun toString(): String {
+        return "TestResult(runnerID=$runnerID, " +
+            "stepCount=$stepCount, " +
+            "runnerCount=$runnerCount, " +
+            "solutionExecutable=$solutionExecutable, " +
+            "submissionExecutable=$submissionExecutable, " +
+            "type=$type, " +
+            "parameters=$parameters, " +
+            "solution=$solution, " +
+            "submission=${submission.safePrint()}, " +
+            "interval=$interval, " +
+            "complexity=$complexity, " +
+            "solutionClass=${solutionClass.name}, " +
+            "submissionClass=${submissionClass.name}, " +
+            "message=$message, " +
+            "differs=$differs, " +
+            "succeeded=$succeeded, " +
+            "failed=$failed, " +
+            "verifierThrew=$verifierThrew)"
+    }
 }
 
 fun print(value: Any?): String = when {
     value === null -> "null"
-    value is ByteArray -> Arrays.toString(value)
-    value is ShortArray -> Arrays.toString(value)
-    value is IntArray -> Arrays.toString(value)
-    value is LongArray -> Arrays.toString(value)
-    value is FloatArray -> Arrays.toString(value)
-    value is DoubleArray -> Arrays.toString(value)
-    value is CharArray -> Arrays.toString(value)
-    value is BooleanArray -> Arrays.toString(value)
-    value is Array<*> -> value.joinToString { print(it) }
+    value is ByteArray -> value.contentToString()
+    value is ShortArray -> value.contentToString()
+    value is IntArray -> value.contentToString()
+    value is LongArray -> value.contentToString()
+    value is FloatArray -> value.contentToString()
+    value is DoubleArray -> value.contentToString()
+    value is CharArray -> value.contentToString()
+    value is BooleanArray -> value.contentToString()
+    value is Array<*> -> value.safeContentDeepToString()
     value is String -> "\"$value\""
-    else -> value.toString()
+    else -> value.safePrint()
 }
 
 @Suppress("UNUSED")

@@ -5,7 +5,10 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.time.ExperimentalTime
+import kotlin.time.seconds
 
+@ExperimentalTime
 class TestJavaExamples : StringSpec(
     {
         examples.java.noreceiver.noarguments.Correct::class.java.also {
@@ -220,6 +223,9 @@ class TestJavaExamples : StringSpec(
         }
         examples.java.receiver.kotlinnonnullableparameter.Correct::class.java.also {
             "${it.testName()}" { it.test() }
+        }
+        examples.java.receiver.completethreefields.Correct::class.java.also {
+            "${it.testName()}".config(timeout = 4.seconds) { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
