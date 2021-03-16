@@ -267,6 +267,13 @@ fun Executable.isKotlinCompanionAccessor(): Boolean {
     return name.startsWith("access${"$"}get")
 }
 
+fun Executable.isDataClassGenerated() = name == "equals" ||
+    name == "hashCode" ||
+    name == "toString" ||
+    name == "copy" ||
+    name == "copy${"$"}default" ||
+    name.startsWith("component")
+
 @Suppress("SwallowedException")
 fun Class<*>.hasKotlinCompanion() = try {
     isKotlin() && kotlin.companionObject != null
@@ -289,11 +296,11 @@ fun Executable.fullName(): String {
         else -> error("Unknown executable type")
     }
     return "${visibilityModifier ?: ""}${
-    if (isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 

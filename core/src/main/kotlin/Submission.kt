@@ -123,6 +123,9 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                         ) {
                             return@forEach
                         }
+                        if (submission.kotlin.isData && executable.isDataClassGenerated()) {
+                            return@forEach
+                        }
                     }
                     throw SubmissionDesignExtraMethodError(
                         submission,
@@ -411,33 +414,33 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
 sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
-    if (executable.isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (executable.isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }${
-    if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
     } ${executable.fullName()}"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} provided extra ${
-    if (executable.isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (executable.isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }${
-    if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
     } ${executable.fullName()}"
 )
 
