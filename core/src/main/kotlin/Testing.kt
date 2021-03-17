@@ -96,13 +96,13 @@ data class TestResult<T, P : ParameterGroup>(
     @Suppress("unused")
     var verifierThrew: Throwable? = null
 
-    @Suppress("ComplexMethod", "LongMethod")
+    @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {
 
         val methodString = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
 
         val resultString = when {
-            verifierThrew != null -> verifierThrew!!.message
+            verifierThrew != null -> "Verifier threw an exception: ${verifierThrew!!.message}"
             differs.contains(Differs.THREW) -> {
                 if (solution.threw == null) {
                     """Solution did not throw an exception"""
@@ -112,7 +112,16 @@ data class TestResult<T, P : ParameterGroup>(
                     """Submission did not throw an exception"""
                 } else {
                     """Submission threw: ${submission.threw}""" + if (stacktrace) {
-                        "\n" + submission.threw.stackTraceToString()
+                        "\n" + submission.threw.stackTraceToString().lines().let { lines ->
+                            val trimIndex = lines.indexOfFirst { it.trim().startsWith("at java.base") }.let {
+                                if (it == -1) {
+                                    lines.size
+                                } else {
+                                    it
+                                }
+                            }
+                            lines.take(trimIndex)
+                        }.joinToString("\n")
                     } else {
                         ""
                     }
@@ -170,7 +179,7 @@ Submission modified its parameters to ${
             }
             else -> error("Unexplained result")
         }
-        return "Testing $methodString failed:\n${message?.let { it + "\n" } ?: ""}$resultString"
+        return "Testing $methodString failed:\n$resultString${message?.let { "\nAdditional Explanation: $it" } ?: ""}"
     }
 
     override fun toString(): String {
