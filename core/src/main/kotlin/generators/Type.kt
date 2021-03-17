@@ -453,7 +453,7 @@ class ObjectGenerator(
     }
 }
 
-fun <T> Collection<T>.values(complexity: Complexity) = Cloner().let { cloner ->
+fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { cloner ->
     toSet().also {
         check(size == it.size) { "Collection of values was not distinct" }
     }.map {
@@ -461,7 +461,7 @@ fun <T> Collection<T>.values(complexity: Complexity) = Cloner().let { cloner ->
     }.toSet()
 }
 
-fun <T> T.value(complexity: Complexity) = Cloner().let { cloner ->
+fun <T> T.value(complexity: Complexity) = Cloner.shared().let { cloner ->
     Value(
         cloner.deepClone(this),
         cloner.deepClone(this),

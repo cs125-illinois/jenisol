@@ -126,6 +126,9 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                         if (submission.kotlin.isData && executable.isDataClassGenerated()) {
                             return@forEach
                         }
+                        if (executable.name == "compareTo") {
+                            return@forEach
+                        }
                     }
                     throw SubmissionDesignExtraMethodError(
                         submission,

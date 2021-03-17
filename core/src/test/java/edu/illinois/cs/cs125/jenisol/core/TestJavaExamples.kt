@@ -225,7 +225,10 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.completethreefields.Correct::class.java.also {
-            "${it.testName()}".config(timeout = 4.seconds) { it.test() }
+            "${it.testName()}".config(timeout = 1.seconds) { it.test() }
+        }
+        examples.java.receiver.compareto.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
