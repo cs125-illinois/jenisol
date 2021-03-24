@@ -323,7 +323,7 @@ interface ParameterGroup {
 }
 
 fun ParameterGroup.deepCopy(): ParameterGroup {
-    return Cloner().let { cloner ->
+    return Cloner.shared().let { cloner ->
         toArray().toList().map {
             if (it?.isLambdaMethod() == true) {
                 it
