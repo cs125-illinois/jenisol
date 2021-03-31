@@ -3,8 +3,6 @@ package edu.illinois.cs.cs125.jenisol.core
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isLambdaMethod
-import java.lang.AssertionError
-import java.lang.IllegalArgumentException
 import kotlin.math.abs
 
 interface Comparator {
@@ -23,7 +21,10 @@ class Comparators(
         }
         comparators[Throwable::class.java] = object : Comparator {
             override val descendants = true
+
+            @Suppress("LongMethod")
             override fun compare(solution: Any, submission: Any, solutionClass: Class<*>?, submissionClass: Class<*>?) =
+                @Suppress("MagicNumber")
                 when {
                     solution::class.java == submission::class.java -> true
                     solutionClass != null && submissionClass != null &&
@@ -48,6 +49,56 @@ class Comparators(
                         submission is AssertionError &&
                         solutionClass.isKotlin() &&
                         !submissionClass.isKotlin() -> true
+                    solutionClass != null && submissionClass != null &&
+                        solution is ArrayIndexOutOfBoundsException &&
+                        submission is IndexOutOfBoundsException &&
+                        solution.message == submission.message -> true
+                    solutionClass != null && submissionClass != null &&
+                        solution is IndexOutOfBoundsException &&
+                        submission is ArrayIndexOutOfBoundsException &&
+                        solution.message == submission.message -> true
+                    solutionClass != null && submissionClass != null &&
+                        solution is ArrayIndexOutOfBoundsException &&
+                        solution.message != null &&
+                        submission is IndexOutOfBoundsException &&
+                        submission.message != null -> {
+                        val solutionMatch =
+                            """Index (\d+) out of bounds for length (\d+)""".toRegex().matchEntire(solution.message!!)
+                        val submissionMatch =
+                            """Index: (\d+), Size: (\d+)""".toRegex().matchEntire(submission.message!!)
+                        when {
+                            solutionMatch == null -> false
+                            submissionMatch == null -> false
+                            solutionMatch.groupValues.size != 3 -> false
+                            submissionMatch.groupValues.size != 3 -> false
+                            else -> {
+                                solutionMatch.groupValues[1].toInt() == submissionMatch.groupValues[1].toInt() &&
+                                    solutionMatch.groupValues[2].toInt() == submissionMatch.groupValues[2].toInt()
+                            }
+                        }
+                    }
+                    solutionClass != null && submissionClass != null &&
+                        solution is java.lang.IndexOutOfBoundsException &&
+                        solution.message != null &&
+                        submission is ArrayIndexOutOfBoundsException &&
+                        submission.message != null &&
+                        solutionClass.isKotlin() &&
+                        !submissionClass.isKotlin() -> {
+                        val submissionMatch =
+                            """Index (\d+) out of bounds for length (\d+)""".toRegex().matchEntire(solution.message!!)
+                        val solutionMatch =
+                            """Index: (\d+), Size: (\d+)""".toRegex().matchEntire(submission.message!!)
+                        when {
+                            solutionMatch == null -> false
+                            submissionMatch == null -> false
+                            solutionMatch.groupValues.size != 3 -> false
+                            submissionMatch.groupValues.size != 3 -> false
+                            else -> {
+                                solutionMatch.groupValues[1].toInt() == submissionMatch.groupValues[1].toInt() &&
+                                    solutionMatch.groupValues[2].toInt() == submissionMatch.groupValues[2].toInt()
+                            }
+                        }
+                    }
                     else -> solution::class.java == submission::class.java
                 }
         }
