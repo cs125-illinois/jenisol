@@ -147,6 +147,7 @@ object Defaults {
         error("Cannot find generator for class ${klass.name}")
     }
 
+    @Suppress("ComplexCondition", "ReturnCount")
     operator fun get(type: Type): TypeGeneratorGenerator {
         if (type is Class<*>) {
             try {
@@ -160,6 +161,16 @@ object Defaults {
                 map.containsKey(type.actualTypeArguments[0])
             ) {
                 return { random -> ListGenerator(random, create(type.actualTypeArguments[0], random)) }
+            } else if (type.rawType == java.util.Map::class.java && type.actualTypeArguments.size == 2 &&
+                map.containsKey(type.actualTypeArguments[0]) && map.containsKey(type.actualTypeArguments[1])
+            ) {
+                return { random ->
+                    MapGenerator(
+                        random,
+                        create(type.actualTypeArguments[0], random),
+                        create(type.actualTypeArguments[1], random)
+                    )
+                }
             }
         }
         error("Cannot find generator for type ${type.typeName}")
@@ -174,9 +185,9 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
 
     override val simple: Set<Value<Any>>
         get() {
-            val simpleCases = componentGenerator.simple.map { it.solutionCopy }
+            val simpleCases = componentGenerator.simple.mapNotNull { it.solutionCopy }
             return setOf(
-                listOf<Any>(),
+                listOf(),
                 simpleCases
             ).values(ZeroComplexity)
         }
@@ -188,6 +199,49 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
         return mutableListOf<Any>().apply {
             repeat(listSize) {
                 add(componentGenerator.random(complexity, runner).solutionCopy!!)
+            }
+        }.value(complexity)
+    }
+}
+
+class MapGenerator(
+    random: Random,
+    private val keyGenerator: TypeGenerator<*>,
+    private val valueGenerator: TypeGenerator<*>
+) :
+    TypeGenerators<Any>(random) {
+
+    override val simple: Set<Value<Any>>
+        get() {
+            val keys = keyGenerator.simple.mapNotNull { it.solutionCopy }
+            val values = valueGenerator.simple.mapNotNull { it.solutionCopy }
+            require(keys.isNotEmpty()) { "Can't build a map from empty keys" }
+            require(values.isNotEmpty()) { "Can't build a map from empty values" }
+
+            val simpleMap = mutableMapOf<Any, Any>().apply {
+                for (i in keys.indices) {
+                    this[keys[i]] = values[i % values.size]
+                }
+            }.toMap()
+            val maps = mutableSetOf(
+                mapOf(),
+                mapOf(keys.first() to values.first()),
+                simpleMap
+            )
+            if (keys.size > 1) {
+                maps.add(mapOf(keys[0] to values.first(), keys[1] to values.first()))
+            }
+            return maps.toSet().values(ZeroComplexity)
+        }
+
+    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
+
+    override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
+        val keySize = random.nextInt((complexity.power().toInt() * 2) + 1)
+        return mutableMapOf<Any, Any>().apply {
+            repeat(keySize) {
+                this[keyGenerator.random(complexity, runner).solutionCopy!!] =
+                    valueGenerator.random(complexity, runner).solutionCopy!!
             }
         }.value(complexity)
     }
