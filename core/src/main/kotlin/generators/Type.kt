@@ -237,7 +237,7 @@ class MapGenerator(
     override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
-        val keySize = random.nextInt((complexity.power().toInt() * 2) + 1)
+        val keySize = random.nextInt(complexity.power().toInt() + 1)
         return mutableMapOf<Any, Any>().apply {
             repeat(keySize) {
                 this[keyGenerator.random(complexity, runner).solutionCopy!!] =
@@ -552,11 +552,6 @@ fun kotlin.Array<Type>.compareBoxed(other: kotlin.Array<Type>) = when {
                 else -> mine.compare(other)
             }
         }
-}
-
-fun kotlin.Array<Type>.compareBoxed(other: kotlin.Array<Class<*>>) = when {
-    size != other.size -> false
-    else -> zip(other).all { (mine, other) -> (mine as Class<*>).compareBoxed(other) }
 }
 
 fun Type.compare(other: Type): Boolean {

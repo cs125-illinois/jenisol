@@ -15,7 +15,13 @@ import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import java.lang.reflect.Method
+import java.lang.reflect.Type
 import kotlin.math.pow
+
+fun Array<Type>.compareBoxed(other: Array<Class<*>>) = when {
+    size != other.size -> false
+    else -> zip(other).all { (mine, other) -> (mine as Class<*>).compareBoxed(other) }
+}
 
 class TestGenerators : StringSpec(
     {

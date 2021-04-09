@@ -234,7 +234,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.countmap.Correct::class.java.also {
-            "f: ${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
