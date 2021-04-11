@@ -33,7 +33,7 @@ class Comparators(
                         !solutionClass.isKotlin() &&
                         submissionClass.isKotlin() -> true
                     solutionClass != null && submissionClass != null &&
-                        solution is AssertionError &&
+                        (solution is AssertionError || solution is IllegalArgumentException) &&
                         submission is NullPointerException &&
                         submission.message?.startsWith("Parameter specified as non-null is null") == true &&
                         !solutionClass.isKotlin() &&
@@ -41,7 +41,7 @@ class Comparators(
                     solutionClass != null && submissionClass != null &&
                         solution is NullPointerException &&
                         solution.message?.startsWith("Parameter specified as non-null is null") == true &&
-                        submission is AssertionError &&
+                        (submission is AssertionError || submission is IllegalArgumentException) &&
                         solutionClass.isKotlin() &&
                         !submissionClass.isKotlin() -> true
                     solutionClass != null && submissionClass != null &&
