@@ -13,6 +13,7 @@ import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.TypeVariable
 import java.util.concurrent.locks.ReentrantLock
@@ -356,7 +357,7 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
     it != null &&
         it.visibilityMatches(method, this) &&
         it.name == method.name &&
-        it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
+        compareParameters(method.genericParameterTypes, solution, it.genericParameterTypes, this) &&
         compareReturn(method.genericReturnType, solution, it.genericReturnType, this) &&
         it.isStatic() == method.isStatic()
 } ?: if (hasKotlinCompanion()) {
@@ -364,7 +365,7 @@ fun Class<*>.findMethod(method: Method, solution: Class<*>) = this.declaredMetho
         it != null &&
             it.visibilityMatches(method, this) &&
             it.name == method.name &&
-            it.genericParameterTypes.fixReceivers(this, solution).contentEquals(method.genericParameterTypes) &&
+            compareParameters(method.genericParameterTypes, solution, it.genericParameterTypes, this) &&
             compareReturn(method.genericReturnType, solution, it.genericReturnType, this)
     }
 } else {
@@ -387,6 +388,29 @@ fun compareReturn(
     solutionReturn is TypeVariable<*> && submissionReturn is TypeVariable<*> ->
         solutionReturn.bounds.contentEquals(submissionReturn.bounds)
     else -> false
+}
+
+fun compareParameters(
+    solutionParameters: Array<Type>,
+    solution: Class<*>,
+    submissionParameters: Array<Type>,
+    submission: Class<*>
+): Boolean {
+    if (solutionParameters.size != submissionParameters.size) {
+        return false
+    }
+    return solutionParameters
+        .zip(submissionParameters.fixReceivers(submission, solution))
+        .all { (solutionType, submissionType) ->
+            when {
+                solutionType == submissionType -> true
+                solutionType !is ParameterizedType && submissionType is ParameterizedType
+                    && submissionType.rawType == solutionType -> {
+                    submissionType.actualTypeArguments.all { it is Any }
+                }
+                else -> false
+            }
+        }
 }
 
 fun Class<*>.findConstructor(constructor: Constructor<*>, solution: Class<*>) = this.declaredConstructors.find {

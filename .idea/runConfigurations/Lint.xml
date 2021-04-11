@@ -10,6 +10,8 @@
       </option>
       <option name="taskNames">
         <list>
+          <option value="formatKotlin" />
+          <option value="googleJavaFormat" />
           <option value="detekt" />
           <option value="core:checkstyleTest" />
           <option value="lintKotlin" />
@@ -17,7 +19,9 @@
       </option>
       <option name="vmOptions" value="" />
     </ExternalSystemSettings>
-    <GradleScriptDebugEnabled>true</GradleScriptDebugEnabled>
+    <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+    <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+    <DebugAllEnabled>false</DebugAllEnabled>
     <method v="2" />
   </configuration>
 </component>
