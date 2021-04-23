@@ -202,14 +202,17 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         }
 
         if (result.type == TestResult.Type.METHOD) {
-            if (solution.returned != null && solution.returned::class.java in this.solution.customCompares) {
+            val customCompare = if (solution.returned != null) {
+                this.solution.customCompares.entries.find { (type, _) ->
+                    type.isAssignableFrom(solution.returned::class.java)
+                }
+            } else {
+                null
+            }?.value
+            if (customCompare != null && solution.returned != null && submission.returned != null) {
                 @Suppress("TooGenericExceptionCaught")
                 try {
-                    this.solution.customCompares[solution.returned::class.java]!!.invoke(
-                        null,
-                        solution.returned,
-                        submission.returned
-                    )
+                    customCompare.invoke(null, solution.returned, submission.returned)
                 } catch (e: Throwable) {
                     result.differs.add(TestResult.Differs.RETURN)
                     result.message = e.message

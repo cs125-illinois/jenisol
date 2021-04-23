@@ -8,7 +8,6 @@ import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
-import java.lang.UnsupportedOperationException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field

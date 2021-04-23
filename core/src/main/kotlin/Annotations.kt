@@ -265,7 +265,7 @@ annotation class Compare {
 
 fun Method.isCompare() = isAnnotationPresent(Compare::class.java)
 
-class CompareException(message: String) : RuntimeException(message)
+class CompareException(message: String? = null) : RuntimeException(message)
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

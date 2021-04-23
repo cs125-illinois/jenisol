@@ -610,7 +610,7 @@ fun Any.box(): Any = when {
 }
 
 @Suppress("ComplexMethod")
-fun Any.boxType(): Any = when {
+fun Class<*>.boxType(): Class<*> = when {
     this == ByteArray::class.java -> arrayOf<Byte>()::class.java
     this == Byte::class.java -> java.lang.Byte::class.java
     this == ShortArray::class.java -> arrayOf<Short>()::class.java
