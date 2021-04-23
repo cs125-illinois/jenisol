@@ -611,21 +611,13 @@ fun Any.box(): Any = when {
 
 @Suppress("ComplexMethod")
 fun Class<*>.boxType(): Class<*> = when {
-    this == ByteArray::class.java -> arrayOf<Byte>()::class.java
     this == Byte::class.java -> java.lang.Byte::class.java
-    this == ShortArray::class.java -> arrayOf<Short>()::class.java
     this == Short::class.java -> java.lang.Short::class.java
-    this == IntArray::class.java -> arrayOf<Int>()::class.java
     this == Int::class.java -> java.lang.Integer::class.java
-    this == LongArray::class.java -> arrayOf<Long>()::class.java
     this == Long::class.java -> java.lang.Long::class.java
-    this == FloatArray::class.java -> arrayOf<Float>()::class.java
     this == Float::class.java -> java.lang.Float::class.java
-    this == DoubleArray::class.java -> arrayOf<Double>()::class.java
     this == Double::class.java -> java.lang.Double::class.java
-    this == CharArray::class.java -> arrayOf<Char>()::class.java
     this == Char::class.java -> java.lang.Character::class.java
-    this == BooleanArray::class.java -> arrayOf<Boolean>()::class.java
     this == Boolean::class.java -> java.lang.Boolean::class.java
     else -> this
 }
