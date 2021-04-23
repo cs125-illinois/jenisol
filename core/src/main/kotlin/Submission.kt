@@ -80,8 +80,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
     val submissionExecutables = solution.allExecutables
         .filter {
             !submission.isKotlin() || (!solution.skipReceiver || it !in solution.receiverGenerators)
-        }
-        .map { solutionExecutable ->
+        }.associate { solutionExecutable ->
             when (solutionExecutable) {
                 is Constructor<*> -> submission.findConstructor(solutionExecutable, solution.solution)
                 is Method -> submission.findMethod(solutionExecutable, solution.solution)
@@ -93,7 +92,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 submission,
                 solutionExecutable
             )
-        }.toMap().toMutableMap().also {
+        }.toMutableMap().also {
             if (solution.initializer != null) {
                 it[solution.initializer] = solution.initializer
             }
@@ -202,14 +201,28 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
             result.differs.add(TestResult.Differs.STDERR)
         }
 
-        if (result.type == TestResult.Type.METHOD && !compare(
-                solution.returned,
-                submission.returned,
-                result.solutionClass,
-                result.submissionClass
-            )
-        ) {
-            result.differs.add(TestResult.Differs.RETURN)
+        if (result.type == TestResult.Type.METHOD) {
+            if (solution.returned != null && solution.returned::class.java in this.solution.customCompares) {
+                @Suppress("TooGenericExceptionCaught")
+                try {
+                    this.solution.customCompares[solution.returned::class.java]!!.invoke(
+                        null,
+                        solution.returned,
+                        submission.returned
+                    )
+                } catch (e: Throwable) {
+                    result.differs.add(TestResult.Differs.RETURN)
+                    result.message = e.message
+                }
+            } else if (!compare(
+                    solution.returned,
+                    submission.returned,
+                    result.solutionClass,
+                    result.submissionClass
+                )
+            ) {
+                result.differs.add(TestResult.Differs.RETURN)
+            }
         }
         if (result.type == TestResult.Type.FACTORY_METHOD &&
             solution.returned != null &&

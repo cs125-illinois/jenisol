@@ -18,7 +18,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
-    version = "2021.4.2"
+    version = "2021.4.3"
     tasks.withType<JavaCompile> {
         options.compilerArgs.add("-parameters")
     }

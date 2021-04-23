@@ -83,7 +83,8 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField val solutionClass: Class<*>,
     @JvmField val submissionClass: Class<*>,
     @JvmField var message: String? = null,
-    @JvmField val differs: MutableSet<Differs> = mutableSetOf()
+    @JvmField val differs: MutableSet<Differs> = mutableSetOf(),
+    @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin()
 ) {
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW }

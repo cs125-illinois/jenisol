@@ -3,6 +3,7 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
+import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import java.io.ByteArrayOutputStream
@@ -111,6 +112,18 @@ class Solution(val solution: Class<*>) {
         checkDesign(it.size <= 1) { "Solution has multiple instance validators" }
     }.firstOrNull()?.also {
         checkDesign { InstanceValidator.validate(it) }
+    }
+
+    val customCompares = solution.declaredMethods.filter {
+        it.isCompare()
+    }.filterNotNull().let { compareMethods ->
+        compareMethods.forEach { Compare.validate(it) }
+        checkDesign {
+            require(compareMethods.distinctBy { it.returnType }.size == compareMethods.size) {
+                "Found two or more @Compare methods examining the same type"
+            }
+        }
+        compareMethods.associateBy { it.parameterTypes.first().boxType() }
     }
 
     val sourceChecker = solution.declaredMethods.filter {

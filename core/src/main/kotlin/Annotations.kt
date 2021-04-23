@@ -214,7 +214,7 @@ annotation class Verify {
 
 fun Method.isVerify() = isAnnotationPresent(Verify::class.java)
 
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
+@Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Both {
     companion object {
@@ -240,6 +240,32 @@ annotation class Both {
 }
 
 fun Method.isBoth() = isAnnotationPresent(Both::class.java)
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Compare {
+    companion object {
+        val name: String = Compare::class.java.simpleName
+        fun validate(method: Method) {
+            check(method.isPrivate()) { "@$name methods must be private" }
+            check(method.isStatic()) { "@$name methods must be static" }
+            check(method.returnType.name == "void") {
+                "@$name method return values will not be used and should be void"
+            }
+            check(
+                method.parameterTypes.size == 2 &&
+                    method.parameterTypes[0] === method.parameterTypes[1]
+            ) {
+                "@$name methods must accept two parameters of the same type"
+            }
+            method.isAccessible = true
+        }
+    }
+}
+
+fun Method.isCompare() = isAnnotationPresent(Compare::class.java)
+
+class CompareException(message: String) : RuntimeException(message)
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
