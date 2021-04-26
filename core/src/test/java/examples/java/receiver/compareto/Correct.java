@@ -21,7 +21,7 @@ public class Correct implements Comparable {
   }
 
   @Verify
-  public static void verify(TestResult<Integer, One<Object>> results) {
+  private static void verify(TestResult<Integer, One<Object>> results) {
     Throwable solutionThrew = results.solution.threw;
     Throwable submissionThrew = results.submission.threw;
     if (solutionThrew != null) {

@@ -12,7 +12,7 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<int[], None> results) {
+  private static void verify(TestResult<int[], None> results) {
     int[] solution = results.solution.returned.clone();
     int[] submission = results.submission.returned.clone();
     Arrays.sort(solution);

@@ -189,6 +189,7 @@ annotation class Verify {
         val name: String = Verify::class.java.simpleName
         fun validate(method: Method, returnType: Type, parameterTypes: Array<Type>) {
             check(method.isStatic()) { "@$name methods must be static" }
+            check(method.isPrivate()) { "@$name methods must be private" }
             check(method.returnType.name == "void") {
                 "@$name method return values will not be used and should be void"
             }

@@ -16,7 +16,7 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verifyInt(TestResult<int[], None> results) {
+  private static void verifyInt(TestResult<int[], None> results) {
     int[] solution = results.solution.returned.clone();
     int[] submission = results.submission.returned.clone();
     Arrays.sort(solution);
@@ -28,7 +28,7 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verifyDouble(TestResult<double[], None> results) {
+  private static void verifyDouble(TestResult<double[], None> results) {
     double[] solution = results.solution.returned.clone();
     double[] submission = results.submission.returned.clone();
     Arrays.sort(solution);

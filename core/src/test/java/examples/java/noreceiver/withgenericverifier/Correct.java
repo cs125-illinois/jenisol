@@ -13,7 +13,7 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<List<Integer>, None> results) {
+  private static void verify(TestResult<List<Integer>, None> results) {
     Integer[] solution = results.solution.returned.toArray(new Integer[0]);
     Integer[] submission = results.submission.returned.toArray(new Integer[0]);
     Arrays.sort(solution);

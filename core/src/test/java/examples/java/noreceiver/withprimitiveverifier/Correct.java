@@ -11,7 +11,7 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<Integer, None> results) {
+  private static void verify(TestResult<Integer, None> results) {
     int solution = results.solution.returned;
     int submission = results.submission.returned;
     if (solution != submission) {

@@ -13,7 +13,7 @@ public class Correct {
 
   @SuppressWarnings("ConstantConditions")
   @Verify
-  public static void verify(TestResult<Integer, One<int[]>> results) {
+  private static void verify(TestResult<Integer, One<int[]>> results) {
     int solutionReturn = results.solution.returned;
     int submissionReturn = results.submission.returned;
     if (solutionReturn != submissionReturn) {
