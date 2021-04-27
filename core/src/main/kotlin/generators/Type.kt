@@ -34,6 +34,8 @@ class Complexity(var level: Int = MIN) {
 
     fun power(base: Int = 2) = base.toDouble().pow(level.toDouble()).toLong()
 
+    fun squared() = level.toDouble().pow(2).toLong()
+
     companion object {
         const val MIN = 1
         const val MAX = 8
@@ -195,7 +197,7 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
     override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
-        val listSize = random.nextInt((complexity.power().toInt() * 2) + 1)
+        val listSize = random.nextInt(complexity.squared().coerceAtLeast(2).toInt())
         return mutableListOf<Any>().apply {
             repeat(listSize) {
                 add(componentGenerator.random(complexity, runner).solutionCopy!!)
@@ -237,7 +239,7 @@ class MapGenerator(
     override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
-        val keySize = random.nextInt(complexity.power().toInt() + 1)
+        val keySize = random.nextInt(complexity.squared().coerceAtLeast(2).toInt())
         return mutableMapOf<Any, Any>().apply {
             repeat(keySize) {
                 this[keyGenerator.random(complexity, runner).solutionCopy!!] =
@@ -283,7 +285,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>, private val co
         } else {
             Pair(complexity, null)
         }
-        val arraySize = random.nextInt((currentComplexity.power().toInt() * 2) + 1).let {
+        val arraySize = random.nextInt(currentComplexity.squared().coerceAtLeast(2).toInt()).let {
             if (top && it == 0) {
                 1
             } else {
