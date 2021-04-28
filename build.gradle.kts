@@ -1,13 +1,13 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    val kotlinVersion = "1.4.32"
-    kotlin("jvm") version kotlinVersion apply false
-    id("org.jmailen.kotlinter") version "3.4.0" apply false
+    kotlin("jvm") version "1.4.32" apply false
+    id("org.jmailen.kotlinter") version "3.4.1" apply false
     id("com.github.sherter.google-java-format") version "0.9"
     id("com.github.ben-manes.versions") version "0.38.0"
     id("io.gitlab.arturbosch.detekt") version "1.16.0"
 }
+@Suppress("DEPRECATION")
 allprojects {
     repositories {
         mavenLocal()
@@ -18,7 +18,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
-    version = "2021.4.4"
+    version = "2021.4.5"
     tasks.withType<JavaCompile> {
         options.compilerArgs.add("-parameters")
     }
@@ -37,6 +37,14 @@ subprojects {
             jvmArgs("-ea", "-Xmx1G", "-Xss256k", "--enable-preview")
         } else {
             jvmArgs("-ea", "-Xmx1G", "-Xss256k")
+        }
+    }
+    configurations.all {
+        resolutionStrategy {
+            force(
+                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.4.32",
+                "org.jetbrains.kotlin:kotlin-script-runtime:1.4.32"
+            )
         }
     }
 }
