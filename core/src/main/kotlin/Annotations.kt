@@ -2,12 +2,10 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
-import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
 import edu.illinois.cs.cs125.jenisol.core.generators.isLambdaMethod
-import java.lang.RuntimeException
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -16,25 +14,29 @@ import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.util.Random
 
-@Target(AnnotationTarget.FIELD)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class SimpleType {
     companion object {
-        fun validate(field: Field): Class<*> = validateTypeField(field, SimpleType::class.java.simpleName)
+        fun validate(field: Field) = validateTypeField(field, SimpleType::class.java.simpleName)
+        fun validate(method: Method) = validateTypeMethod(method, SimpleType::class.java.simpleName, true)
     }
 }
 
 fun Field.isSimpleType() = isAnnotationPresent(SimpleType::class.java)
+fun Method.isSimpleType() = isAnnotationPresent(SimpleType::class.java)
 
-@Target(AnnotationTarget.FIELD)
+@Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class EdgeType {
     companion object {
         fun validate(field: Field): Class<*> = validateTypeField(field, EdgeType::class.java.simpleName)
+        fun validate(method: Method) = validateTypeMethod(method, EdgeType::class.java.simpleName, true)
     }
 }
 
 fun Field.isEdgeType() = isAnnotationPresent(EdgeType::class.java)
+fun Method.isEdgeType() = isAnnotationPresent(EdgeType::class.java)
 
 private val typeFieldAnnotations = setOf(SimpleType::class.java, EdgeType::class.java)
 private fun validateTypeField(field: Field, name: String): Class<*> {
@@ -50,18 +52,27 @@ private fun validateTypeField(field: Field, name: String): Class<*> {
 annotation class RandomType {
     companion object {
         val name: String = RandomType::class.java.simpleName
-        fun validate(method: Method): Class<*> {
-            check(method.isStatic()) { "@$name methods must be static" }
-            check(
-                method.parameterTypes.size == 2 &&
-                    method.parameterTypes[0] == Int::class.java &&
-                    method.parameterTypes[1] == Random::class.java
-            ) {
-                "@$name methods must accept parameters (int complexity, java.util.Random random)"
-            }
-            method.isAccessible = true
-            return method.returnType
+        fun validate(method: Method) = validateTypeMethod(method, RandomType::class.java.simpleName)
+    }
+}
+
+private fun validateTypeMethod(method: Method, name: String, returnsArray: Boolean = false): Class<*> {
+    check(method.isStatic()) { "@$name methods must be static" }
+
+    method.isAccessible = true
+    return if (returnsArray) {
+        check(method.parameterTypes.isEmpty()) { "@$name methods must not accept parameters" }
+        check(method.returnType.isArray) { "$name methods must return arrays" }
+        method.returnType.componentType
+    } else {
+        check(
+            method.parameterTypes.size == 2 &&
+                method.parameterTypes[0] == Int::class.java &&
+                method.parameterTypes[1] == Random::class.java
+        ) {
+            "@$name methods must accept parameters (int complexity, java.util.Random random)"
         }
+        method.returnType
     }
 }
 
@@ -349,17 +360,13 @@ interface ParameterGroup {
     fun toList(): List<Any?>
 }
 
-fun ParameterGroup.deepCopy(): ParameterGroup {
-    return Cloner.shared().let { cloner ->
-        toArray().toList().map {
-            if (it?.isLambdaMethod() == true) {
-                it
-            } else {
-                cloner.deepClone(it)
-            }
-        }.toTypedArray().toParameterGroup()
+fun ParameterGroup.deepCopy() = toArray().toList().map {
+    if (it?.isLambdaMethod() == true) {
+        it
+    } else {
+        it.deepCopy()
     }
-}
+}.toTypedArray().toParameterGroup()
 
 @Suppress("MagicNumber")
 fun Array<Any?>.toParameterGroup() = when (size) {

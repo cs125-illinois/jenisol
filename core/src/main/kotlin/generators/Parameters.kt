@@ -78,7 +78,7 @@ typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
 class GeneratorFactory(private val executables: Set<Executable>, val solution: Solution) {
     val solutionClass = solution.solution
 
-    private val methodParameterGenerators = executables.map { it to MethodParametersGeneratorGenerator(it) }.toMap()
+    private val methodParameterGenerators = executables.associateWith { MethodParametersGeneratorGenerator(it) }
 
     private val typesNeeded = methodParameterGenerators
         .filter { (_, generator) -> generator.needsParameterGenerator }
@@ -92,8 +92,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             .toTypedArray().flatten().distinct().toSet()
         val arrayNeededTypes = neededTypes.filter { it.isArray }.map { it.getArrayType() }
 
-        val simple: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
-        val edge: MutableMap<Class<*>, Set<Any?>> = mutableMapOf()
+        val simpleArray: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
+        val edgeArray: MutableMap<Class<*>, Set<Any?>> = mutableMapOf()
         solutionClass.declaredFields
             .filter { it.isSimpleType() || it.isEdgeType() }
             .forEach { field ->
@@ -104,42 +104,76 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 }
                 if (field.isSimpleType()) {
                     SimpleType.validate(field).also { klass ->
-                        check(klass !in simple) { "Duplicate @$simpleName annotation for type ${klass.name}" }
+                        check(klass !in simpleArray) { "Duplicate @$simpleName annotation for type ${klass.name}" }
                         check(klass in neededTypes || klass in arrayNeededTypes) {
                             "@$simpleName annotation for type ${klass.name} that is not used by the solution"
                         }
                         @Suppress("UNCHECKED_CAST")
-                        simple[klass] = field.get(null).asArray().toSet().also { simpleCases ->
+                        simpleArray[klass] = field.get(null).asArray().toSet().also { simpleCases ->
                             check(simpleCases.none { it == null }) { "@$simpleName values should not include null" }
                         } as Set<Any>
                     }
-                }
-                if (field.isEdgeType()) {
+                } else if (field.isEdgeType()) {
                     EdgeType.validate(field).also { klass ->
-                        check(klass !in edge) { "Duplicate @$edgeName annotation for type ${klass.name}" }
+                        check(klass !in edgeArray) { "Duplicate @$edgeName annotation for type ${klass.name}" }
                         check(klass in neededTypes || klass in arrayNeededTypes) {
                             "@$edgeName annotation for type ${klass.name} that is not used by the solution"
                         }
-                        edge[klass] = field.get(null).asArray().toSet()
+                        edgeArray[klass] = field.get(null).asArray().toSet()
                     }
                 }
             }
+
+        val simpleMethod: MutableMap<Class<*>, Method> = mutableMapOf()
+        val edgeMethod: MutableMap<Class<*>, Method> = mutableMapOf()
         val rand: MutableMap<Class<*>, Method> = mutableMapOf()
         solutionClass.declaredMethods
-            .filter { it.isRandomType() }
+            .filter { it.isSimpleType() || it.isEdgeType() || it.isRandomType() }
             .forEach { method ->
-                val randName = Random::class.java.simpleName
-                RandomType.validate(method).also { klass ->
-                    check(klass !in rand) { "Duplicate @$randName method for type ${klass.name}" }
-                    check(klass in neededTypes || klass in arrayNeededTypes) {
-                        "@$randName annotation for type ${klass.name} that is not used by the solution"
+                when {
+                    method.isSimpleType() -> {
+                        val name = SimpleType::class.java.simpleName
+                        SimpleType.validate(method).also { klass ->
+                            check(klass !in simpleArray) {
+                                "@$name method for type ${klass.name} that already defines a @$name array"
+                            }
+                            check(klass !in simpleMethod) { "Duplicate @$name method for type ${klass.name}" }
+                            check(klass in neededTypes || klass in arrayNeededTypes) {
+                                "@$name annotation for type ${klass.name} that is not used by the solution"
+                            }
+                            simpleMethod[klass] = method
+                        }
                     }
-                    rand[klass] = method
+                    method.isEdgeType() -> {
+                        val name = EdgeType::class.java.simpleName
+                        EdgeType.validate(method).also { klass ->
+                            check(klass !in edgeArray) {
+                                "@$name method for type ${klass.name} that already defines a @$name array"
+                            }
+                            check(klass !in edgeMethod) { "Duplicate @$name method for type ${klass.name}" }
+                            check(klass in neededTypes || klass in arrayNeededTypes) {
+                                "@$name annotation for type ${klass.name} that is not used by the solution"
+                            }
+                            edgeMethod[klass] = method
+                        }
+                    }
+                    method.isRandomType() -> {
+                        val name = RandomType::class.java.simpleName
+                        RandomType.validate(method).also { klass ->
+                            check(klass !in rand) { "Duplicate @$name method for type ${klass.name}" }
+                            check(klass in neededTypes || klass in arrayNeededTypes) {
+                                "@$name annotation for type ${klass.name} that is not used by the solution"
+                            }
+                            rand[klass] = method
+                        }
+                    }
                 }
             }
         val generatorMappings: MutableList<Pair<Type, (Random) -> TypeGenerator<Any>>> =
-            (simple.keys + edge.keys + rand.keys).toSet().map { klass ->
-                val needsDefault = klass !in simple || klass !in edge || klass !in rand
+            (simpleArray.keys + edgeArray.keys + rand.keys).toSet().map { klass ->
+                val needsDefault = (klass !in simpleArray && klass !in simpleMethod) ||
+                    (klass !in edgeArray && klass !in edgeMethod) ||
+                    klass !in rand
                 val defaultGenerator = if (needsDefault) {
                     Defaults[klass]
                 } else {
@@ -148,8 +182,10 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 klass to { random: Random ->
                     OverrideTypeGenerator(
                         klass,
-                        simple[klass],
-                        edge[klass],
+                        simpleArray[klass],
+                        simpleMethod[klass],
+                        edgeArray[klass],
+                        edgeMethod[klass],
                         rand[klass],
                         random,
                         defaultGenerator
@@ -165,7 +201,11 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         }
 
         if (solutionClass in neededTypes) {
-            check(solutionClass !in simple.keys && solutionClass !in edge.keys && solutionClass !in rand.keys) {
+            check(
+                solutionClass !in simpleArray.keys &&
+                    solutionClass !in edgeArray.keys &&
+                    solutionClass !in rand.keys
+            ) {
                 "Type generation annotations not supported for receiver types"
             }
             // Add this so the next check doesn't fail.
@@ -180,7 +220,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         // Fill in any array types that we need and have type overrides for
         executables
             .filter { it in typesNeeded }
-            .flatMap { it.parameters.map { it.type }.toList() }
+            .flatMap { method -> method.parameters.map { it.type }.toList() }
             .filter { it !in currentGenerators && it.isArray && it.getArrayType() in currentGenerators }
             .filterNotNull().forEach {
                 var currentArray = it.getArrayType().arrayType()
@@ -228,27 +268,25 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         val typeGeneratorsWithOverrides = typeGenerators.toMutableMap().also {
             it.putAll(typeGeneratorOverrides ?: mapOf())
         }
-        return forExecutables
-            .map { executable ->
-                if (from != null && executable in from) {
-                    from[executable]
-                }
-                if (executable.parameters.isEmpty()) {
-                    executable to EmptyParameterMethodGenerator()
-                } else {
-                    val parameterGenerator = { random: Random ->
-                        TypeParameterGenerator(executable.parameters, typeGeneratorsWithOverrides, random)
-                    }
-                    executable to (
-                        methodParameterGenerators[executable]?.generate(
-                            parameterGenerator,
-                            settings,
-                            random
-                        ) ?: error("Didn't find a method parameter generator that should exist")
-                        )
-                }
+        return forExecutables.associate { executable ->
+            if (from != null && executable in from) {
+                from[executable]
             }
-            .toMap()
+            if (executable.parameters.isEmpty()) {
+                executable to EmptyParameterMethodGenerator()
+            } else {
+                val parameterGenerator = { random: Random ->
+                    TypeParameterGenerator(executable.parameters, typeGeneratorsWithOverrides, random)
+                }
+                executable to (
+                    methodParameterGenerators[executable]?.generate(
+                        parameterGenerator,
+                        settings,
+                        random
+                    ) ?: error("Didn't find a method parameter generator that should exist")
+                    )
+            }
+        }
             .let {
                 Generators(it)
             }

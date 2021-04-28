@@ -248,6 +248,12 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.customarraycompare.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.simpletypemethod.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.edgetypemethod.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {

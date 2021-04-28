@@ -69,3 +69,6 @@ detekt {
 tasks.register("check") {
     dependsOn("detekt")
 }
+googleJavaFormat {
+    toolVersion = "1.10.0"
+}

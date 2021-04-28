@@ -5,6 +5,7 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
+import edu.illinois.cs.cs125.jenisol.core.deepCopy
 import java.lang.IllegalStateException
 import java.lang.reflect.Array
 import java.lang.reflect.Method
@@ -59,24 +60,82 @@ interface TypeGenerator<T> {
     fun random(complexity: Complexity, runner: TestRunner?): Value<T>
 }
 
-@Suppress("UNCHECKED_CAST")
+@Suppress("UNCHECKED_CAST", "LongParameterList")
 class OverrideTypeGenerator(
     private val klass: Class<*>,
-    simple: Set<Any>? = null,
-    edge: Set<Any?>? = null,
+    simpleValues: Set<Any>? = null,
+    simpleMethod: Method? = null,
+    edgeValues: Set<Any?>? = null,
+    edgeMethod: Method? = null,
     private val rand: Method? = null,
     random: Random = Random,
     defaultGenerator: TypeGeneratorGenerator? = null
 ) : TypeGenerator<Any> {
-    private val name: String = klass.name
-    private val default = if (simple == null || edge == null || rand == null) {
-        check(defaultGenerator != null) { "Override type generator for $name needs default generator" }
-        defaultGenerator(random)
-    } else {
-        null
+    init {
+        check(!(simpleValues != null && simpleMethod != null)) {
+            "Can't provide both simple values and a simple generation method"
+        }
+        check(!(edgeValues != null && edgeMethod != null)) {
+            "Can't provide both simple values and a simple generation method"
+        }
     }
-    private val simpleOverride: Set<Value<Any>>? = simple?.values(ZeroComplexity)
-    private val edgeOverride: Set<Value<Any?>>? = edge?.values(ZeroComplexity)
+
+    private val name: String = klass.name
+
+    @Suppress("ComplexCondition")
+    private val default =
+        if ((simpleValues == null && simpleMethod == null) ||
+            (edgeValues == null && edgeMethod == null) ||
+            rand == null
+        ) {
+            check(defaultGenerator != null) { "Override type generator for $name needs default generator" }
+            defaultGenerator(random)
+        } else {
+            null
+        }
+
+    private val simpleOverride: Set<Value<Any>>? = when {
+        simpleValues != null -> simpleValues.values(ZeroComplexity)
+        simpleMethod != null -> {
+            val solution = simpleMethod.invoke(null) as kotlin.Array<*>
+            check(solution.none { it == null }) {
+                "@SimpleType methods must not return arrays containing null"
+            }
+            val submission = simpleMethod.invoke(null) as kotlin.Array<*>
+            val solutionCopy = simpleMethod.invoke(null) as kotlin.Array<*>
+            val submissionCopy = simpleMethod.invoke(null) as kotlin.Array<*>
+            check(setOf(solution.size, submission.size, solutionCopy.size, submissionCopy.size).size == 1) {
+                "@SimpleType method returned unequal arrays"
+            }
+            solution.indices.map { i ->
+                check(setOf(solution[i], submission[i], solutionCopy[i], submissionCopy[i]).size == 1) {
+                    "@SimpleType method did not return equal arrays (you may need to implement hashCode)"
+                }
+                Value(solution[i]!!, submission[i]!!, solutionCopy[i]!!, submissionCopy[i]!!, ZeroComplexity)
+            }.toSet()
+        }
+        else -> null
+    }
+
+    private val edgeOverride: Set<Value<Any?>>? = when {
+        edgeValues != null -> edgeValues.values(ZeroComplexity)
+        edgeMethod != null -> {
+            val solution = edgeMethod.invoke(null) as kotlin.Array<*>
+            val submission = edgeMethod.invoke(null) as kotlin.Array<*>
+            val solutionCopy = edgeMethod.invoke(null) as kotlin.Array<*>
+            val submissionCopy = edgeMethod.invoke(null) as kotlin.Array<*>
+            check(setOf(solution.size, submission.size, solutionCopy.size, submissionCopy.size).size == 1) {
+                "@EdgeType method returned unequal arrays"
+            }
+            solution.indices.map { i ->
+                check(setOf(solution[i], submission[i], solutionCopy[i], submissionCopy[i]).size == 1) {
+                    "@EdgeType method did not return equal arrays (you may need to implement hashCode)"
+                }
+                Value(solution[i], submission[i], solutionCopy[i], submissionCopy[i], ZeroComplexity)
+            }.toSet()
+        }
+        else -> null
+    }
     private val randomGroup: RandomGroup =
         RandomGroup(random.nextLong())
 
@@ -517,15 +576,8 @@ fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { clo
     }.toSet()
 }
 
-fun <T> T.value(complexity: Complexity) = Cloner.shared().let { cloner ->
-    Value(
-        cloner.deepClone(this),
-        cloner.deepClone(this),
-        cloner.deepClone(this),
-        cloner.deepClone(this),
-        complexity
-    )
-}
+inline fun <reified T> T.value(complexity: Complexity) =
+    Value(deepCopy(), deepCopy(), deepCopy(), deepCopy(), complexity)
 
 fun <T> Class<T>.getArrayType(start: Boolean = true): Class<*> {
     check(!start || isArray) { "Must be called on an array type" }
