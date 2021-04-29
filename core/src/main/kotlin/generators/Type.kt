@@ -517,7 +517,7 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
     companion object {
         @Suppress("MemberVisibilityCanBePrivate")
         fun random(complexity: Complexity, random: Random = Random): String {
-            return (1..complexity.power())
+            return (1..(complexity.squared() + 1))
                 .map { random.nextInt(CharGenerator.ALPHANUMERIC_CHARS.size) }
                 .map(CharGenerator.ALPHANUMERIC_CHARS::get)
                 .joinToString("")
