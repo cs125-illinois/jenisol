@@ -224,7 +224,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.completethreefields.Correct::class.java.also {
-            "f: ${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
         }
         examples.java.receiver.compareto.Correct::class.java.also {
             "${it.testName()}" { it.test() }
@@ -251,6 +251,9 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.edgetypemethod.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.withexternalverifier.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {

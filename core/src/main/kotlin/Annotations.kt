@@ -355,9 +355,9 @@ private val parameterGroupTypes = setOf(
     Four::class.java
 )
 
-interface ParameterGroup {
-    fun toArray(): Array<Any?>
-    fun toList(): List<Any?>
+sealed class ParameterGroup {
+    abstract fun toArray(): Array<Any?>
+    abstract fun toList(): List<Any?>
 }
 
 fun ParameterGroup.deepCopy() = toArray().toList().map {
@@ -378,7 +378,7 @@ fun Array<Any?>.toParameterGroup() = when (size) {
     else -> error("No parameter group for array of size $size")
 }
 
-object None : ParameterGroup {
+object None : ParameterGroup() {
     override fun toArray() = arrayOf<Any?>()
     override fun toList() = listOf<Any?>()
     override fun toString(): String {
@@ -386,7 +386,7 @@ object None : ParameterGroup {
     }
 }
 
-class One<I>(setFirst: I) : ParameterGroup {
+class One<I>(setFirst: I) : ParameterGroup() {
     @JvmField
     val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
@@ -410,7 +410,7 @@ class One<I>(setFirst: I) : ParameterGroup {
     }
 }
 
-class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
+class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup() {
     @JvmField
     val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
@@ -447,7 +447,7 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup {
     }
 }
 
-class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup {
+class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup() {
     @JvmField
     val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
@@ -498,7 +498,7 @@ class Four<I, J, K, L>(
     setSecond: J,
     setThird: K,
     setFourth: L
-) : ParameterGroup {
+) : ParameterGroup() {
     @JvmField
     val first: I = if (setFirst is String) {
         @Suppress("UNCHECKED_CAST")
