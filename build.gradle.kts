@@ -1,8 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.4.32" apply false
-    id("org.jmailen.kotlinter") version "3.4.3" apply false
+    kotlin("jvm") version "1.5.0" apply false
+    id("org.jmailen.kotlinter") version "3.4.4" apply false
     id("com.github.sherter.google-java-format") version "0.9"
     id("com.github.ben-manes.versions") version "0.38.0"
     id("io.gitlab.arturbosch.detekt") version "1.16.0"
@@ -18,7 +18,7 @@ allprojects {
 }
 subprojects {
     group = "com.github.cs125-illinois.jenisol"
-    version = "2021.4.6"
+    version = "2021.5.0"
     tasks.withType<JavaCompile> {
         options.compilerArgs.add("-parameters")
     }
@@ -42,8 +42,8 @@ subprojects {
     configurations.all {
         resolutionStrategy {
             force(
-                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.4.32",
-                "org.jetbrains.kotlin:kotlin-script-runtime:1.4.32"
+                "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.0",
+                "org.jetbrains.kotlin:kotlin-script-runtime:1.5.0"
             )
         }
     }

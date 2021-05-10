@@ -6,7 +6,6 @@ import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
-import kotlin.time.seconds
 
 @ExperimentalTime
 class TestJavaExamples : StringSpec(
@@ -225,7 +224,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.completethreefields.Correct::class.java.also {
-            "${it.testName()}".config(timeout = 1.seconds) { it.test() }
+            "f: ${it.testName()}" { it.test() }
         }
         examples.java.receiver.compareto.Correct::class.java.also {
             "${it.testName()}" { it.test() }
