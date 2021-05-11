@@ -5,4 +5,4 @@ before_install:
   - sdk use java 16.0.1-open
   - rm gradle.properties
 install:
-  - ./gradlew clean -xtest -xgoogleJavaFormat build publishToMavenLocal
+  - ./gradlew clean -xtest -xverifyGoogleJavaFormat build publishToMavenLocal
