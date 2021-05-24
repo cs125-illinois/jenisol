@@ -42,6 +42,7 @@ private val typeFieldAnnotations = setOf(SimpleType::class.java, EdgeType::class
 private fun validateTypeField(field: Field, name: String): Class<*> {
     check(field.isStatic()) { "@$name fields must be static" }
     check(field.isFinal()) { "@$name fields must be final" }
+    check(field.isPrivate()) { "@$name fields must be private" }
     check(field.type.isArray) { "@$name fields must annotate arrays" }
     field.isAccessible = true
     return field.type.componentType
@@ -58,6 +59,7 @@ annotation class RandomType {
 
 private fun validateTypeMethod(method: Method, name: String, returnsArray: Boolean = false): Class<*> {
     check(method.isStatic()) { "@$name methods must be static" }
+    check(method.isPrivate()) { "@$name methods must be private" }
 
     method.isAccessible = true
     return if (returnsArray) {
@@ -84,6 +86,7 @@ annotation class FixedParameters {
     companion object {
         val name: String = FixedParameters::class.java.simpleName
         fun validate(field: Field): Array<Type> {
+            check(field.isPrivate()) { "@$name fields must be private" }
             check(field.isStatic()) { "@$name fields must be static" }
             check(field.genericType is ParameterizedType) {
                 "@$name parameter fields must annotate parameterized collections"
@@ -113,13 +116,21 @@ annotation class RandomParameters {
     companion object {
         val name: String = RandomParameters::class.java.simpleName
         fun validate(method: Method): Array<Type> {
+            check(method.isPrivate()) { "@$name methods must be private" }
             check(method.isStatic()) { "@$name methods must be static" }
-            check(
-                method.parameterTypes.size == 2 &&
-                    method.parameterTypes[0] == Int::class.java &&
-                    method.parameterTypes[1] == Random::class.java
-            ) {
-                "@$name methods must accept parameters (int complexity, java.util.Random random)"
+            val message = "@$name methods must either accept parameters (java.util.Random random) " +
+                "or (int complexity, java.util.Random random)"
+            when (method.parameterTypes.size) {
+                1 -> {
+                    check(method.parameterTypes[0] == Random::class.java) { message }
+                }
+                2 -> {
+                    check(
+                        method.parameterTypes[0] == Int::class.java
+                            && method.parameterTypes[1] == Random::class.java
+                    ) { message }
+                }
+                else -> error(message)
             }
             check(method.returnType in parameterGroupTypes) {
                 "@$name parameter methods must return one of types " +

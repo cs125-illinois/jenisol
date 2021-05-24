@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Correct {
   @FixedParameters
-  public static final List<Two<Integer, Boolean>> SIMPLE =
+  private static final List<Two<Integer, Boolean>> SIMPLE =
       Arrays.asList(new Two<>(8888, false), new Two<>(8888, true));
 
   public static boolean value(int first, boolean second) {

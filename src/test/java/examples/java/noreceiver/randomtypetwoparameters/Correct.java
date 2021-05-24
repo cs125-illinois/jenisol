@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class Correct {
   @RandomType
-  public static int random(int complexity, Random random) {
+  private static int random(int complexity, Random random) {
     if (complexity == 1) {
       return 8888;
     } else if (complexity == 2) {

@@ -6,7 +6,7 @@ import java.util.Random;
 
 public class Correct {
   @RandomParameters
-  public static One<int[]> valueRandom(int complexity, Random random) {
+  private static One<int[]> valueRandom(int complexity, Random random) {
     return new One<>(new int[] {0, 1, 2});
   }
 

@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
@@ -310,7 +311,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                     runners.add(runner)
                 }
                 runners.failed()?.also {
-                    if (!settings.shrink!! || it.lastComplexity!!.level == 0) {
+                    if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
                         return runners.toResults(settings)
                     }
                 }
@@ -433,33 +434,33 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
 sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
-    if (executable.isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (executable.isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }${
-    if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
     } ${executable.fullName()}"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} provided extra ${
-    if (executable.isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (executable.isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }${
-    if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
     } ${executable.fullName()}"
 )
 

@@ -6,7 +6,7 @@ import java.util.Random;
 
 public class Correct {
   @RandomParameters
-  public static One<Long> valueParameters(int complexity, Random random) {
+  private static One<Long> valueParameters(int complexity, Random random) {
     if (complexity == 1) {
       return new One<>(8888L);
     } else {

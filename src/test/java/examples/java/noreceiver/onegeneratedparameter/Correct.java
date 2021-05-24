@@ -9,11 +9,11 @@ import java.util.Random;
 
 public class Correct {
   @FixedParameters
-  public static final List<Two<Generated, Boolean>> FIXED =
+  private static final List<Two<Generated, Boolean>> FIXED =
       Arrays.asList(new Two<>(new Generated(8888), false), new Two<>(new Generated(8888), true));
 
   @RandomParameters
-  public static Two<Generated, Boolean> valueRandom(int complexity, Random random) {
+  private static Two<Generated, Boolean> valueRandom(int complexity, Random random) {
     return new Two<>(new Generated(random.nextInt()), random.nextBoolean());
   }
 

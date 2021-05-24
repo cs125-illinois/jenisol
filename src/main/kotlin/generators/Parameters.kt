@@ -408,16 +408,24 @@ class ConfiguredParametersGenerator(
     private val complexity = Complexity()
     private var randomStarted = false
 
+    val canShrink: Boolean = if (overrideRandom == null) {
+        true
+    } else {
+        overrideRandom.parameters.size == 2
+    }
+
+    private fun getRandom(random: java.util.Random) = when (overrideRandom!!.parameters.size) {
+        1 -> overrideRandom.invoke(null, random)
+        2 -> overrideRandom.invoke(null, complexity.level, random)
+        else -> error("Bad argument count for @RandomParameters")
+    } as ParameterGroup
+
     override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
-        val solutionParameters =
-            overrideRandom.invoke(null, complexity.level, randomPair.solution) as ParameterGroup
-        val submissionParameters =
-            overrideRandom.invoke(null, complexity.level, randomPair.submission) as ParameterGroup
-        val solutionCopyParameters =
-            overrideRandom.invoke(null, complexity.level, randomPair.solutionCopy) as ParameterGroup
-        val submissionCopyParameters =
-            overrideRandom.invoke(null, complexity.level, randomPair.submissionCopy) as ParameterGroup
+        val solutionParameters = getRandom(randomPair.solution)
+        val submissionParameters = getRandom(randomPair.submission)
+        val solutionCopyParameters = getRandom(randomPair.solutionCopy)
+        val submissionCopyParameters = getRandom(randomPair.submissionCopy)
         check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
         setOf(
             solutionParameters, submissionParameters, solutionCopyParameters, submissionCopyParameters
@@ -450,13 +458,13 @@ class ConfiguredParametersGenerator(
     }
 
     override fun next() {
-        if (randomStarted) {
+        if (randomStarted && canShrink) {
             complexity.next()
         }
     }
 
     override fun prev() {
-        if (randomStarted) {
+        if (randomStarted && canShrink) {
             if (bound == null) {
                 bound = complexity
             } else {

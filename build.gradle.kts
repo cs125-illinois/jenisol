@@ -3,10 +3,10 @@ import java.io.StringWriter
 import java.util.Properties
 
 group = "com.github.cs125-illinois"
-version = "2021.5.3"
+version = "2021.5.4"
 
 plugins {
-    kotlin("jvm") version "1.5.0"
+    kotlin("jvm") version "1.5.10"
     java
     `maven-publish`
 
@@ -15,7 +15,7 @@ plugins {
     id("com.github.sherter.google-java-format") version "0.9"
 
     id("com.github.ben-manes.versions") version "0.38.0"
-    id("io.gitlab.arturbosch.detekt") version "1.16.0"
+    id("io.gitlab.arturbosch.detekt") version "1.17.1"
 }
 repositories {
     mavenCentral()
@@ -28,7 +28,7 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.105")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:4.5.0")
+    testImplementation("io.kotest:kotest-runner-junit5:4.6.0")
     testImplementation("org.slf4j:slf4j-simple:1.7.30")
 }
 tasks.withType<JavaCompile> {
@@ -37,19 +37,7 @@ tasks.withType<JavaCompile> {
 tasks.withType<Test> {
     useJUnitPlatform()
     enableAssertions = true
-    if (JavaVersion.current() >= JavaVersion.VERSION_11) {
-        jvmArgs("-ea", "-Xmx1G", "-Xss256k", "--enable-preview")
-    } else {
-        jvmArgs("-ea", "-Xmx1G", "-Xss256k")
-    }
-}
-configurations.all {
-    resolutionStrategy {
-        force(
-            "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.5.0",
-            "org.jetbrains.kotlin:kotlin-script-runtime:1.5.0"
-        )
-    }
+    jvmArgs("-ea", "-Xmx1G", "-Xss256k")
 }
 tasks.dependencyUpdates {
     fun String.isNonStable() = !(
