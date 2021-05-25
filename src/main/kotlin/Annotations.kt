@@ -10,6 +10,7 @@ import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
+import java.lang.reflect.Parameter
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.util.Random
@@ -96,12 +97,12 @@ annotation class FixedParameters {
                     "@$name parameter fields must annotate parameterized collections"
                 }
                 collectionType.actualTypeArguments.first().also { itemType ->
-                    check(itemType is ParameterizedType && itemType.rawType in parameterGroupTypes) {
-                        "@$name parameter fields must annotate collections of types " +
-                            parameterGroupTypes.joinToString(", ") { it.simpleName }
-                    }
                     field.isAccessible = true
-                    return itemType.actualTypeArguments
+                    return if (itemType is ParameterizedType && itemType.rawType in parameterGroupTypes) {
+                        itemType.actualTypeArguments
+                    } else {
+                        arrayOf(itemType)
+                    }
                 }
             }
         }
@@ -126,18 +127,18 @@ annotation class RandomParameters {
                 }
                 2 -> {
                     check(
-                        method.parameterTypes[0] == Int::class.java
-                            && method.parameterTypes[1] == Random::class.java
+                        method.parameterTypes[0] == Int::class.java &&
+                            method.parameterTypes[1] == Random::class.java
                     ) { message }
                 }
                 else -> error(message)
             }
-            check(method.returnType in parameterGroupTypes) {
-                "@$name parameter methods must return one of types " +
-                    parameterGroupTypes.joinToString(", ") { it.simpleName }
-            }
             method.isAccessible = true
-            return (method.genericReturnType as ParameterizedType).actualTypeArguments
+            return if (method.returnType in parameterGroupTypes) {
+                (method.genericReturnType as ParameterizedType).actualTypeArguments
+            } else {
+                arrayOf(method.genericReturnType)
+            }
         }
     }
 }
@@ -319,6 +320,12 @@ annotation class CheckSource {
 }
 
 fun Method.isCheckSource() = isAnnotationPresent(CheckSource::class.java)
+
+@Target(AnnotationTarget.VALUE_PARAMETER)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class NotNull
+
+fun Parameter.isNotNull() = isAnnotationPresent(NotNull::class.java)
 
 fun Field.isStatic() = Modifier.isStatic(modifiers)
 fun Field.isFinal() = Modifier.isFinal(modifiers)
@@ -593,11 +600,12 @@ fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
 }
 
 @Suppress("ReturnCount")
-fun Type.parameterGroupMatches(parameters: Array<Type>) = if (this == None::class.java && parameters.isEmpty()) {
-    true
-} else {
-    (this as ParameterizedType).actualTypeArguments.compareBoxed(parameters)
-}
+fun Type.parameterGroupMatches(parameters: Array<Type>) =
+    if (this == None::class.java && parameters.isEmpty()) {
+        true
+    } else {
+        (this as ParameterizedType).actualTypeArguments.compareBoxed(parameters)
+    }
 
 // Borrowed from Kotlin core
 
@@ -611,7 +619,10 @@ internal fun <T> Array<out T>?.safeContentDeepToString(): String {
 }
 
 @Suppress("ComplexMethod")
-private fun <T> Array<out T>.safeContentDeepToStringInternal(result: StringBuilder, processed: MutableList<Array<*>>) {
+private fun <T> Array<out T>.safeContentDeepToStringInternal(
+    result: StringBuilder,
+    processed: MutableList<Array<*>>
+) {
     if (this in processed) {
         result.append("[...]")
         return

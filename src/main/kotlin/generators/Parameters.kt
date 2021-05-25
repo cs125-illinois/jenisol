@@ -4,6 +4,7 @@ package edu.illinois.cs.cs125.jenisol.core.generators
 
 import edu.illinois.cs.cs125.jenisol.core.EdgeType
 import edu.illinois.cs.cs125.jenisol.core.FixedParameters
+import edu.illinois.cs.cs125.jenisol.core.One
 import edu.illinois.cs.cs125.jenisol.core.ParameterGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomParameters
 import edu.illinois.cs.cs125.jenisol.core.RandomType
@@ -15,6 +16,7 @@ import edu.illinois.cs.cs125.jenisol.core.asArray
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
 import edu.illinois.cs.cs125.jenisol.core.isEdgeType
 import edu.illinois.cs.cs125.jenisol.core.isFixedParameters
+import edu.illinois.cs.cs125.jenisol.core.isNotNull
 import edu.illinois.cs.cs125.jenisol.core.isRandomParameters
 import edu.illinois.cs.cs125.jenisol.core.isRandomType
 import edu.illinois.cs.cs125.jenisol.core.isSimpleType
@@ -306,6 +308,7 @@ interface ExecutableGenerator {
 class MethodParametersGeneratorGenerator(target: Executable) {
     val fixedParameters: Collection<ParameterGroup>?
     val randomParameters: Method?
+    val notNullParameters = target.parameters.map { it.isNotNull() }
 
     init {
         val parameterTypes = target.genericParameterTypes.map { type -> type as Type }.toTypedArray()
@@ -322,13 +325,14 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                 check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
                 check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
                 @Suppress("SwallowedException")
-                try {
+                val actualValues = try {
+                    values.filterNotNull().forEach { it as ParameterGroup }
                     @Suppress("UNCHECKED_CAST")
                     values as Collection<ParameterGroup>
                 } catch (e: ClassCastException) {
-                    error("@${FixedParameters.name} field does not contain a collection of parameter groups")
+                    values.map { One(it) }
                 }
-                values.forEach {
+                actualValues.forEach {
                     val solutionParameters = it.deepCopy()
                     val submissionParameters = it.deepCopy()
                     check(solutionParameters !== submissionParameters) {
@@ -338,7 +342,7 @@ class MethodParametersGeneratorGenerator(target: Executable) {
                         "@${FixedParameters.name} field does not produce equal copies"
                     }
                 }
-                values
+                actualValues
             }
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
@@ -355,15 +359,23 @@ class MethodParametersGeneratorGenerator(target: Executable) {
         parametersGenerator: ParametersGeneratorGenerator?,
         settings: Settings,
         random: Random = Random
-    ) = ConfiguredParametersGenerator(parametersGenerator, settings, random, fixedParameters, randomParameters)
+    ) = ConfiguredParametersGenerator(
+        parametersGenerator,
+        settings,
+        random,
+        fixedParameters,
+        randomParameters,
+        notNullParameters
+    )
 }
 
 class ConfiguredParametersGenerator(
     parametersGenerator: ParametersGeneratorGenerator?,
     private val settings: Settings,
     private val random: Random = Random,
-    overrideFixed: Collection<ParameterGroup>? = null,
-    private val overrideRandom: Method? = null
+    overrideFixed: Collection<ParameterGroup>?,
+    private val overrideRandom: Method?,
+    private val notNullParameters: List<Boolean>
 ) : ExecutableGenerator {
     private val generator = if (overrideFixed != null && overrideRandom != null) {
         null
@@ -390,16 +402,24 @@ class ConfiguredParametersGenerator(
 
     override val fixed: List<Parameters> by lazy {
         if (overrideFixed != null) {
-            overrideFixed.toFixedParameters()
+            overrideFixed.toFixedParameters().also { parameters ->
+                check(parameters.none { it.filterNotNull() }) {
+                    "@FixedParameters list contains null values for parameters marked as @NotNull"
+                }
+            }
         } else {
             check(generator != null) { "Automatic parameter generator was unexpectedly null" }
             generator.let {
                 it.simple.trim(settings.simpleCount) +
                     it.edge.trim(settings.edgeCount) +
                     it.mixed.trim(settings.mixedCount)
-            }.trim(settings.fixedCount)
+            }.filter { !it.filterNotNull() }.trim(settings.fixedCount)
         }
     }
+
+    private fun Parameters.filterNotNull() = solution.filterIndexed { index, any ->
+        notNullParameters[index] && any == null
+    }.isNotEmpty()
 
     private val randomPair =
         RandomGroup(random.nextLong())
@@ -418,7 +438,13 @@ class ConfiguredParametersGenerator(
         1 -> overrideRandom.invoke(null, random)
         2 -> overrideRandom.invoke(null, complexity.level, random)
         else -> error("Bad argument count for @RandomParameters")
-    } as ParameterGroup
+    }.let {
+        if (it is ParameterGroup) {
+            it
+        } else {
+            One(it)
+        }
+    }
 
     override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }

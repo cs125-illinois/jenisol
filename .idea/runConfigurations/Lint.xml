@@ -13,7 +13,7 @@
           <option value="formatKotlin" />
           <option value="googleJavaFormat" />
           <option value="detekt" />
-          <option value="core:checkstyleTest" />
+          <option value="checkstyleTest" />
           <option value="lintKotlin" />
         </list>
       </option>
