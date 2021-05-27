@@ -288,8 +288,11 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         }
 
         val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
-            check(settings.receiverCount > 1) { "Incorrect receiver count" }
-
+            if (solution.fauxStatic) {
+                check(settings.receiverCount == 1) { "Incorrect receiver count" }
+            } else {
+                check(settings.receiverCount > 1) { "Incorrect receiver count" }
+            }
             val generators = solution.generatorFactory.get(
                 random,
                 settings,
@@ -405,7 +408,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 }
             }
             runners.failed()?.also {
-                if (!settings.shrink!! || it.lastComplexity!!.level == 0) {
+                if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
                     return runners.toResults(settings)
                 }
             }

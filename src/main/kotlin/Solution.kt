@@ -57,7 +57,7 @@ class Solution(val solution: Class<*>) {
 
     private fun Executable.receiverParameter() = parameterTypes.any { it == solution }
 
-    private fun Executable.objectParameter() = parameterTypes.any { it is Any }
+    private fun Executable.objectParameter() = parameterTypes.any { it::class.java == Any::class.java }
 
     val receiverGenerators = allExecutables.filter { executable ->
         !executable.receiverParameter()
@@ -93,6 +93,10 @@ class Solution(val solution: Class<*>) {
             receiverGenerators.isEmpty() ||
                 (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty())
             )
+
+    val fauxStatic = solution.declaredFields.all { it.isJenisol() || it.isStatic() } && solution.declaredMethods.all {
+        it.isJenisol() || (it.returnType != solution && !it.receiverParameter() && !it.objectParameter())
+    } && solution.declaredConstructors.let { it.size == 1 && it.first().parameterCount == 0 }
 
     init {
         if (needsReceiver.isNotEmpty()) {
@@ -157,20 +161,24 @@ class Solution(val solution: Class<*>) {
             (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty()) &&
                 (initializer?.parameters?.isEmpty() ?: true)
 
-        val minReceiverCount = receiverGenerators.map {
-            generatorFactory.get(Random.Default, Settings.DEFAULTS)[it]!!.fixed.size
-        }.sum() * 2
-        val minMethodCount = (allExecutables - receiverGenerators).map {
+        val minReceiverCount = if (fauxStatic) {
+            1
+        } else {
+            receiverGenerators.sumOf {
+                generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size
+            } * 2
+        }
+        val minMethodCount = (allExecutables - receiverGenerators).sumOf {
             if (it.receiverParameter() || (receiverGenerators.isNotEmpty() && it.objectParameter())) {
                 minReceiverCount
             } else {
-                generatorFactory.get(Random.Default, Settings.DEFAULTS)[it]!!.fixed.size
+                generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size
             }
-        }.sum() * 2
+        } * 2
 
         @Suppress("MagicNumber")
         receiverEntropy = when {
-            skipReceiver -> 0
+            skipReceiver || fauxStatic -> 0
             emptyInitializers -> 1
             else -> 3
         }
@@ -206,7 +214,7 @@ class Solution(val solution: Class<*>) {
         }
     }
 
-    val verifiers = solution.declaredMethods.filter { it.isVerify() }.map { verifier ->
+    val verifiers = solution.declaredMethods.filter { it.isVerify() }.associateBy { verifier ->
         val matchingMethod = methodsToTest.filter { methodToTest ->
             val returnType = when (methodToTest) {
                 is Constructor<*> -> solution
@@ -223,8 +231,8 @@ class Solution(val solution: Class<*>) {
         }
         checkDesign(matchingMethod.isNotEmpty()) { "@Verify method $verifier matched no solution methods" }
         checkDesign(matchingMethod.size == 1) { "@Verify method $verifier matched multiple solution methods" }
-        matchingMethod[0] to verifier
-    }.toMap()
+        matchingMethod[0]
+    }
 
     val filters: Map<Executable, Method> = solution.declaredMethods.filter { it.isFilterParameters() }
         .mapNotNull { filter ->
