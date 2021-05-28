@@ -94,10 +94,6 @@ class Solution(val solution: Class<*>) {
                 (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty())
             )
 
-    val fauxStatic = solution.declaredFields.all { it.isJenisol() || it.isStatic() } && solution.declaredMethods.all {
-        it.isJenisol() || (it.returnType != solution && !it.receiverParameter() && !it.objectParameter())
-    } && solution.declaredConstructors.let { it.size == 1 && it.first().parameterCount == 0 }
-
     init {
         if (needsReceiver.isNotEmpty()) {
             checkDesign(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
@@ -146,6 +142,14 @@ class Solution(val solution: Class<*>) {
     }
     private val initializers = initializer?.let { setOf(it) } ?: setOf()
     val receiversAndInitializers = receiverGenerators + initializers
+
+    val fauxStatic = solution.superclass != Any::class.java
+        && solution.declaredFields.all { it.isJenisol() || it.isStatic() }
+        && solution.declaredMethods.all {
+        it.isJenisol() ||
+            (it.returnType != solution && !it.receiverParameter() && !it.objectParameter())
+    }
+        && solution.declaredConstructors.let { it.size == 1 && it.first().parameterCount == 0 }
 
     val generatorFactory: GeneratorFactory = GeneratorFactory(allExecutables + initializers, this)
 
@@ -317,11 +321,11 @@ fun Executable.fullName(): String {
         else -> error("Unknown executable type")
     }
     return "${visibilityModifier ?: ""}${
-    if (isStatic()) {
-        "static "
-    } else {
-        ""
-    }
+        if (isStatic()) {
+            "static "
+        } else {
+            ""
+        }
     }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 
