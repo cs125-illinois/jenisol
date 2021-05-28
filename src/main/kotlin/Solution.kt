@@ -143,7 +143,7 @@ class Solution(val solution: Class<*>) {
     private val initializers = initializer?.let { setOf(it) } ?: setOf()
     val receiversAndInitializers = receiverGenerators + initializers
 
-    val fauxStatic = solution.superclass != Any::class.java &&
+    val fauxStatic = solution.superclass == Any::class.java &&
         solution.declaredFields.all { it.isJenisol() || it.isStatic() } &&
         solution.declaredMethods.all {
             it.isJenisol() ||
