@@ -3,7 +3,7 @@ import java.io.StringWriter
 import java.util.Properties
 
 group = "com.github.cs125-illinois"
-version = "2021.5.8"
+version = "2021.6.0"
 
 plugins {
     kotlin("jvm") version "1.5.10"
@@ -25,7 +25,7 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
-    implementation("io.github.classgraph:classgraph:4.8.105")
+    implementation("io.github.classgraph:classgraph:4.8.108")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotest:kotest-runner-junit5:4.6.0")
