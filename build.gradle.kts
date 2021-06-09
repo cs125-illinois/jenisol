@@ -37,7 +37,7 @@ tasks.withType<JavaCompile> {
 tasks.withType<Test> {
     useJUnitPlatform()
     enableAssertions = true
-    jvmArgs("-ea", "-Xmx1G", "-Xss256k")
+    jvmArgs("-ea", "-Xmx1G", "-Xss256k", "-Dfile.encoding=UTF-8")
 }
 tasks.dependencyUpdates {
     fun String.isNonStable() = !(
