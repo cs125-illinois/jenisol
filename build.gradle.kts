@@ -10,7 +10,7 @@ plugins {
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.4.4"
+    id("org.jmailen.kotlinter") version "3.4.5"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 

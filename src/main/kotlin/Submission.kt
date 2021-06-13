@@ -183,7 +183,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         } ?: defaultVerify(result)
     }
 
-    @Suppress("ComplexMethod")
+    @Suppress("ComplexMethod", "LongMethod")
     private fun defaultVerify(result: TestResult<*, *>) {
         val solution = result.solution
         val submission = result.submission
@@ -197,9 +197,31 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
         }
         if ((strictOutput || solution.stdout.isNotBlank()) && solution.stdout != submission.stdout) {
             result.differs.add(TestResult.Differs.STDOUT)
+            if (solution.stdout == submission.stdout + "\n") {
+                result.message = if (result.submissionIsKotlin) {
+                    "Output is missing a newline, maybe use println instead of print?"
+                } else {
+                    "Output is missing a newline, maybe use System.out.println instead of System.out.print?"
+                }
+            }
+            if (solution.stdout + "\n" == submission.stdout) {
+                result.message = if (result.submissionIsKotlin) {
+                    "Output has an extra newline, maybe use print instead of println?"
+                } else {
+                    "Output has an extra newline, maybe use System.out.print instead of System.out.println?"
+                }
+            }
         }
         if ((strictOutput || solution.stderr.isNotBlank()) && solution.stderr != submission.stderr) {
             result.differs.add(TestResult.Differs.STDERR)
+            if (solution.stdout == submission.stdout + "\n") {
+                result.message =
+                    "Error output is missing a newline, maybe use System.err.println instead of System.err.print?"
+            }
+            if (solution.stdout + "\n" == submission.stdout) {
+                result.message =
+                    "Error output has an extra newline, maybe use System.err.print instead of System.err.println?"
+            }
         }
 
         if (result.type == TestResult.Type.METHOD) {
