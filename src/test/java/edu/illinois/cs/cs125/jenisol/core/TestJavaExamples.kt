@@ -283,6 +283,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.parametermatchinitializer.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.nonstaticparametergenerator.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {

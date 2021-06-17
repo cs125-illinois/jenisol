@@ -18,12 +18,16 @@ import edu.illinois.cs.cs125.jenisol.core.fixedParametersMatchAll
 import edu.illinois.cs.cs125.jenisol.core.getRandomParametersMethodName
 import edu.illinois.cs.cs125.jenisol.core.isEdgeType
 import edu.illinois.cs.cs125.jenisol.core.isFixedParameters
+import edu.illinois.cs.cs125.jenisol.core.isInitializer
 import edu.illinois.cs.cs125.jenisol.core.isNotNull
 import edu.illinois.cs.cs125.jenisol.core.isRandomParameters
 import edu.illinois.cs.cs125.jenisol.core.isRandomType
 import edu.illinois.cs.cs125.jenisol.core.isSimpleType
+import edu.illinois.cs.cs125.jenisol.core.isStatic
 import edu.illinois.cs.cs125.jenisol.core.randomParametersMatchAll
+import edu.illinois.cs.cs125.jenisol.core.unwrap
 import java.lang.ClassCastException
+import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -152,6 +156,33 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             check(used.isNotEmpty()) {
                 """Found unused @RandomParameters method: $method"""
             }
+        }
+
+        if (solution.fauxStatic) {
+            check(methodParameterGenerators.values.all { it.randomParameters?.isStatic() ?: true }) {
+                """Found non-static @RandomParameters methods for a faux-static problem with no state
+                    |These should be converted to static methods""".trimMargin()
+            }
+        } else {
+            methodParameterGenerators.entries
+                .filter { it.value.randomParameters != null }
+                .forEach { (executable, generator) ->
+                    if (executable is Method && executable.isInitializer()) {
+                        check(generator.randomParameters?.isStatic() == true) {
+                            "@RandomParameter methods for @Initializers must be static"
+                        }
+                    }
+                    if (executable is Constructor<*>) {
+                        check(generator.randomParameters?.isStatic() == true) {
+                            "@RandomParameter methods for constructors must be static"
+                        }
+                    }
+                    if (executable is Method && executable.isStatic()) {
+                        check(generator.randomParameters?.isStatic() == true) {
+                            "@RandomParameter methods for static methods must be static"
+                        }
+                    }
+                }
         }
     }
 
@@ -527,24 +558,31 @@ class ConfiguredParametersGenerator(
         overrideRandom.parameters.size == 2
     }
 
-    private fun getRandom(random: java.util.Random) = when (overrideRandom!!.parameters.size) {
-        1 -> overrideRandom.invoke(null, random)
-        2 -> overrideRandom.invoke(null, complexity.level, random)
-        else -> error("Bad argument count for @RandomParameters")
-    }.let {
-        if (it is ParameterGroup) {
-            it
-        } else {
-            One(it)
-        }
+    @Suppress("TooGenericExceptionCaught")
+    private fun getRandom(random: java.util.Random, runner: TestRunner) = try {
+        unwrap {
+            when (overrideRandom!!.parameters.size) {
+                1 -> overrideRandom.invoke(runner.receivers?.solution, random)
+                2 -> overrideRandom.invoke(runner.receivers?.solution, complexity.level, random)
+                else -> error("Bad argument count for @RandomParameters")
+            }.let {
+                if (it is ParameterGroup) {
+                    it
+                } else {
+                    One(it)
+                }
+            }
+        } as ParameterGroup
+    } catch (e: Exception) {
+        error("@RandomParameters method threw an exception: $e")
     }
 
     override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
-        val solutionParameters = getRandom(randomPair.solution)
-        val submissionParameters = getRandom(randomPair.submission)
-        val solutionCopyParameters = getRandom(randomPair.solutionCopy)
-        val submissionCopyParameters = getRandom(randomPair.submissionCopy)
+        val solutionParameters = getRandom(randomPair.solution, runner)
+        val submissionParameters = getRandom(randomPair.submission, runner)
+        val solutionCopyParameters = getRandom(randomPair.solutionCopy, runner)
+        val submissionCopyParameters = getRandom(randomPair.submissionCopy, runner)
         check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
         setOf(
             solutionParameters, submissionParameters, solutionCopyParameters, submissionCopyParameters

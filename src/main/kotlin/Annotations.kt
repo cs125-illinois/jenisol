@@ -120,7 +120,6 @@ annotation class RandomParameters(val methodName: String = "") {
         val name: String = RandomParameters::class.java.simpleName
         fun validate(method: Method): Array<Type> {
             check(method.isPrivate()) { "@$name methods must be private" }
-            check(method.isStatic()) { "@$name methods must be static" }
             val message = "@$name methods must either accept parameters (java.util.Random random) " +
                 "or (int complexity, java.util.Random random)"
             when (method.parameterTypes.size) {
