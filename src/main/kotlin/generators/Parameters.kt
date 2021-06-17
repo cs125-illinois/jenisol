@@ -275,8 +275,65 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     }
                 }
             }
+
+        neededTypes
+            .filter { it !in simpleArray || it !in simpleMethod }
+            .forEach { klass ->
+                klass.declaredFields.filter { it.isSimpleType() }.let {
+                    check(it.size <= 1) { "Found duplicate @SimpleType fields for type ${klass.name}" }
+                    it.firstOrNull()
+                }?.also { field ->
+                    SimpleType.validate(field).also { klass ->
+                        @Suppress("UNCHECKED_CAST")
+                        simpleArray[klass] = field.get(null).asArray().toSet().also { simpleCases ->
+                            check(simpleCases.none { it == null }) { "@SimpleType arrays should not include null" }
+                        } as Set<Any>
+                    }
+                }
+                klass.declaredMethods.filter { it.isSimpleType() }.let {
+                    check(it.size <= 1) { "Found duplicate @SimpleType methods for type ${klass.name}" }
+                    it.firstOrNull()
+                }?.also { method ->
+                    check(klass !in simpleArray) { "Duplicate @SimpleType method for type ${klass.name}" }
+                    SimpleType.validate(method).also { klass ->
+                        @Suppress("UNCHECKED_CAST")
+                        simpleMethod[klass] = method
+                    }
+                }
+            }
+        neededTypes
+            .filter { it !in edgeArray || it !in edgeMethod }
+            .forEach { klass ->
+                klass.declaredFields.filter { it.isEdgeType() }.let {
+                    check(it.size <= 1) { "Found duplicate @EdgeType fields for type ${klass.name}" }
+                    it.firstOrNull()
+                }?.also { field ->
+                    EdgeType.validate(field).also { klass ->
+                        edgeArray[klass] = field.get(null).asArray().toSet()
+                    }
+                }
+                klass.declaredMethods.filter { it.isEdgeType() }.let {
+                    check(it.size <= 1) { "Found duplicate @EdgeType methods for type ${klass.name}" }
+                    it.firstOrNull()
+                }?.also { method ->
+                    check(klass !in edgeArray) { "Duplicate @EdgeType method for type ${klass.name}" }
+                    EdgeType.validate(method).also { klass ->
+                        edgeMethod[klass] = method
+                    }
+                }
+            }
+        neededTypes
+            .filter { it !in rand }
+            .forEach { klass ->
+                klass.declaredMethods.find { it.isRandomType() }?.also { method ->
+                    RandomType.validate(method).also { klass ->
+                        rand[klass] = method
+                    }
+                }
+            }
+
         val generatorMappings: MutableList<Pair<Type, (Random) -> TypeGenerator<Any>>> =
-            (simpleArray.keys + edgeArray.keys + rand.keys).toSet().map { klass ->
+            (simpleArray.keys + simpleMethod.keys + edgeArray.keys + edgeMethod.keys + rand.keys).toSet().map { klass ->
                 val needsDefault = (klass !in simpleArray && klass !in simpleMethod) ||
                     (klass !in edgeArray && klass !in edgeMethod) ||
                     klass !in rand
