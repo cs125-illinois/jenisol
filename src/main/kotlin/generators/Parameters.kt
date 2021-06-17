@@ -14,14 +14,18 @@ import edu.illinois.cs.cs125.jenisol.core.Solution
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import edu.illinois.cs.cs125.jenisol.core.asArray
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
+import edu.illinois.cs.cs125.jenisol.core.fixedParametersMatchAll
+import edu.illinois.cs.cs125.jenisol.core.getRandomParametersMethodName
 import edu.illinois.cs.cs125.jenisol.core.isEdgeType
 import edu.illinois.cs.cs125.jenisol.core.isFixedParameters
 import edu.illinois.cs.cs125.jenisol.core.isNotNull
 import edu.illinois.cs.cs125.jenisol.core.isRandomParameters
 import edu.illinois.cs.cs125.jenisol.core.isRandomType
 import edu.illinois.cs.cs125.jenisol.core.isSimpleType
+import edu.illinois.cs.cs125.jenisol.core.randomParametersMatchAll
 import java.lang.ClassCastException
 import java.lang.reflect.Executable
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Parameter
 import java.lang.reflect.Type
@@ -81,6 +85,74 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     val solutionClass = solution.solution
 
     private val methodParameterGenerators = executables.associateWith { MethodParametersGeneratorGenerator(it) }
+
+    init {
+        methodParameterGenerators.values
+            .mapNotNull { it.fixedParameters }
+            .groupingBy { it }
+            .eachCount()
+            .filter { it.value > 1 }.let { list ->
+                if (list.isNotEmpty()) {
+                    list.keys.first().let { fixed ->
+                        methodParameterGenerators.values.filter { it.fixedParameters == fixed }
+                    }
+                } else {
+                    null
+                }
+            }?.also { matched ->
+                val field = matched.first().fixedParametersField!!
+                val methods = matched.map { it.target }
+                if (!field.fixedParametersMatchAll()) {
+                    error(
+                        """Found @FixedParameter annotations that matched multiple methods
+                    |$field matched ${matched.size} methods: $methods
+                    |If you want to match multiple methods, use @FixedParameters(methodName = "*")
+                    |If you want to target one method, use @FixedParameters(methodName = methodName)
+                    """.trimMargin()
+                    )
+                }
+            }
+
+        methodParameterGenerators.values
+            .mapNotNull { it.randomParameters }
+            .groupingBy { it }
+            .eachCount()
+            .filter { it.value > 1 }.let { list ->
+                if (list.isNotEmpty()) {
+                    list.keys.first().let { randomMethod ->
+                        methodParameterGenerators.values.filter { it.randomParameters == randomMethod }
+                    }
+                } else {
+                    null
+                }
+            }?.also { matched ->
+                val method = matched.first().randomParameters!!
+                val methods = matched.map { it.target }
+                if (!method.randomParametersMatchAll()) {
+                    error(
+                        """Found @RandomParameters annotations that matched multiple methods
+                    |$method matched ${matched.size} methods: $methods
+                    |If you want to match multiple methods, use @RandomParameters(methodName = "*")
+                    |If you want to target one method, use @RandomParameters(methodName = methodName)
+                    """.trimMargin()
+                    )
+                }
+            }
+
+        solution.solution.declaredFields.filter { it.isFixedParameters() }.forEach { field ->
+            val used = methodParameterGenerators.values.filter { it.fixedParametersField == field }
+            check(used.isNotEmpty()) {
+                """Found unused @FixedParameters field: $field"""
+            }
+        }
+
+        solution.solution.declaredMethods.filter { it.isRandomParameters() }.forEach { method ->
+            val used = methodParameterGenerators.values.filter { it.randomParameters == method }
+            check(used.isNotEmpty()) {
+                """Found unused @RandomParameters method: $method"""
+            }
+        }
+    }
 
     private val typesNeeded = methodParameterGenerators
         .filter { (_, generator) -> generator.needsParameterGenerator }
@@ -295,7 +367,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     }
 }
 
-class Generators(private val map: Map<Executable, ExecutableGenerator>) : Map<Executable, ExecutableGenerator> by map
+class Generators(private val map: Map<Executable, ExecutableGenerator>) :
+    Map<Executable, ExecutableGenerator> by map
 
 interface ExecutableGenerator {
     val fixed: List<Parameters>
@@ -305,8 +378,9 @@ interface ExecutableGenerator {
     fun prev()
 }
 
-class MethodParametersGeneratorGenerator(target: Executable) {
+class MethodParametersGeneratorGenerator(val target: Executable) {
     val fixedParameters: Collection<ParameterGroup>?
+    var fixedParametersField: Field? = null
     val randomParameters: Method?
     val notNullParameters = target.parameters.map { it.isNotNull() }
 
@@ -316,11 +390,20 @@ class MethodParametersGeneratorGenerator(target: Executable) {
             .filter { field -> field.isFixedParameters() }
             .filter { field ->
                 FixedParameters.validate(field).compareBoxed(parameterTypes)
+            }.filter { field ->
+                field.getRandomParametersMethodName().let {
+                    if (it.isNotBlank()) {
+                        it == "*" || target.name == it
+                    } else {
+                        true
+                    }
+                }
             }.also {
                 check(it.size <= 1) {
                     "Multiple @${FixedParameters.name} annotations match method ${target.name}"
                 }
             }.firstOrNull()?.let { field ->
+                fixedParametersField = field
                 val values = field.get(null)
                 check(values is Collection<*>) { "@${FixedParameters.name} field does not contain a collection" }
                 check(values.isNotEmpty()) { "@${FixedParameters.name} field contains as empty collection" }
@@ -347,6 +430,15 @@ class MethodParametersGeneratorGenerator(target: Executable) {
         randomParameters = target.declaringClass.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
+            .filter { method ->
+                method.getRandomParametersMethodName().let {
+                    if (it.isNotBlank()) {
+                        it == "*" || target.name == it
+                    } else {
+                        true
+                    }
+                }
+            }
             .also {
                 check(it.size <= 1) {
                     "Multiple @${RandomParameters.name} annotations match method ${target.name}"

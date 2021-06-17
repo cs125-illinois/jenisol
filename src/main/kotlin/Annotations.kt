@@ -83,7 +83,7 @@ fun Method.isRandomType() = isAnnotationPresent(RandomType::class.java)
 
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class FixedParameters {
+annotation class FixedParameters(val methodName: String = "") {
     companion object {
         val name: String = FixedParameters::class.java.simpleName
         fun validate(field: Field): Array<Type> {
@@ -110,10 +110,12 @@ annotation class FixedParameters {
 }
 
 fun Field.isFixedParameters() = isAnnotationPresent(FixedParameters::class.java)
+fun Field.getRandomParametersMethodName() = this.getAnnotation(FixedParameters::class.java)!!.methodName
+fun Field.fixedParametersMatchAll() = this.getAnnotation(FixedParameters::class.java)!!.methodName == "*"
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class RandomParameters {
+annotation class RandomParameters(val methodName: String = "") {
     companion object {
         val name: String = RandomParameters::class.java.simpleName
         fun validate(method: Method): Array<Type> {
@@ -144,6 +146,8 @@ annotation class RandomParameters {
 }
 
 fun Method.isRandomParameters() = isAnnotationPresent(RandomParameters::class.java)
+fun Method.getRandomParametersMethodName() = this.getAnnotation(RandomParameters::class.java)!!.methodName
+fun Method.randomParametersMatchAll() = this.getAnnotation(RandomParameters::class.java)!!.methodName == "*"
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
