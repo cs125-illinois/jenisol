@@ -84,7 +84,8 @@ typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
 class GeneratorFactory(private val executables: Set<Executable>, val solution: Solution) {
     val solutionClass = solution.solution
 
-    private val methodParameterGenerators = executables.associateWith { MethodParametersGeneratorGenerator(it) }
+    private val methodParameterGenerators =
+        executables.associateWith { MethodParametersGeneratorGenerator(it, solution.solution) }
 
     init {
         methodParameterGenerators.values
@@ -378,7 +379,7 @@ interface ExecutableGenerator {
     fun prev()
 }
 
-class MethodParametersGeneratorGenerator(val target: Executable) {
+class MethodParametersGeneratorGenerator(val target: Executable, val solution: Class<*>) {
     val fixedParameters: Collection<ParameterGroup>?
     var fixedParametersField: Field? = null
     val randomParameters: Method?
@@ -386,7 +387,7 @@ class MethodParametersGeneratorGenerator(val target: Executable) {
 
     init {
         val parameterTypes = target.genericParameterTypes.map { type -> type as Type }.toTypedArray()
-        fixedParameters = target.declaringClass.declaredFields
+        fixedParameters = solution.declaredFields
             .filter { field -> field.isFixedParameters() }
             .filter { field ->
                 FixedParameters.validate(field).compareBoxed(parameterTypes)
@@ -427,7 +428,7 @@ class MethodParametersGeneratorGenerator(val target: Executable) {
                 }
                 actualValues
             }
-        randomParameters = target.declaringClass.declaredMethods
+        randomParameters = solution.declaredMethods
             .filter { method -> method.isRandomParameters() }
             .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
             .filter { method ->
