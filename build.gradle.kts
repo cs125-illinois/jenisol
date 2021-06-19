@@ -29,7 +29,7 @@ dependencies {
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotest:kotest-runner-junit5:4.6.0")
-    testImplementation("org.slf4j:slf4j-simple:1.7.30")
+    testImplementation("org.slf4j:slf4j-simple:1.7.31")
 }
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
