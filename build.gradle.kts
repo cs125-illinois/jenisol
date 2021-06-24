@@ -6,7 +6,7 @@ group = "com.github.cs125-illinois"
 version = "2021.6.4"
 
 plugins {
-    kotlin("jvm") version "1.5.10"
+    kotlin("jvm") version "1.5.20"
     java
     `maven-publish`
 
@@ -77,6 +77,15 @@ task("createProperties") {
                         .lines().drop(1).joinToString(separator = "\n").trim()
                 )
             }
+    }
+}
+tasks {
+    val sourcesJar by creating(Jar::class) {
+        archiveClassifier.set("sources")
+        from(sourceSets["main"].allSource)
+    }
+    artifacts {
+        add("archives", sourcesJar)
     }
 }
 java {
