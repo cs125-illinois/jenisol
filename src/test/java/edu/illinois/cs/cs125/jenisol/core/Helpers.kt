@@ -4,7 +4,6 @@ import io.github.classgraph.ClassGraph
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.shouldBe
-import java.io.File
 import kotlin.random.Random
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
@@ -50,10 +49,10 @@ fun Class<*>.testingClasses(): TestingClasses {
     return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badDesign)
 }
 
-fun Solution.doubleTest(klass: Class<*>, source: String? = null): TestResults {
+fun Solution.doubleTest(klass: Class<*>): TestResults {
     val seed = Random.nextInt()
-    val first = submission(klass, source).test(Settings(seed = seed))
-    val second = submission(klass, source).test(Settings(seed = seed))
+    val first = submission(klass).test(Settings(seed = seed))
+    val second = submission(klass).test(Settings(seed = seed))
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
@@ -87,20 +86,13 @@ fun Class<*>.test() = this.testingClasses().apply {
             .apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->
-                val source = try {
-                    File(System.getProperty("user.dir"))
-                        .resolve("src/test/java/")
-                        .resolve(incorrect.name.replace(".", "/") + ".java").readText()
-                } catch (e: Exception) {
-                    null
-                }
                 if (incorrect.simpleName.startsWith("Design")) {
-                    shouldThrow<SubmissionDesignError> { submission(incorrect, source) }
+                    shouldThrow<SubmissionDesignError> { submission(incorrect) }
                 } else {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
                     }
-                    doubleTest(incorrect, source).also { results ->
+                    doubleTest(incorrect).also { results ->
                         results.failed shouldBe true
                         results.filter { it.failed }
                             .map { it.type }

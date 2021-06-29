@@ -287,6 +287,7 @@ class TestRunner(
         parameters: Array<Any?>,
         parametersCopy: Array<Any?>? = null
     ): Result<Any, ParameterGroup> = captureOutput {
+        @Suppress("SpreadOperator")
         unwrap {
             when (this) {
                 is Method -> this.invoke(receiver, *parameters)

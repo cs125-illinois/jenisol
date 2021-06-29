@@ -317,26 +317,6 @@ annotation class DesignOnly
 
 fun Class<*>.isDesignOnly() = isAnnotationPresent(DesignOnly::class.java)
 
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.RUNTIME)
-annotation class CheckSource {
-    companion object {
-        val name: String = CheckSource::class.java.simpleName
-        fun validate(method: Method) {
-            check(method.isStatic()) { "@$name methods must be static" }
-            check(method.returnType.name == "void") {
-                "@$name method return values will not be used and should be void"
-            }
-            check(method.parameterTypes.size == 1 && method.parameterTypes[0] == String::class.java) {
-                "@$name methods must accept parameters (String source)"
-            }
-            method.isAccessible = true
-        }
-    }
-}
-
-fun Method.isCheckSource() = isAnnotationPresent(CheckSource::class.java)
-
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class NotNull
@@ -371,8 +351,7 @@ fun Executable.isJenisol() = setOf(
     Verify::class.java,
     Both::class.java,
     FilterParameters::class.java,
-    InstanceValidator::class.java,
-    CheckSource::class.java,
+    InstanceValidator::class.java
 ).any {
     isAnnotationPresent(it)
 }

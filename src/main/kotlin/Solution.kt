@@ -125,14 +125,6 @@ class Solution(val solution: Class<*>) {
         compareMethods.associateBy { it.parameterTypes.first().boxType() }
     }
 
-    val sourceChecker = solution.declaredMethods.filter {
-        it.isCheckSource()
-    }.also {
-        checkDesign(it.size <= 1) { "Solution has multiple source checkers" }
-    }.firstOrNull()?.also {
-        checkDesign { CheckSource.validate(it) }
-    }
-
     val initializer: Executable? = solution.superclass.declaredMethods.filter {
         it.isInitializer()
     }.also {
@@ -262,7 +254,7 @@ class Solution(val solution: Class<*>) {
             true
     }
 
-    fun submission(submission: Class<*>, source: String? = null) = Submission(this, submission, source)
+    fun submission(submission: Class<*>) = Submission(this, submission)
 }
 
 fun solution(klass: Class<*>) = Solution(klass)
@@ -313,20 +305,76 @@ fun Executable.isKotlinCompanion() = try {
     false
 }
 
-fun Executable.fullName(): String {
-    val visibilityModifier = getVisibilityModifier()?.plus(" ")
+@Suppress("ComplexMethod", "NestedBlockDepth")
+fun String.toKotlinType() = when {
+    this == "byte" -> "Byte"
+    this == "short" -> "Short"
+    this == "int" -> "Int"
+    this == "long" -> "Long"
+    this == "float" -> "Float"
+    this == "double" -> "Double"
+    this == "char" -> "Char"
+    this == "boolean" -> "Boolean"
+    this.endsWith("[]") -> {
+        var name = ""
+        var currentType = this
+        while (currentType.endsWith("[]")) {
+            currentType = currentType.removeSuffix("[]")
+            name = if (currentType.endsWith("[]")) {
+                "Array<$name>"
+            } else {
+                when (currentType) {
+                    "byte" -> "ByteArray"
+                    "short" -> "ShortArray"
+                    "int" -> "IntArray"
+                    "long" -> "LongArray"
+                    "float" -> "FloatArray"
+                    "double" -> "DoubleArray"
+                    "char" -> "CharArray"
+                    "boolean" -> "BooleanArray"
+                    else -> "Array<$currentType>"
+                }
+            }
+        }
+        name
+    }
+    else -> this
+}
+
+fun Executable.fullName(isKotlin: Boolean = false): String {
+    val visibilityModifier = getVisibilityModifier(isKotlin)?.plus(" ")
     val returnType = when (this) {
         is Constructor<*> -> ""
-        is Method -> genericReturnType.typeName + " "
+        is Method -> genericReturnType.typeName
         else -> error("Unknown executable type")
+    }.let { type ->
+        if (isKotlin) {
+            type.toKotlinType()
+        } else {
+            type
+        }
+    }.let {
+        if (it.isNotBlank()) {
+            "$it "
+        } else {
+            it
+        }
     }
-    return "${visibilityModifier ?: ""}${
-    if (isStatic()) {
-        "static "
+    return if (isKotlin) {
+        "${visibilityModifier ?: ""}${
+        if (isStatic()) {
+            "static "
+        } else {
+            ""
+        }
+        }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
     } else {
-        ""
+        "${visibilityModifier ?: ""}fun $name(${
+        parameters.joinToString(", ") {
+            it.type.prettyPrint().toKotlinType()
+        }
+        }): $returnType"
     }
-    }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
 }
 
 fun Field.fullName(): String {
@@ -363,8 +411,8 @@ fun Class<*>.getVisibilityModifier() = when {
     else -> null
 }
 
-fun Executable.getVisibilityModifier() = when {
-    isPublic() -> "public"
+fun Executable.getVisibilityModifier(isKotlin: Boolean = false) = when {
+    !isKotlin && isPublic() -> "public"
     isPrivate() -> "private"
     isProtected() -> "protected"
     else -> null

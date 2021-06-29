@@ -14,7 +14,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Type
 import kotlin.random.Random
 
-class Submission(val solution: Solution, val submission: Class<*>, private val source: String? = null) {
+class Submission(val solution: Solution, val submission: Class<*>) {
     init {
         if (!solution.solution.visibilityMatches(submission)) {
             throw SubmissionDesignClassError(
@@ -145,12 +145,6 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
                 }
                 if (it.isStatic()) {
                     throw SubmissionStaticFieldError(submission, it)
-                }
-            }
-            if (solution.sourceChecker != null) {
-                require(source != null) { "@CheckSource method provided but source not available" }
-                unwrap {
-                    solution.sourceChecker.invoke(null, source)
                 }
             }
         }
@@ -459,7 +453,7 @@ class Submission(val solution: Solution, val submission: Class<*>, private val s
 sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
-    if (executable.isStatic()) {
+    if (executable.isStatic() && !klass.isKotlin()) {
         "static "
     } else {
         ""
@@ -470,12 +464,12 @@ class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable
     } else {
         "constructor"
     }
-    } ${executable.fullName()}"
+    } ${executable.fullName(klass.isKotlin())}"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} provided extra ${
-    if (executable.isStatic()) {
+    if (executable.isStatic() && !klass.isKotlin()) {
         "static "
     } else {
         ""
@@ -486,7 +480,7 @@ class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) 
     } else {
         "constructor"
     }
-    } ${executable.fullName()}"
+    } ${executable.fullName(klass.isKotlin())}"
 )
 
 class SubmissionDesignInheritanceError(klass: Class<*>, parent: Class<*>) : SubmissionDesignError(
@@ -516,8 +510,6 @@ class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionD
 class DesignOnlyTestingError(klass: Class<*>) : Exception(
     "Solution class ${klass.name} is marked as design only"
 )
-
-class SourceCheckError(message: String) : SubmissionDesignError(message)
 
 @Suppress("SwallowedException")
 fun unwrap(run: () -> Any?): Any? = try {

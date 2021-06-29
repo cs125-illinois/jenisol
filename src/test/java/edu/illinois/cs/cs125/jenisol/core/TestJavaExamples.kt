@@ -175,9 +175,6 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.lambdaargument.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
-        examples.java.noreceiver.sourcechecker.Correct::class.java.also {
-            "${it.testName()}" { it.test() }
-        }
         examples.java.noreceiver.withgenericverifier.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
@@ -293,6 +290,9 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.kotlinprintmap.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.arrayreturn.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
