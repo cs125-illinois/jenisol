@@ -478,7 +478,7 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
         fixedParameters = solution.declaredFields
             .filter { field -> field.isFixedParameters() }
             .filter { field ->
-                FixedParameters.validate(field).compareBoxed(parameterTypes)
+                FixedParameters.validate(field, solution).compareBoxed(parameterTypes)
             }.filter { field ->
                 field.getRandomParametersMethodName().let {
                     if (it.isNotBlank()) {
@@ -504,9 +504,15 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
                 } catch (e: ClassCastException) {
                     values.map { One(it) }
                 }
-                actualValues.forEach {
-                    val solutionParameters = it.deepCopy()
-                    val submissionParameters = it.deepCopy()
+                actualValues.forEach { group ->
+                    check(group.toList().none { it != null && it::class.java == solution }) {
+                        """
+        |@${FixedParameters.name} field should not contain receiver objects, since this will not work as you expect.
+        |Target the constructor with @${FixedParameters.name} if you need to create receivers."""
+                            .trimMargin().trim()
+                    }
+                    val solutionParameters = group.deepCopy()
+                    val submissionParameters = group.deepCopy()
                     check(solutionParameters !== submissionParameters) {
                         "@${FixedParameters.name} field produces referentially equal copies"
                     }
@@ -518,7 +524,7 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
             }
         randomParameters = solution.declaredMethods
             .filter { method -> method.isRandomParameters() }
-            .filter { method -> RandomParameters.validate(method).compareBoxed(parameterTypes) }
+            .filter { method -> RandomParameters.validate(method, solution).compareBoxed(parameterTypes) }
             .filter { method ->
                 method.getRandomParametersMethodName().let {
                     if (it.isNotBlank()) {

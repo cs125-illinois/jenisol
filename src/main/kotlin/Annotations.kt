@@ -86,7 +86,7 @@ fun Method.isRandomType() = isAnnotationPresent(RandomType::class.java)
 annotation class FixedParameters(val methodName: String = "") {
     companion object {
         val name: String = FixedParameters::class.java.simpleName
-        fun validate(field: Field): Array<Type> {
+        fun validate(field: Field, solution: Class<*>): Array<Type> {
             check(field.isPrivate()) { "@$name fields must be private" }
             check(field.isStatic()) { "@$name fields must be static" }
             check(field.genericType is ParameterizedType) {
@@ -102,6 +102,12 @@ annotation class FixedParameters(val methodName: String = "") {
                         itemType.actualTypeArguments
                     } else {
                         arrayOf(itemType)
+                    }.also { types ->
+                        check(solution !in types) {
+                            """@$name parameter fields cannot container receiver types.
+                              |Generate receivers by targeting the constructor or factory method with @$name"""
+                                .trimMargin()
+                        }
                     }
                 }
             }
@@ -118,7 +124,7 @@ fun Field.fixedParametersMatchAll() = this.getAnnotation(FixedParameters::class.
 annotation class RandomParameters(val methodName: String = "") {
     companion object {
         val name: String = RandomParameters::class.java.simpleName
-        fun validate(method: Method): Array<Type> {
+        fun validate(method: Method, solution: Class<*>): Array<Type> {
             check(method.isPrivate()) { "@$name methods must be private" }
             val message = "@$name methods must either accept parameters (java.util.Random random) " +
                 "or (int complexity, java.util.Random random)"
@@ -139,6 +145,13 @@ annotation class RandomParameters(val methodName: String = "") {
                 (method.genericReturnType as ParameterizedType).actualTypeArguments
             } else {
                 arrayOf(method.genericReturnType)
+            }.also { types ->
+                check(solution !in types) {
+                    """
+              |@$name return values cannot container receiver types.
+              |Generate receivers by targeting the constructor or factory method with @$name"""
+                        .trimMargin().trim()
+                }
             }
         }
     }
