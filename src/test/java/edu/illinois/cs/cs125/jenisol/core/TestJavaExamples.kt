@@ -295,6 +295,9 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.arrayreturn.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.rejectstaticfield.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {
