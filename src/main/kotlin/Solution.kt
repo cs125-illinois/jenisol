@@ -355,12 +355,16 @@ fun Executable.fullName(isKotlin: Boolean = false): String {
         }
     }.let {
         if (it.isNotBlank()) {
-            "$it "
+            if (isKotlin) {
+                " $it"
+            } else {
+                "$it "
+            }
         } else {
             it
         }
     }
-    return if (isKotlin) {
+    return if (!isKotlin) {
         "${visibilityModifier ?: ""}${
         if (isStatic()) {
             "static "
