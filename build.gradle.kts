@@ -3,10 +3,10 @@ import java.io.StringWriter
 import java.util.Properties
 
 group = "com.github.cs125-illinois"
-version = "2021.6.9"
+version = "2021.7.0"
 
 plugins {
-    kotlin("jvm") version "1.5.20"
+    kotlin("jvm") version "1.5.21"
     java
     `maven-publish`
 
@@ -25,11 +25,11 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
-    implementation("io.github.classgraph:classgraph:4.8.108")
+    implementation("io.github.classgraph:classgraph:4.8.110")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:4.6.0")
-    testImplementation("org.slf4j:slf4j-simple:1.7.31")
+    testImplementation("io.kotest:kotest-runner-junit5:4.6.1")
+    testImplementation("org.slf4j:slf4j-simple:1.7.32")
 }
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
