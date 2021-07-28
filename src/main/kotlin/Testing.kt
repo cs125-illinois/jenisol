@@ -254,7 +254,8 @@ class TestRunner(
     val failed: Boolean
         get() = testResults.any { it.failed }
     val ready: Boolean
-        get() = testResults.none { it.failed } && receivers != null
+        get() = testResults.none { it.failed } && receivers != null && shouldContinue
+    private var shouldContinue = true
 
     var lastComplexity: Complexity? = null
 
@@ -583,6 +584,11 @@ class TestRunner(
             initialized = true
         } else {
             run(methodIterator.first(), stepCount)
+            if (submission.solution.shouldContinue != null && receivers != null) {
+                shouldContinue = unwrap {
+                    submission.solution.shouldContinue.invoke(receivers!!.solution)
+                } as Boolean
+            }
         }
         return ready
     }

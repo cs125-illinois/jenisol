@@ -108,9 +108,17 @@ class Solution(val solution: Class<*>) {
     val instanceValidator = solution.declaredMethods.filter {
         it.isInstanceValidator()
     }.also {
-        checkDesign(it.size <= 1) { "Solution has multiple instance validators" }
+        checkDesign(it.size <= 1) { "Solution has multiple methods annotated with @InstanceValidator" }
     }.firstOrNull()?.also {
         checkDesign { InstanceValidator.validate(it) }
+    }
+
+    val shouldContinue = solution.declaredMethods.filter {
+        it.isShouldContinue()
+    }.also {
+        checkDesign(it.size <= 1) { "Solution has multiple methods annotated with @ShouldContinue" }
+    }.firstOrNull()?.also {
+        checkDesign { ShouldContinue.validate(it) }
     }
 
     val customCompares = solution.declaredMethods.filter {
