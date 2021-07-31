@@ -150,7 +150,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    private fun MutableList<TestRunner>.readyCount() = filter { it.ready }.count()
+    private fun MutableList<TestRunner>.readyCount() = count { it.ready }
 
     private val comparators = Comparators(
         mutableMapOf(solution.solution to solution.receiverCompare, submission to solution.receiverCompare)
@@ -264,10 +264,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun List<TestRunner>.toResults(settings: Settings) =
+    fun List<TestRunner>.toResults(settings: Settings, completed: Boolean = false) =
         TestResults(
             map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten().sortedBy { it.stepCount },
-            settings
+            settings,
+            completed
         )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
@@ -394,7 +395,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         for (totalCount in 0 until totalTests) {
             if (Thread.interrupted()) {
-                break
+                return runners.toResults(settings)
             }
             val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                 TestRunner(
@@ -446,7 +447,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 usedRunner.returnedReceivers = null
             }
         }
-        return runners.toResults(settings)
+        return runners.toResults(settings, true)
     }
 }
 

@@ -225,12 +225,15 @@ fun print(value: Any?): String = when {
 class TestResults(
     val results: List<TestResult<Any, ParameterGroup>>,
     val settings: Settings,
+    val completed: Boolean,
     designOnly: Boolean? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
-    val succeeded = designOnly ?: all { it.succeeded }
+    val succeeded = designOnly ?: all { it.succeeded } && completed
     val failed = !succeeded
     fun explain(stacktrace: Boolean = false) = if (succeeded) {
         "Passed by completing ${results.size} tests"
+    } else if (!completed) {
+        "Did not complete testing"
     } else {
         filter { it.failed }.sortedBy { it.complexity }.let { result ->
             val leastComplex = result.first().complexity
@@ -366,6 +369,7 @@ class TestRunner(
             }
         } ?: error("Didn't set receivers")
 
+        @Suppress("SpreadOperator")
         try {
             unwrap {
                 submission.solution.filters[solutionExecutable]?.invoke(null, *parameters.solution)
