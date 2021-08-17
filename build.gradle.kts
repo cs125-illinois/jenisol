@@ -3,19 +3,19 @@ import java.io.StringWriter
 import java.util.Properties
 
 group = "com.github.cs125-illinois"
-version = "2021.7.2"
+version = "2021.8.0"
 
 plugins {
     kotlin("jvm") version "1.5.21"
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.4.5"
+    id("org.jmailen.kotlinter") version "3.5.0"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
     id("com.github.ben-manes.versions") version "0.39.0"
-    id("io.gitlab.arturbosch.detekt") version "1.17.1"
+    id("io.gitlab.arturbosch.detekt") version "1.18.0"
 }
 repositories {
     mavenCentral()
@@ -25,7 +25,7 @@ repositories {
 dependencies {
     implementation(kotlin("stdlib"))
     implementation(kotlin("reflect"))
-    implementation("io.github.classgraph:classgraph:4.8.110")
+    implementation("io.github.classgraph:classgraph:4.8.115")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotest:kotest-runner-junit5:4.6.1")

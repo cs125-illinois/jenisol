@@ -467,8 +467,8 @@ fun compareReturn(
     solutionReturn is Class<*> && submissionReturn is Class<*> && solutionReturn.isArray &&
         solutionReturn.getArrayType() == solution &&
         submissionReturn.isArray &&
-        submissionReturn.getArrayType() == submission
-        && solutionReturn.getArrayDimension() == submissionReturn.getArrayDimension() -> true
+        submissionReturn.getArrayType() == submission &&
+        solutionReturn.getArrayDimension() == submissionReturn.getArrayDimension() -> true
     solutionReturn is TypeVariable<*> && submissionReturn is TypeVariable<*> ->
         solutionReturn.bounds.contentEquals(submissionReturn.bounds)
     else -> false
@@ -488,8 +488,8 @@ fun compareParameters(
         .all { (solutionType, submissionType) ->
             when {
                 solutionType == submissionType -> true
-                solutionType !is ParameterizedType && submissionType is ParameterizedType
-                    && submissionType.rawType == solutionType -> {
+                solutionType !is ParameterizedType && submissionType is ParameterizedType &&
+                    submissionType.rawType == solutionType -> {
                     submissionType.actualTypeArguments.all { it is Any }
                 }
                 else -> false
