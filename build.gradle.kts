@@ -3,14 +3,14 @@ import java.io.StringWriter
 import java.util.Properties
 
 group = "com.github.cs125-illinois"
-version = "2021.8.0"
+version = "2021.8.1"
 
 plugins {
-    kotlin("jvm") version "1.5.21"
+    kotlin("jvm") version "1.5.30"
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.5.0"
+    id("org.jmailen.kotlinter") version "3.5.1"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
@@ -28,11 +28,16 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.115")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:4.6.1")
+    testImplementation("io.kotest:kotest-runner-junit5:4.6.2")
     testImplementation("org.slf4j:slf4j-simple:1.7.32")
 }
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
+}
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_16.toString()
+    }
 }
 tasks.withType<Test> {
     useJUnitPlatform()
