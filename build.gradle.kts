@@ -3,7 +3,7 @@ import java.io.StringWriter
 import java.util.Properties
 
 group = "com.github.cs125-illinois"
-version = "2021.8.1"
+version = "2021.8.2"
 
 plugins {
     kotlin("jvm") version "1.5.30"
@@ -15,7 +15,7 @@ plugins {
     id("com.github.sherter.google-java-format") version "0.9"
 
     id("com.github.ben-manes.versions") version "0.39.0"
-    id("io.gitlab.arturbosch.detekt") version "1.18.0"
+    id("io.gitlab.arturbosch.detekt") version "1.18.1"
 }
 repositories {
     mavenCentral()
@@ -23,8 +23,7 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 dependencies {
-    implementation(kotlin("stdlib"))
-    implementation(kotlin("reflect"))
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.30")
     implementation("io.github.classgraph:classgraph:4.8.115")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
