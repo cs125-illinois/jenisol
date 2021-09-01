@@ -324,25 +324,25 @@ fun String.toKotlinType() = when {
     this == "char" -> "Char"
     this == "boolean" -> "Boolean"
     this.endsWith("[]") -> {
-        var name = ""
         var currentType = this
+        var arrayCount = -1
         while (currentType.endsWith("[]")) {
             currentType = currentType.removeSuffix("[]")
-            name = if (currentType.endsWith("[]")) {
-                "Array<$name>"
-            } else {
-                when (currentType) {
-                    "byte" -> "ByteArray"
-                    "short" -> "ShortArray"
-                    "int" -> "IntArray"
-                    "long" -> "LongArray"
-                    "float" -> "FloatArray"
-                    "double" -> "DoubleArray"
-                    "char" -> "CharArray"
-                    "boolean" -> "BooleanArray"
-                    else -> "Array<$currentType>"
-                }
-            }
+            arrayCount++
+        }
+        var name = when (currentType) {
+            "byte" -> "ByteArray"
+            "short" -> "ShortArray"
+            "int" -> "IntArray"
+            "long" -> "LongArray"
+            "float" -> "FloatArray"
+            "double" -> "DoubleArray"
+            "char" -> "CharArray"
+            "boolean" -> "BooleanArray"
+            else -> "Array<$currentType>"
+        }
+        repeat(arrayCount) {
+            name = "Array<$name>"
         }
         name
     }
@@ -364,7 +364,7 @@ fun Executable.fullName(isKotlin: Boolean = false): String {
     }.let {
         if (it.isNotBlank()) {
             if (isKotlin) {
-                " $it"
+                it
             } else {
                 "$it "
             }

@@ -23,4 +23,10 @@ class TestHelpers : StringSpec({
             KotlinTest::class.java
         ) shouldBe """method(first: Int = 1, second: String = "two")"""
     }
+    "should reformat types properly" {
+        "byte".toKotlinType() shouldBe "Byte"
+        "byte[]".toKotlinType() shouldBe "ByteArray"
+        "byte[][]".toKotlinType() shouldBe "Array<ByteArray>"
+        "byte[][][]".toKotlinType() shouldBe "Array<Array<ByteArray>>"
+    }
 })
