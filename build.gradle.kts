@@ -1,6 +1,7 @@
 import java.io.File
 import java.io.StringWriter
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
 version = "2021.9.1"
@@ -33,7 +34,7 @@ dependencies {
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+tasks.withType<KotlinCompile> {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_16.toString()
     }
