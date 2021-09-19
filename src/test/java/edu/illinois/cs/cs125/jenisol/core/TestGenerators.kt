@@ -167,6 +167,14 @@ class TestGenerators : StringSpec(
                 method.testGenerator()
             }
         }
+        "it should generate sets properly" {
+            methodNamed("testIntegerSet").also { method ->
+                method.invoke(null, null)
+                method.invoke(null, setOf<Int>())
+                method.invoke(null, setOf(1, 2, 5))
+                method.testGenerator()
+            }
+        }
         "it should generate nested arrays properly" {
             Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
                 (0..128).map {

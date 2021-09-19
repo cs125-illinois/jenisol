@@ -7,11 +7,11 @@ group = "com.github.cs125-illinois"
 version = "2021.9.1"
 
 plugins {
-    kotlin("jvm") version "1.5.30"
+    kotlin("jvm") version "1.5.31"
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.5.1"
+    id("org.jmailen.kotlinter") version "3.6.0"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
@@ -24,11 +24,11 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.30")
-    implementation("io.github.classgraph:classgraph:4.8.115")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
+    implementation("io.github.classgraph:classgraph:4.8.116")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:4.6.2")
+    testImplementation("io.kotest:kotest-runner-junit5:4.6.3")
     testImplementation("org.slf4j:slf4j-simple:1.7.32")
 }
 tasks.withType<JavaCompile> {

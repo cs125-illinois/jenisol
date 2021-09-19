@@ -222,6 +222,12 @@ object Defaults {
                 map.containsKey(type.actualTypeArguments[0])
             ) {
                 return { random -> ListGenerator(random, create(type.actualTypeArguments[0], random)) }
+            } else if (
+                type.rawType == java.util.Set::class.java &&
+                type.actualTypeArguments.size == 1 &&
+                map.containsKey(type.actualTypeArguments[0])
+            ) {
+                return { random -> SetGenerator(random, create(type.actualTypeArguments[0], random)) }
             } else if (type.rawType == java.util.Map::class.java && type.actualTypeArguments.size == 2 &&
                 map.containsKey(type.actualTypeArguments[0]) && map.containsKey(type.actualTypeArguments[1])
             ) {
@@ -259,6 +265,30 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
         val listSize = random.nextInt(complexity.squared().coerceAtLeast(2).toInt())
         return mutableListOf<Any>().apply {
             repeat(listSize) {
+                add(componentGenerator.random(complexity, runner).solutionCopy!!)
+            }
+        }.value(complexity)
+    }
+}
+
+class SetGenerator(random: Random, private val componentGenerator: TypeGenerator<*>) :
+    TypeGenerators<Any>(random) {
+
+    override val simple: Set<Value<Any>>
+        get() {
+            val simpleCases = componentGenerator.simple.mapNotNull { it.solutionCopy }.toSet()
+            return setOf(
+                setOf(),
+                simpleCases
+            ).values(ZeroComplexity)
+        }
+
+    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
+
+    override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
+        val setSize = random.nextInt(complexity.squared().coerceAtLeast(2).toInt())
+        return mutableSetOf<Any>().apply {
+            repeat(setSize) {
                 add(componentGenerator.random(complexity, runner).solutionCopy!!)
             }
         }.value(complexity)
