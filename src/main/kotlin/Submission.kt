@@ -89,10 +89,39 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }?.let { executable ->
                 executable.isAccessible = true
                 solutionExecutable to executable
-            } ?: throw SubmissionDesignMissingMethodError(
-                submission,
-                solutionExecutable
-            )
+            } ?: run {
+                @Suppress("ComplexCondition")
+                if (submission.isKotlin() &&
+                    solutionExecutable is Method &&
+                    (
+                        solutionExecutable.name.startsWith("get") ||
+                            solutionExecutable.name.startsWith("set")
+                        )
+                ) {
+                    if (solutionExecutable.name.startsWith("get")) {
+                        val field = solutionExecutable.name.removePrefix("get").let {
+                            it[0].lowercaseChar() + it.substring(1)
+                        }
+                        throw SubmissionDesignKotlinNotAccessibleError(
+                            submission,
+                            field
+                        )
+                    } else {
+                        val field = solutionExecutable.name.removePrefix("set").let {
+                            it[0].lowercaseChar() + it.substring(1)
+                        }
+                        throw SubmissionDesignKotlinNotModifiableError(
+                            submission,
+                            field
+                        )
+                    }
+                } else {
+                    throw SubmissionDesignMissingMethodError(
+                        submission,
+                        solutionExecutable
+                    )
+                }
+            }
         }.toMutableMap().also {
             if (solution.initializer != null) {
                 it[solution.initializer] = solution.initializer
@@ -119,7 +148,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                             return@forEach
                         }
                         if (executable is Constructor<*> &&
-                            executable.parameterTypes.last()?.name == "kotlin.jvm.internal.DefaultConstructorMarker"
+                            executable.parameterTypes.lastOrNull()?.name ==
+                            "kotlin.jvm.internal.DefaultConstructorMarker"
                         ) {
                             return@forEach
                         }
@@ -128,6 +158,28 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         }
                         if (executable.name == "compareTo") {
                             return@forEach
+                        }
+                    }
+                    @Suppress("ComplexCondition")
+                    if (submission.isKotlin() && executable is Method &&
+                        (executable.name.startsWith("set") || executable.name.startsWith("get"))
+                    ) {
+                        if (executable.name.startsWith("set")) {
+                            val field = executable.name.removePrefix("set").let {
+                                it[0].lowercaseChar() + it.substring(1)
+                            }
+                            throw SubmissionDesignKotlinIsModifiableError(
+                                submission,
+                                field
+                            )
+                        } else {
+                            val field = executable.name.removePrefix("get").let {
+                                it[0].lowercaseChar() + it.substring(1)
+                            }
+                            throw SubmissionDesignKotlinIsAccessibleError(
+                                submission,
+                                field
+                            )
                         }
                     }
                     throw SubmissionDesignExtraMethodError(
@@ -466,6 +518,19 @@ class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable
         "constructor"
     }
     } ${executable.fullName(klass.isKotlin())}"
+)
+
+class SubmissionDesignKotlinNotAccessibleError(klass: Class<*>, field: String) : SubmissionDesignError(
+    "Property $field on submission class ${klass.name} is not accessible (no getter is available)"
+)
+class SubmissionDesignKotlinNotModifiableError(klass: Class<*>, field: String) : SubmissionDesignError(
+    "Property $field on submission class ${klass.name} is not modifiable (no setter is available)"
+)
+class SubmissionDesignKotlinIsAccessibleError(klass: Class<*>, field: String) : SubmissionDesignError(
+    "Property $field on submission class ${klass.name} is accessible but should not be (getter is available)"
+)
+class SubmissionDesignKotlinIsModifiableError(klass: Class<*>, field: String) : SubmissionDesignError(
+    "Property $field on submission class ${klass.name} is modifiable but should not be (setter is available)"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(

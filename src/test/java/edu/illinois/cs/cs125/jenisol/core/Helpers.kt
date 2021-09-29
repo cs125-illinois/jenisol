@@ -87,7 +87,14 @@ fun Class<*>.test() = this.testingClasses().apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->
                 if (incorrect.simpleName.startsWith("Design")) {
-                    shouldThrow<SubmissionDesignError> { submission(incorrect) }
+                    shouldThrow<SubmissionDesignError> {
+                        try {
+                            submission(incorrect)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            throw e
+                        }
+                    }
                 } else {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
