@@ -88,12 +88,7 @@ fun Class<*>.test() = this.testingClasses().apply {
             }.forEach { incorrect ->
                 if (incorrect.simpleName.startsWith("Design")) {
                     shouldThrow<SubmissionDesignError> {
-                        try {
-                            submission(incorrect)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            throw e
-                        }
+                        submission(incorrect)
                     }
                 } else {
                     check(!primarySolution.isDesignOnly()) {
