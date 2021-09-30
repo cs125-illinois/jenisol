@@ -474,6 +474,7 @@ fun compareReturn(
     else -> false
 }
 
+@Suppress("ComplexMethod")
 fun compareParameters(
     solutionParameters: Array<Type>,
     solution: Class<*>,
@@ -491,6 +492,24 @@ fun compareParameters(
                 solutionType !is ParameterizedType && submissionType is ParameterizedType &&
                     submissionType.rawType == solutionType -> {
                     submissionType.actualTypeArguments.all { it is Any }
+                }
+                submission.isKotlin() && solutionType is ParameterizedType && submissionType is ParameterizedType &&
+                    solutionType.rawType == submissionType.rawType -> {
+                    var matches = true
+                    @Suppress("LoopWithTooManyJumpStatements")
+                    for ((index, solutionTypeArgument) in solutionType.actualTypeArguments.withIndex()) {
+                        val submissionTypeArgument = submissionType.actualTypeArguments[index]
+                        if (solutionTypeArgument.typeName == "java.lang.Object" &&
+                            submissionTypeArgument.typeName === "?"
+                        ) {
+                            continue
+                        }
+                        if (solutionTypeArgument != submissionTypeArgument) {
+                            matches = false
+                            break
+                        }
+                    }
+                    matches
                 }
                 else -> false
             }
