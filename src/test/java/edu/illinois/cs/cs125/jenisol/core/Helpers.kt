@@ -57,6 +57,7 @@ fun Solution.doubleTest(klass: Class<*>): TestResults {
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
         submission(klass).compare(firstResult.parameters, secondResult.parameters) shouldBe true
+        firstResult.runnerID shouldBe secondResult.runnerID
     }
     return first
 }

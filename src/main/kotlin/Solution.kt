@@ -289,7 +289,7 @@ fun Class<*>.prettyPrint(): String = if (isArray) {
 
 fun Executable.isKotlinCompanionAccessor(): Boolean {
     check(declaringClass.isKotlin()) { "Should only check Kotlin classes: ${declaringClass.name}" }
-    return name.startsWith("access${"$"}get")
+    return name.startsWith("access${"$"}get") || name.startsWith("access${"$"}set")
 }
 
 fun Executable.isDataClassGenerated() = name == "equals" ||
