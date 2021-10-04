@@ -504,6 +504,11 @@ fun compareParameters(
                         ) {
                             continue
                         }
+                        if (submissionTypeArgument.typeName.removePrefix("? extends").trim()
+                            == solutionTypeArgument.typeName
+                        ) {
+                            continue
+                        }
                         if (solutionTypeArgument != submissionTypeArgument) {
                             matches = false
                             break
