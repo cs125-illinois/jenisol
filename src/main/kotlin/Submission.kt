@@ -131,7 +131,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     init {
         if (submission != solution.solution) {
             (submission.declaredMethods.toSet() + submission.declaredConstructors.toSet()).filter {
-                !it.isPrivate()
+                !it.isPrivate() && !(it is Method && it.isBridge)
             }.forEach { executable ->
                 if (executable !in submissionExecutables.values) {
                     if (submission.isKotlin()) {
@@ -226,7 +226,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 result.differs.add(TestResult.Differs.VERIFIER_THREW)
                 result.verifierThrew = e
             }
-        } ?: defaultVerify(result)
+        } ?: run {
+            defaultVerify(result)
+        }
     }
 
     @Suppress("ComplexMethod", "LongMethod")

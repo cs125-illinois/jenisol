@@ -42,7 +42,7 @@ class Solution(val solution: Class<*>) {
         (solution.declaredMethods.toSet() + solution.declaredConstructors.toSet())
             .filterNotNull()
             .filter {
-                !it.isPrivate() && !it.isJenisol()
+                !it.isPrivate() && !it.isJenisol() && !(it is Method && it.isBridge)
             }.toSet().also {
                 checkDesign(it.isNotEmpty() || allFields.isNotEmpty()) { "Found no methods or fields to test" }
             }
