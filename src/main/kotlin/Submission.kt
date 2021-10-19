@@ -135,7 +135,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }.forEach { executable ->
                 if (executable !in submissionExecutables.values) {
                     if (submission.isKotlin()) {
-                        if (executable is Method && executable.name.startsWith("get")) {
+                        @Suppress("MagicNumber")
+                        if (executable is Method && executable.name.startsWith("get") && executable.name.length > 3) {
                             val setterName = executable.name.replace("get", "set")
                             if (submissionExecutables.values.map { it.name }.contains(setterName)) {
                                 return@forEach
@@ -160,8 +161,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                             return@forEach
                         }
                     }
-                    @Suppress("ComplexCondition")
+                    @Suppress("ComplexCondition", "MagicNumber")
                     if (submission.isKotlin() && executable is Method &&
+                        executable.name.length > 3 &&
                         (executable.name.startsWith("set") || executable.name.startsWith("get"))
                     ) {
                         if (executable.name.startsWith("set")) {
