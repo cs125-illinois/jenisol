@@ -2,7 +2,6 @@ package examples.java.noreceiver.javalistwithquestiontype;
 
 import edu.illinois.cs.cs125.jenisol.core.Compare;
 import edu.illinois.cs.cs125.jenisol.core.CompareException;
-
 import java.util.List;
 
 @SuppressWarnings("UseCompareMethod")
