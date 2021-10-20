@@ -208,7 +208,7 @@ object Defaults {
         error("Cannot find generator for class ${klass.name}")
     }
 
-    @Suppress("ComplexCondition", "ReturnCount")
+    @Suppress("ComplexCondition", "ReturnCount", "ComplexMethod")
     operator fun get(type: Type): TypeGeneratorGenerator {
         if (type is Class<*>) {
             try {
@@ -218,10 +218,16 @@ object Defaults {
         }
         if (type is ParameterizedType) {
             if (type.rawType == java.util.List::class.java &&
-                type.actualTypeArguments.size == 1 &&
-                map.containsKey(type.actualTypeArguments[0])
+                type.actualTypeArguments.size == 1
             ) {
-                return { random -> ListGenerator(random, create(type.actualTypeArguments[0], random)) }
+                val typeArgument = if (type.actualTypeArguments[0].typeName == "?") {
+                    Any::class.java
+                } else {
+                    type.actualTypeArguments[0]
+                }
+                if (map.containsKey(typeArgument)) {
+                    return { random -> ListGenerator(random, create(typeArgument, random)) }
+                }
             } else if (
                 type.rawType == java.util.Set::class.java &&
                 type.actualTypeArguments.size == 1 &&
@@ -558,6 +564,8 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
     }
 }
 
+data class JenisolAny(private val value: Int)
+
 @Suppress("UNCHECKED_CAST")
 class ObjectGenerator(
     random: Random,
@@ -572,7 +580,7 @@ class ObjectGenerator(
     }
 
     override val simple = (
-        listOf(Any()).values(ZeroComplexity) +
+        listOf(JenisolAny(random.nextInt())).values(ZeroComplexity) +
             (receiverGenerator?.simple ?: setOf()) +
             defaultObjects.values.map { it.simple }.flatten().distinct().take(SIMPLE_LIMIT)
         ).toSet()
