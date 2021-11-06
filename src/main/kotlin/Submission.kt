@@ -154,9 +154,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         ) {
                             return@forEach
                         }
-                        if (submission.kotlin.isData && executable.isDataClassGenerated()) {
-                            return@forEach
-                        }
+                        @Suppress("EmptyCatchBlock")
+                        try {
+                            if (submission.kotlin.isData && executable.isDataClassGenerated()) {
+                                return@forEach
+                            }
+                        } catch (e: UnsupportedOperationException) {}
                         if (executable.name == "compareTo") {
                             return@forEach
                         }
