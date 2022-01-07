@@ -159,7 +159,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                             if (submission.kotlin.isData && executable.isDataClassGenerated()) {
                                 return@forEach
                             }
-                        } catch (e: UnsupportedOperationException) {}
+                        } catch (_: UnsupportedOperationException) {}
                         if (executable.name == "compareTo") {
                             return@forEach
                         }
@@ -285,7 +285,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             } else {
                 null
             }?.value
-            if (customCompare != null && solution.returned != null && submission.returned != null) {
+            if (customCompare != null && submission.returned != null) {
                 @Suppress("TooGenericExceptionCaught")
                 try {
                     customCompare.invoke(null, solution.returned, submission.returned)
@@ -378,6 +378,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             var receiverGoalMet = false
             @Suppress("UnusedPrivateMember")
             for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
+                if (Thread.interrupted()) {
+                    return runners.toResults(settings)
+                }
                 TestRunner(
                     runners.size,
                     this,

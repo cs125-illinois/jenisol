@@ -4,7 +4,7 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2021.12.2"
+version = "2022.1.0"
 
 plugins {
     kotlin("jvm") version "1.6.10"
@@ -15,7 +15,7 @@ plugins {
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
-    id("com.github.ben-manes.versions") version "0.39.0"
+    id("com.github.ben-manes.versions") version "0.41.0"
     id("io.gitlab.arturbosch.detekt") version "1.19.0"
 }
 repositories {
