@@ -159,7 +159,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                             if (submission.kotlin.isData && executable.isDataClassGenerated()) {
                                 return@forEach
                             }
-                        } catch (_: UnsupportedOperationException) {}
+                        } catch (_: UnsupportedOperationException) {
+                        }
                         if (executable.name == "compareTo") {
                             return@forEach
                         }
@@ -323,18 +324,19 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun List<TestRunner>.toResults(settings: Settings, completed: Boolean = false) =
+    fun List<TestRunner>.toResults(settings: Settings, completed: Boolean = false, threw: Throwable? = null) =
         TestResults(
             map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten().sortedBy { it.stepCount },
             settings,
-            completed
+            completed,
+            threw
         )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
         check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
     }.minByOrNull { it.lastComplexity!!.level }
 
-    @Suppress("LongMethod", "ComplexMethod", "ReturnCount")
+    @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth")
     fun test(
         passedSettings: Settings = Settings(),
         captureOutput: CaptureOutput = ::defaultCaptureOutput
@@ -357,159 +359,169 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val runners: MutableList<TestRunner> = mutableListOf()
         var stepCount = 0
 
-        val receiverGenerators = sequence {
-            while (true) {
-                yieldAll(solution.receiverGenerators.toList().shuffled(random))
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            val receiverGenerators = sequence {
+                while (true) {
+                    yieldAll(solution.receiverGenerators.toList().shuffled(random))
+                }
             }
-        }
 
-        val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
-            if (solution.fauxStatic) {
-                check(settings.receiverCount == 1) { "Incorrect receiver count" }
-            } else {
-                check(settings.receiverCount > 1) { "Incorrect receiver count" }
+            if (Thread.interrupted()) {
+                return runners.toResults(settings)
             }
-            val generators = solution.generatorFactory.get(
-                random,
-                settings,
-                null,
-                solution.receiversAndInitializers
-            )
-            var receiverGoalMet = false
-            @Suppress("UnusedPrivateMember")
-            for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
+
+            val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
+                if (solution.fauxStatic) {
+                    check(settings.receiverCount == 1) { "Incorrect receiver count" }
+                } else {
+                    check(settings.receiverCount > 1) { "Incorrect receiver count" }
+                }
+                val generators = solution.generatorFactory.get(
+                    random,
+                    settings,
+                    null,
+                    solution.receiversAndInitializers
+                )
+                var receiverGoalMet = false
+                @Suppress("UnusedPrivateMember")
+                for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
+                    if (Thread.interrupted()) {
+                        return runners.toResults(settings)
+                    }
+                    TestRunner(
+                        runners.size,
+                        this,
+                        generators,
+                        receiverGenerators,
+                        captureOutput,
+                        methodIterator
+                    ).also { runner ->
+                        runner.next(stepCount++)
+                        runners.add(runner)
+                    }
+                    runners.failed()?.also {
+                        if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
+                            return runners.toResults(settings)
+                        }
+                    }
+                    if (runners.readyCount() == settings.receiverCount) {
+                        receiverGoalMet = true
+                        break
+                    }
+                }
+                // If we couldn't generate the requested number of receivers due to constructor failures,
+                // just give up and return at this point
+                if (!receiverGoalMet) {
+                    return runners.toResults(settings)
+                }
+                Pair(
+                    ReceiverGenerator(
+                        random,
+                        runners.filter { it.ready }.toMutableList()
+                    ),
+                    generators
+                )
+            } else {
+                Pair(null, null)
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            val generatorOverrides = if (receiverGenerator != null) {
+                mutableMapOf(
+                    (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
+                    (Any::class.java as Type) to { r: Random ->
+                        ObjectGenerator(
+                            r,
+                            receiverGenerator
+                        )
+                    }
+                )
+            } else {
+                mapOf()
+            }
+
+            val generators =
+                solution.generatorFactory.get(random, settings, generatorOverrides, from = initialGenerators)
+            runners.filter { it.ready }.forEach {
+                it.generators = generators
+            }
+
+            val totalTests = if (settings.overrideTotalCount != -1) {
+                settings.overrideTotalCount
+            } else {
+                settings.receiverCount * settings.methodCount
+            }.let {
+                if (settings.minTestCount != -1) {
+                    listOf(settings.minTestCount, it).maxOrNull() ?: error("Bad min")
+                } else {
+                    it
+                }
+            }
+            val startMultipleCount = if (settings.startMultipleCount != -1) {
+                settings.startMultipleCount
+            } else {
+                settings.methodCount
+            }
+
+            for (totalCount in 0 until totalTests) {
                 if (Thread.interrupted()) {
                     return runners.toResults(settings)
                 }
-                TestRunner(
-                    runners.size,
-                    this,
-                    generators,
-                    receiverGenerators,
-                    captureOutput,
-                    methodIterator
-                ).also { runner ->
-                    runner.next(stepCount++)
-                    runners.add(runner)
+                val usedRunner = if (runners.readyCount() < settings.receiverCount) {
+                    TestRunner(
+                        runners.size,
+                        this,
+                        generators,
+                        receiverGenerators,
+                        captureOutput,
+                        methodIterator
+                    ).also { runner ->
+                        runner.next(stepCount++)
+                        if (solution.initializer != null && runner.ready) {
+                            runner.next(stepCount++)
+                        }
+                        runners.add(runner)
+                        receiverGenerator?.runners?.add(runner)
+                    }
+                } else {
+                    if (totalCount < startMultipleCount) {
+                        runners.first { it.ready }.also {
+                            it.next(stepCount++)
+                        }
+                    } else {
+                        runners.filter { it.ready }.shuffled(random).first().also {
+                            it.next(stepCount++)
+                        }
+                    }
                 }
                 runners.failed()?.also {
                     if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
                         return runners.toResults(settings)
                     }
                 }
-                if (runners.readyCount() == settings.receiverCount) {
-                    receiverGoalMet = true
-                    break
-                }
-            }
-            // If we couldn't generate the requested number of receivers due to constructor failures,
-            // just give up and return at this point
-            if (!receiverGoalMet) {
-                return runners.toResults(settings)
-            }
-            Pair(
-                ReceiverGenerator(
-                    random,
-                    runners.filter { it.ready }.toMutableList()
-                ),
-                generators
-            )
-        } else {
-            Pair(null, null)
-        }
 
-        @Suppress("UNCHECKED_CAST")
-        val generatorOverrides = if (receiverGenerator != null) {
-            mutableMapOf(
-                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
-                (Any::class.java as Type) to { r: Random ->
-                    ObjectGenerator(
-                        r,
-                        receiverGenerator
-                    )
-                }
-            )
-        } else {
-            mapOf()
-        }
-
-        val generators = solution.generatorFactory.get(random, settings, generatorOverrides, from = initialGenerators)
-        runners.filter { it.ready }.forEach {
-            it.generators = generators
-        }
-
-        val totalTests = if (settings.overrideTotalCount != -1) {
-            settings.overrideTotalCount
-        } else {
-            settings.receiverCount * settings.methodCount
-        }.let {
-            if (settings.minTestCount != -1) {
-                listOf(settings.minTestCount, it).maxOrNull() ?: error("Bad min")
-            } else {
-                it
-            }
-        }
-        val startMultipleCount = if (settings.startMultipleCount != -1) {
-            settings.startMultipleCount
-        } else {
-            settings.methodCount
-        }
-
-        for (totalCount in 0 until totalTests) {
-            if (Thread.interrupted()) {
-                return runners.toResults(settings)
-            }
-            val usedRunner = if (runners.readyCount() < settings.receiverCount) {
-                TestRunner(
-                    runners.size,
-                    this,
-                    generators,
-                    receiverGenerators,
-                    captureOutput,
-                    methodIterator
-                ).also { runner ->
-                    runner.next(stepCount++)
-                    if (solution.initializer != null && runner.ready) {
-                        runner.next(stepCount++)
-                    }
-                    runners.add(runner)
-                    receiverGenerator?.runners?.add(runner)
-                }
-            } else {
-                if (totalCount < startMultipleCount) {
-                    runners.first { it.ready }.also {
-                        it.next(stepCount++)
-                    }
-                } else {
-                    runners.filter { it.ready }.shuffled(random).first().also {
-                        it.next(stepCount++)
-                    }
-                }
-            }
-            runners.failed()?.also {
-                if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
-                    return runners.toResults(settings)
-                }
-            }
-
-            if (usedRunner.returnedReceivers != null) {
-                usedRunner.returnedReceivers!!.forEach { returnedReceiver ->
-                    runners.add(
-                        TestRunner(
-                            runners.size,
-                            this,
-                            generators,
-                            receiverGenerators,
-                            captureOutput,
-                            methodIterator,
-                            returnedReceiver
+                if (usedRunner.returnedReceivers != null) {
+                    usedRunner.returnedReceivers!!.forEach { returnedReceiver ->
+                        runners.add(
+                            TestRunner(
+                                runners.size,
+                                this,
+                                generators,
+                                receiverGenerators,
+                                captureOutput,
+                                methodIterator,
+                                returnedReceiver
+                            )
                         )
-                    )
+                    }
+                    usedRunner.returnedReceivers = null
                 }
-                usedRunner.returnedReceivers = null
             }
+            return runners.toResults(settings, true)
+        } catch (e: Throwable) {
+            return runners.toResults(settings, threw = e)
         }
-        return runners.toResults(settings, true)
     }
 }
 
@@ -533,12 +545,15 @@ class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable
 class SubmissionDesignKotlinNotAccessibleError(klass: Class<*>, field: String) : SubmissionDesignError(
     "Property $field on submission class ${klass.name} is not accessible (no getter is available)"
 )
+
 class SubmissionDesignKotlinNotModifiableError(klass: Class<*>, field: String) : SubmissionDesignError(
     "Property $field on submission class ${klass.name} is not modifiable (no setter is available)"
 )
+
 class SubmissionDesignKotlinIsAccessibleError(klass: Class<*>, field: String) : SubmissionDesignError(
     "Property $field on submission class ${klass.name} is accessible but should not be (getter is available)"
 )
+
 class SubmissionDesignKotlinIsModifiableError(klass: Class<*>, field: String) : SubmissionDesignError(
     "Property $field on submission class ${klass.name} is modifiable but should not be (setter is available)"
 )
