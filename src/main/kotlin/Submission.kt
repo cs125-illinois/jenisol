@@ -278,7 +278,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
         }
 
-        if (result.type == TestResult.Type.METHOD) {
+        if (result.type == TestResult.Type.METHOD || result.type == TestResult.Type.STATIC_METHOD) {
             val customCompare = if (solution.returned != null) {
                 this.solution.customCompares.entries.find { (type, _) ->
                     type.isAssignableFrom(solution.returned::class.java)

@@ -87,7 +87,7 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField val differs: MutableSet<Differs> = mutableSetOf(),
     @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin()
 ) {
-    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
+    enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, STATIC_METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW }
 
     val succeeded: Boolean
@@ -267,9 +267,10 @@ class TestRunner(
 
     var created: Boolean
     var initialized: Boolean = false
+    var staticOnly = submission.solution.skipReceiver
 
     init {
-        if (receivers == null && submission.solution.skipReceiver) {
+        if (receivers == null && staticOnly) {
             receivers = if (!submission.submission.hasKotlinCompanion()) {
                 Value(null, null, null, null, ZeroComplexity)
             } else {
@@ -338,8 +339,16 @@ class TestRunner(
         } else {
             check(receivers != null) { "No receivers available" }
             when (solutionExecutable) {
-                is Constructor<*> -> TestResult.Type.COPY_CONSTRUCTOR
-                is Method -> TestResult.Type.METHOD
+                is Constructor<*> -> {
+                    check(!staticOnly) { "Static-only testing should not generate receivers" }
+                    TestResult.Type.COPY_CONSTRUCTOR
+                }
+                is Method -> {
+                    when (staticOnly) {
+                        true -> TestResult.Type.STATIC_METHOD
+                        false -> TestResult.Type.METHOD
+                    }
+                }
                 else -> error("Unexpected executable type")
             }
         }
