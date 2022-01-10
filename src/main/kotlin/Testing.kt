@@ -67,7 +67,7 @@ internal fun <P : ParameterGroup> Executable.formatBoundMethodCall(parameterValu
         ")"
 }
 
-@Suppress("ArrayInDataClass")
+@Suppress("ArrayInDataClass", "unused")
 data class TestResult<T, P : ParameterGroup>(
     @JvmField val runnerID: Int,
     @JvmField val stepCount: Int,
@@ -95,8 +95,9 @@ data class TestResult<T, P : ParameterGroup>(
     val failed: Boolean
         get() = !succeeded
 
-    @Suppress("unused")
     var verifierThrew: Throwable? = null
+
+    fun methodCall() = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {
