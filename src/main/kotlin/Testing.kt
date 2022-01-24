@@ -345,7 +345,7 @@ class TestRunner(
                     TestResult.Type.COPY_CONSTRUCTOR
                 }
                 is Method -> {
-                    when (staticOnly) {
+                    when (staticOnly || submission.solution.fauxStatic) {
                         true -> TestResult.Type.STATIC_METHOD
                         false -> TestResult.Type.METHOD
                     }
