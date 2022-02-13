@@ -350,20 +350,6 @@ fun Field.isPrivate() = Modifier.isPrivate(modifiers)
 fun Field.isProtected() = Modifier.isProtected(modifiers)
 fun Field.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
-fun Any.asArray(): Array<*> {
-    return when (this) {
-        is ByteArray -> this.toTypedArray()
-        is ShortArray -> this.toTypedArray()
-        is IntArray -> this.toTypedArray()
-        is LongArray -> this.toTypedArray()
-        is FloatArray -> this.toTypedArray()
-        is DoubleArray -> this.toTypedArray()
-        is CharArray -> this.toTypedArray()
-        is BooleanArray -> this.toTypedArray()
-        else -> this as Array<*>
-    }
-}
-
 fun Executable.isJenisol() = setOf(
     RandomType::class.java,
     RandomParameters::class.java,

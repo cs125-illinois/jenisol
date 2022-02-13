@@ -12,7 +12,6 @@ import edu.illinois.cs.cs125.jenisol.core.Settings
 import edu.illinois.cs.cs125.jenisol.core.SimpleType
 import edu.illinois.cs.cs125.jenisol.core.Solution
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
-import edu.illinois.cs.cs125.jenisol.core.asArray
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
 import edu.illinois.cs.cs125.jenisol.core.fixedParametersMatchAll
 import edu.illinois.cs.cs125.jenisol.core.getRandomParametersMethodName
@@ -215,7 +214,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                             "@$simpleName annotation for type ${klass.name} that is not used by the solution"
                         }
                         @Suppress("UNCHECKED_CAST")
-                        simpleArray[klass] = field.get(null).asArray().toSet().also { simpleCases ->
+                        simpleArray[klass] = field.get(null).boxArray().toSet().also { simpleCases ->
                             check(simpleCases.none { it == null }) { "@$simpleName values should not include null" }
                         } as Set<Any>
                     }
@@ -225,7 +224,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                         check(klass in neededTypes || klass in arrayNeededTypes) {
                             "@$edgeName annotation for type ${klass.name} that is not used by the solution"
                         }
-                        edgeArray[klass] = field.get(null).asArray().toSet()
+                        edgeArray[klass] = field.get(null).boxArray().toSet()
                     }
                 }
             }
@@ -285,7 +284,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 }?.also { field ->
                     SimpleType.validate(field).also { klass ->
                         @Suppress("UNCHECKED_CAST")
-                        simpleArray[klass] = field.get(null).asArray().toSet().also { simpleCases ->
+                        simpleArray[klass] = field.get(null).boxArray().toSet().also { simpleCases ->
                             check(simpleCases.none { it == null }) { "@SimpleType arrays should not include null" }
                         } as Set<Any>
                     }
@@ -309,7 +308,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     it.firstOrNull()
                 }?.also { field ->
                     EdgeType.validate(field).also { klass ->
-                        edgeArray[klass] = field.get(null).asArray().toSet()
+                        edgeArray[klass] = field.get(null).boxArray().toSet()
                     }
                 }
                 klass.declaredMethods.filter { it.isEdgeType() }.let {
