@@ -4,7 +4,7 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.1.2"
+version = "2022.3.0"
 
 plugins {
     kotlin("jvm") version "1.6.10"
@@ -15,7 +15,7 @@ plugins {
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
-    id("com.github.ben-manes.versions") version "0.41.0"
+    id("com.github.ben-manes.versions") version "0.42.0"
     id("io.gitlab.arturbosch.detekt") version "1.19.0"
 }
 repositories {
@@ -25,11 +25,11 @@ repositories {
 }
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.10")
-    implementation("io.github.classgraph:classgraph:4.8.138")
+    implementation("io.github.classgraph:classgraph:4.8.141")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotest:kotest-runner-junit5:5.1.0")
-    testImplementation("org.slf4j:slf4j-simple:1.7.33")
+    testImplementation("org.slf4j:slf4j-simple:1.7.36")
 }
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
