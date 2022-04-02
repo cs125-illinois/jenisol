@@ -79,6 +79,16 @@ class Solution(val solution: Class<*>) {
             "Found methods that generate receivers but no ways to test them"
         }
     }
+
+    fun defaultMethodTestingWeight(executable: Executable): Double {
+        require(executable in methodsToTest)
+        return if (executable.parameterCount == 0) {
+            1.0
+        } else {
+            2.0
+        }
+    }
+
     private val needsReceiver = methodsToTest.filter { executable ->
         executable.receiverParameter() || (executable is Method && !executable.isStatic())
     }.toSet()

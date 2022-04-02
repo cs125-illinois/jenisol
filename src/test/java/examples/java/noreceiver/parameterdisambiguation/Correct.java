@@ -3,6 +3,7 @@ package examples.java.noreceiver.parameterdisambiguation;
 import edu.illinois.cs.cs125.jenisol.core.FixedParameters;
 import edu.illinois.cs.cs125.jenisol.core.NotNull;
 import edu.illinois.cs.cs125.jenisol.core.RandomParameters;
+import edu.illinois.cs.cs125.jenisol.core.SkipTest;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -14,6 +15,9 @@ public class Correct {
   }
 
   public static String reversed(@NotNull String input) {
+    if (input.equals("a".repeat(input.length()))) {
+      throw new SkipTest();
+    }
     String result = "";
     for (int i = 0; i < input.length(); i++) {
       result += input.charAt(input.length() - i - 1);
@@ -26,6 +30,6 @@ public class Correct {
 
   @RandomParameters(methodName = "length")
   private static String randomString(Random random) {
-    return "a".repeat(random.nextInt(31) + 1);
+    return "a".repeat(random.nextInt(32) + 1);
   }
 }
