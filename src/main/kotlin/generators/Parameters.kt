@@ -113,7 +113,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     |$field matched ${matched.size} methods: $methods
                     |If you want to match multiple methods, use @FixedParameters(methodName = "*")
                     |If you want to target one method, use @FixedParameters(methodName = methodName)
-                    """.trimMargin()
+                        """.trimMargin()
                     )
                 }
             }
@@ -139,7 +139,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     |$method matched ${matched.size} methods: $methods
                     |If you want to match multiple methods, use @RandomParameters(methodName = "*")
                     |If you want to target one method, use @RandomParameters(methodName = methodName)
-                    """.trimMargin()
+                        """.trimMargin()
                     )
                 }
             }
@@ -161,7 +161,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         if (solution.fauxStatic) {
             check(methodParameterGenerators.values.all { it.randomParameters?.isStatic() ?: true }) {
                 """Found non-static @RandomParameters methods for a faux-static problem with no state
-                    |These should be converted to static methods""".trimMargin()
+                    |These should be converted to static methods
+                """.trimMargin()
             }
         } else {
             methodParameterGenerators.entries
