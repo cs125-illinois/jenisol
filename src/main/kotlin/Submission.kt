@@ -12,6 +12,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Type
+import java.util.TreeMap
 import kotlin.random.Random
 
 class Submission(val solution: Solution, val submission: Class<*>) {
@@ -324,17 +325,62 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun List<TestRunner>.toResults(settings: Settings, completed: Boolean = false, threw: Throwable? = null) =
+    fun List<TestRunner>.toResults(
+        settings: Settings,
+        completed: Boolean = false,
+        threw: Throwable? = null,
+        timeout: Boolean = false
+    ) =
         TestResults(
             map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten().sortedBy { it.stepCount },
             settings,
             completed,
-            threw
+            threw,
+            timeout
         )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
         check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
     }.minByOrNull { it.lastComplexity!!.level }
+
+    @Suppress("unused")
+    private inner class ExecutablePicker(private val random: Random) {
+        private val executableWeights =
+            solution.methodsToTest.associateWith { solution.defaultMethodTestingWeight(it) }.toMutableMap()
+
+        val executableChooser: TreeMap<Double, Executable>
+        val total: Double
+
+        init {
+            var setTotal = 0.0
+            executableChooser = TreeMap(
+                solution.methodsToTest.associateWith { solution.defaultMethodTestingWeight(it) }
+                    .map { (executable, weight) ->
+                        setTotal += weight
+                        setTotal to executable
+                    }.toMap()
+            )
+            total = setTotal
+        }
+
+        private var previous: Executable? = null
+        fun next(): Executable {
+            var next = executableChooser.higherEntry(random.nextDouble() * total).value!!
+            if (next == previous && solution.methodsToTest.size > 1) {
+                next = executableChooser.higherEntry(random.nextDouble() * total).value!!
+            }
+            previous = next
+            return next
+        }
+    }
+
+    private fun genMethodIterator(random: Random): Sequence<Executable> {
+        val executablePicker = ExecutablePicker(random)
+        return sequence {
+            // yield(solution.methodsToTest.shuffled(random).first())
+            yield(executablePicker.next())
+        }
+    }
 
     @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth")
     fun test(
@@ -352,10 +398,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             Random(settings.seed.toLong())
         }
 
-        val methodIterator = sequence {
-            yield(solution.methodsToTest.shuffled(random).first())
-        }
-
         val runners: MutableList<TestRunner> = mutableListOf()
         var stepCount = 0
 
@@ -368,7 +410,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             if (Thread.interrupted()) {
-                return runners.toResults(settings)
+                return runners.toResults(settings, timeout = true)
             }
 
             val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
@@ -395,7 +437,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         generators,
                         receiverGenerators,
                         captureOutput,
-                        methodIterator
+                        genMethodIterator(random)
                     ).also { runner ->
                         runner.next(stepCount++)
                         runners.add(runner)
@@ -475,7 +517,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         generators,
                         receiverGenerators,
                         captureOutput,
-                        methodIterator
+                        genMethodIterator(random)
                     ).also { runner ->
                         runner.next(stepCount++)
                         if (solution.initializer != null && runner.ready) {
@@ -510,7 +552,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                                 generators,
                                 receiverGenerators,
                                 captureOutput,
-                                methodIterator,
+                                genMethodIterator(random),
                                 returnedReceiver
                             )
                         )

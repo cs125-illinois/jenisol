@@ -230,6 +230,7 @@ class TestResults(
     val settings: Settings,
     val completed: Boolean,
     val threw: Throwable? = null,
+    val timeout: Boolean,
     designOnly: Boolean? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
     val succeeded = designOnly ?: all { it.succeeded } && completed

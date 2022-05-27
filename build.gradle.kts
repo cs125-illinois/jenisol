@@ -4,19 +4,19 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.3.0"
+version = "2022.4.1"
 
 plugins {
-    kotlin("jvm") version "1.6.10"
+    kotlin("jvm") version "1.6.21"
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.8.0"
+    id("org.jmailen.kotlinter") version "3.10.0"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
     id("com.github.ben-manes.versions") version "0.42.0"
-    id("io.gitlab.arturbosch.detekt") version "1.19.0"
+    id("io.gitlab.arturbosch.detekt") version "1.20.0"
 }
 repositories {
     mavenCentral()
@@ -25,10 +25,10 @@ repositories {
 }
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.10")
-    implementation("io.github.classgraph:classgraph:4.8.141")
+    implementation("io.github.classgraph:classgraph:4.8.146")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:5.1.0")
+    testImplementation("io.kotest:kotest-runner-junit5:5.2.3")
     testImplementation("org.slf4j:slf4j-simple:1.7.36")
 }
 tasks.withType<JavaCompile> {

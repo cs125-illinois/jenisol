@@ -76,6 +76,7 @@ fun Class<*>.test() = this.testingClasses().apply {
             submission(correct).also {
                 if (!primarySolution.isDesignOnly()) {
                     doubleTest(correct).also { results ->
+                        check(!results.timeout)
                         check(results.succeeded) {
                             "Class marked as correct did not pass testing: ${results.explain(stacktrace = true)}"
                         }
@@ -96,6 +97,8 @@ fun Class<*>.test() = this.testingClasses().apply {
                         "Can't test Incorrect* examples when solution is design only"
                     }
                     doubleTest(incorrect).also { results ->
+                        results.threw shouldBe null
+                        results.timeout shouldBe false
                         results.failed shouldBe true
                         results.filter { it.failed }
                             .map { it.type }
