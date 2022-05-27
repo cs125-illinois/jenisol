@@ -550,7 +550,13 @@ fun Class<*>.findField(solutionField: Field) = this.declaredFields.find { submis
 
 typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
 
-data class CapturedResult(val returned: Any?, val threw: Throwable?, val stdout: String, val stderr: String)
+data class CapturedResult(
+    val returned: Any?,
+    val threw: Throwable?,
+    val stdout: String,
+    val stderr: String,
+    val tag: Any? = null
+)
 
 private val outputLock = ReentrantLock()
 fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock {

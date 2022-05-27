@@ -15,13 +15,13 @@ import java.lang.reflect.Method
 import java.time.Instant
 import kotlin.reflect.full.companionObjectInstance
 
-@Suppress("ArrayInDataClass")
 data class Result<T, P : ParameterGroup>(
     @JvmField val parameters: P,
     @JvmField val returned: T?,
     @JvmField val threw: Throwable?,
     @JvmField val stdout: String,
     @JvmField val stderr: String,
+    @JvmField val tag: Any?,
     @JvmField val modifiedParameters: Boolean
 ) {
     @Suppress("UNCHECKED_CAST")
@@ -31,6 +31,7 @@ data class Result<T, P : ParameterGroup>(
         capturedResult.threw,
         capturedResult.stdout,
         capturedResult.stderr,
+        capturedResult.tag,
         modifiedParameters
     )
 
@@ -40,6 +41,7 @@ data class Result<T, P : ParameterGroup>(
             "threw=${threw?.safePrint()}, " +
             "stdout='$stdout', " +
             "stderr='$stderr', " +
+            "tag='$tag', " +
             "modifiedParameters=$modifiedParameters)"
     }
 }
