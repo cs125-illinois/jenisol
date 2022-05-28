@@ -596,7 +596,7 @@ fun Any.deepHashCode() = when {
     else -> hashCode()
 }
 
-@Suppress("ComplexMethod")
+@Suppress("ComplexMethod", "KotlinConstantConditions")
 fun List<*>.deepCompare(other: List<*>) = if (size != other.size) {
     false
 } else {
@@ -635,7 +635,7 @@ internal fun <T> Array<out T>?.safeContentDeepToString(): String {
     }
 }
 
-@Suppress("ComplexMethod")
+@Suppress("ComplexMethod", "KotlinConstantConditions")
 private fun <T> Array<out T>.safeContentDeepToStringInternal(
     result: StringBuilder,
     processed: MutableList<Array<*>>
@@ -670,8 +670,8 @@ private fun <T> Array<out T>.safeContentDeepToStringInternal(
     processed.removeAt(processed.lastIndex)
 }
 
-fun Any.safePrint() = try {
+fun Any.safePrint(): String = try {
     toString()
 } catch (_: Exception) {
-    this::class.simpleName!!
+    this::class.simpleName ?: this.javaClass.packageName
 }
