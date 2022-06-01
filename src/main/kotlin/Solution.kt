@@ -21,8 +21,6 @@ import kotlin.concurrent.withLock
 import kotlin.math.pow
 import kotlin.random.Random
 import kotlin.reflect.full.companionObject
-import kotlin.reflect.full.declaredMemberProperties
-import kotlin.reflect.full.primaryConstructor
 
 class Solution(val solution: Class<*>) {
     init {
@@ -628,18 +626,65 @@ data class Settings(
         )
     }
 
+    @Suppress("LongMethod")
     infix fun merge(other: Settings): Settings {
-        val nameToProperty = Settings::class.declaredMemberProperties.associateBy { it.name }
-        val primaryConstructor = Settings::class.primaryConstructor!!
-        val args = primaryConstructor.parameters.associateWith { parameter ->
-            val property = nameToProperty[parameter.name]!!
-            val value = if (property.get(other) != null && property.get(other) != -1) {
-                property.get(other)
+        return Settings(
+            other.shrink ?: shrink,
+            if (other.methodCount != -1) {
+                other.methodCount
             } else {
-                property.get(this)
+                methodCount
+            },
+            if (other.receiverCount != -1) {
+                other.receiverCount
+            } else {
+                receiverCount
+            },
+            if (other.receiverRetries != -1) {
+                other.receiverRetries
+            } else {
+                receiverRetries
+            },
+            if (other.seed != -1) {
+                other.seed
+            } else {
+                seed
+            },
+            if (other.simpleCount != -1) {
+                other.simpleCount
+            } else {
+                simpleCount
+            },
+            if (other.edgeCount != -1) {
+                other.edgeCount
+            } else {
+                edgeCount
+            },
+            if (other.mixedCount != -1) {
+                other.mixedCount
+            } else {
+                mixedCount
+            },
+            if (other.fixedCount != -1) {
+                other.fixedCount
+            } else {
+                fixedCount
+            },
+            if (other.overrideTotalCount != -1) {
+                other.overrideTotalCount
+            } else {
+                overrideTotalCount
+            },
+            if (other.minTestCount != -1) {
+                other.minTestCount
+            } else {
+                minTestCount
+            },
+            if (other.startMultipleCount != -1) {
+                other.startMultipleCount
+            } else {
+                startMultipleCount
             }
-            value
-        }
-        return primaryConstructor.callBy(args)
+        )
     }
 }

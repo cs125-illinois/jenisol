@@ -4,7 +4,7 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.5.0"
+version = "2022.6.0"
 
 plugins {
     kotlin("jvm") version "1.6.21"
@@ -24,7 +24,7 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.10")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.6.21")
     implementation("io.github.classgraph:classgraph:4.8.147")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
