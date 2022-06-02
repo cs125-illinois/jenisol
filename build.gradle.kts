@@ -4,7 +4,7 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.6.0"
+version = "2022.6.1"
 
 plugins {
     kotlin("jvm") version "1.6.21"
@@ -36,7 +36,7 @@ tasks.withType<JavaCompile> {
 }
 tasks.withType<KotlinCompile> {
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_16.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 }
 tasks.withType<Test> {
@@ -59,7 +59,7 @@ tasks.check {
     dependsOn("detekt")
 }
 googleJavaFormat {
-    toolVersion = "1.10.0"
+    toolVersion = "1.15.0"
 }
 tasks.compileKotlin {
     dependsOn("createProperties")
