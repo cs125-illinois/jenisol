@@ -132,7 +132,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     init {
         if (submission != solution.solution) {
             (submission.declaredMethods.toSet() + submission.declaredConstructors.toSet()).filter {
-                !it.isPrivate() && !(it is Method && it.isBridge)
+                !it.isPrivate() && !it.isSynthetic && !(it is Method && it.isBridge)
             }.forEach { executable ->
                 if (executable !in submissionExecutables.values) {
                     if (submission.isKotlin()) {

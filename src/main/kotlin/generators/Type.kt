@@ -689,19 +689,6 @@ fun <T> Class<T>.wrap(): Class<*> = when {
     else -> this
 }
 
-@Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "RemoveRedundantQualifierName")
-fun Any.box(): Any = when {
-    this == Byte::class.java -> this as java.lang.Byte
-    this == Short::class.java -> this as java.lang.Short
-    this == Int::class.java -> this as java.lang.Integer
-    this == Long::class.java -> this as java.lang.Long
-    this == Float::class.java -> this as java.lang.Float
-    this == Double::class.java -> this as java.lang.Double
-    this == Char::class.java -> this as java.lang.Character
-    this == Boolean::class.java -> this as java.lang.Boolean
-    else -> this
-}
-
 @Suppress("ComplexMethod")
 fun Class<*>.boxType(): Class<*> = when {
     this == Byte::class.java -> java.lang.Byte::class.java
@@ -716,14 +703,14 @@ fun Class<*>.boxType(): Class<*> = when {
 }
 
 fun Any.boxArray(): kotlin.Array<*> = when (this) {
-    is ByteArray -> this.map { it.box() }.toTypedArray()
-    is ShortArray -> this.map { it.box() }.toTypedArray()
-    is IntArray -> this.map { it.box() }.toTypedArray()
-    is LongArray -> this.map { it.box() }.toTypedArray()
-    is FloatArray -> this.map { it.box() }.toTypedArray()
-    is DoubleArray -> this.map { it.box() }.toTypedArray()
-    is CharArray -> this.map { it.box() }.toTypedArray()
-    is BooleanArray -> this.map { it.box() }.toTypedArray()
+    is ByteArray -> this.toTypedArray()
+    is ShortArray -> this.toTypedArray()
+    is IntArray -> this.toTypedArray()
+    is LongArray -> this.toTypedArray()
+    is FloatArray -> this.toTypedArray()
+    is DoubleArray -> this.toTypedArray()
+    is CharArray -> this.toTypedArray()
+    is BooleanArray -> this.toTypedArray()
     is kotlin.Array<*> -> this
     else -> error("Value is not an array: ${this::class.java}")
 }
