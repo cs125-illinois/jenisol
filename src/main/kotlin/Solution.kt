@@ -289,12 +289,6 @@ fun Class<*>.isProtected() = Modifier.isProtected(modifiers)
 fun Class<*>.isFinal() = Modifier.isFinal(modifiers)
 fun Class<*>.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
-fun Class<*>.prettyPrint(): String = if (isArray) {
-    getArrayType().name + "[]".repeat(getArrayDimension())
-} else {
-    name
-}
-
 fun Executable.isKotlinCompanionAccessor(): Boolean {
     check(declaringClass.isKotlin()) { "Should only check Kotlin classes: ${declaringClass.name}" }
     return name.startsWith("access${"$"}get") || name.startsWith("access${"$"}set")
@@ -387,11 +381,11 @@ fun Executable.fullName(isKotlin: Boolean = false): String {
         } else {
             ""
         }
-        }$returnType$name(${parameters.joinToString(", ") { it.type.prettyPrint() }})"
+        }$returnType$name(${parameters.joinToString(", ") { it.type.canonicalName }})"
     } else {
         "${visibilityModifier ?: ""}fun $name(${
         parameters.joinToString(", ") {
-            it.type.prettyPrint().toKotlinType()
+            it.type.canonicalName.toKotlinType()
         }
         }): $returnType"
     }
@@ -399,7 +393,7 @@ fun Executable.fullName(isKotlin: Boolean = false): String {
 
 fun Field.fullName(): String {
     val visibilityModifier = getVisibilityModifier()?.plus(" ")
-    return "${visibilityModifier ?: ""}$type $name"
+    return "${visibilityModifier ?: ""}${type.canonicalName} $name"
 }
 
 fun Class<*>.visibilityMatches(klass: Class<*>) = when {
