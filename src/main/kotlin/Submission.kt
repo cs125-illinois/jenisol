@@ -1,3 +1,5 @@
+@file:Suppress("InvalidPackageDeclaration")
+
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
@@ -226,10 +228,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             @Suppress("TooGenericExceptionCaught")
             try {
                 unwrap { customVerifier.invoke(null, result) }
+            } catch (e: ThreadDeath) {
+                throw e
             } catch (e: Throwable) {
-                if (e is ThreadDeath) {
-                    throw e
-                }
                 result.differs.add(TestResult.Differs.VERIFIER_THREW)
                 result.verifierThrew = e
             }
