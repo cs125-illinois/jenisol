@@ -443,7 +443,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         runners.add(runner)
                     }
                     runners.failed()?.also {
-                        if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
+                        if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
                             return runners.toResults(settings)
                         }
                     }

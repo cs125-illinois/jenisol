@@ -603,6 +603,7 @@ private fun designError(message: String?): Nothing = throw SolutionDesignError(m
 
 data class Settings(
     val shrink: Boolean? = null,
+    val runAll: Boolean? = null,
     val methodCount: Int = -1,
     val receiverCount: Int = -1,
     val receiverRetries: Int = -1,
@@ -618,6 +619,7 @@ data class Settings(
     companion object {
         val DEFAULTS = Settings(
             shrink = true,
+            runAll = false,
             receiverRetries = 8,
             simpleCount = Int.MAX_VALUE,
             edgeCount = Int.MAX_VALUE,
@@ -630,6 +632,7 @@ data class Settings(
     infix fun merge(other: Settings): Settings {
         return Settings(
             other.shrink ?: shrink,
+            other.runAll ?: runAll,
             if (other.methodCount != -1) {
                 other.methodCount
             } else {
