@@ -103,7 +103,6 @@ data class TestResult<T, P : ParameterGroup>(
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {
-
         val methodString = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
 
         val resultString = when {

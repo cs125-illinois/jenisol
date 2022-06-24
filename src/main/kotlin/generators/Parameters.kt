@@ -648,7 +648,10 @@ class ConfiguredParametersGenerator(
         val submissionCopyParameters = getRandom(randomPair.submissionCopy, runner)
         check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
         setOf(
-            solutionParameters, submissionParameters, solutionCopyParameters, submissionCopyParameters
+            solutionParameters,
+            submissionParameters,
+            solutionCopyParameters,
+            submissionCopyParameters
         ).size.also { distinct ->
             check(distinct == 1) {
                 "@${RandomParameters.name} did not generate equal parameters ($distinct)"

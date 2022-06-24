@@ -11,7 +11,7 @@ plugins {
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.10.0"
+    id("org.jmailen.kotlinter") version "3.11.0"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
@@ -102,4 +102,7 @@ publishing {
             from(components["java"])
         }
     }
+}
+kotlinter {
+    disabledRules = arrayOf("filename")
 }
