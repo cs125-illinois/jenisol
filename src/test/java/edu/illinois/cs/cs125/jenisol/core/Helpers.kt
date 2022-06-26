@@ -50,13 +50,14 @@ fun Class<*>.testingClasses(): TestingClasses {
 }
 
 fun Solution.doubleTest(klass: Class<*>): TestResults {
+    val submissionKlass = submission(klass)
     val seed = Random.nextInt()
-    val first = submission(klass).test(Settings(seed = seed))
-    val second = submission(klass).test(Settings(seed = seed))
+    val first = submissionKlass.test(Settings(seed = seed))
+    val second = submissionKlass.test(Settings(seed = seed))
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
-        submission(klass).compare(firstResult.parameters, secondResult.parameters) shouldBe true
+        submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
         firstResult.runnerID shouldBe secondResult.runnerID
     }
     return first
