@@ -231,7 +231,8 @@ class TestResults(
     val threw: Throwable? = null,
     val timeout: Boolean,
     val finishedReceivers: Boolean,
-    designOnly: Boolean? = null
+    designOnly: Boolean? = null,
+    val randomTrace: List<Int>? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
     val succeeded = designOnly ?: finishedReceivers && all { it.succeeded } && completed
     val failed = !succeeded
@@ -257,14 +258,20 @@ class TestRunner(
     val receiverGenerators: Sequence<Executable>,
     val captureOutput: CaptureOutput,
     val methodIterator: Sequence<Executable>,
-    var receivers: Value<Any?>? = null
+    var receivers: Value<Any?>? = null,
+    val settings: Settings
 ) {
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
+    var staticOnly = submission.solution.skipReceiver
 
     val failed: Boolean
         get() = testResults.any { it.failed }
     val ready: Boolean
-        get() = testResults.none { it.failed } && receivers != null && shouldContinue
+        get() = shouldContinue && if (staticOnly) {
+            shouldContinue
+        } else {
+            testResults.none { it.failed } && receivers != null
+        }
     private var shouldContinue = true
     var ranLastTest = false
 
@@ -274,7 +281,6 @@ class TestRunner(
 
     var created: Boolean
     var initialized: Boolean = false
-    var staticOnly = submission.solution.skipReceiver
 
     init {
         if (receivers == null && staticOnly) {
@@ -492,7 +498,7 @@ class TestRunner(
         }
         testResults.add(step)
 
-        if (step.succeeded) {
+        if (step.succeeded || settings.runAll == true) {
             generator?.next()
         } else {
             generator?.prev()

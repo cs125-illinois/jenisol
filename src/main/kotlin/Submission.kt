@@ -330,6 +330,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     @Suppress("UNCHECKED_CAST")
     fun List<TestRunner>.toResults(
         settings: Settings,
+        recordingRandom: RecordingRandom,
         completed: Boolean = false,
         threw: Throwable? = null,
         timeout: Boolean = false,
@@ -341,7 +342,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             completed,
             threw,
             timeout,
-            finishedReceivers
+            finishedReceivers,
+            randomTrace = recordingRandom.trace.toList(),
         )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
@@ -387,10 +389,26 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
+    class RecordingRandom(seed: Long = Random.nextLong(), private val follow: List<Int>? = null) : Random() {
+        private val random = Random(seed)
+        val trace = mutableListOf<Int>()
+        private var currentIndex = 0
+        override fun nextBits(bitCount: Int): Int {
+            return random.nextBits(bitCount).also {
+                trace += it
+            }.also {
+                if (follow != null && follow[currentIndex++] != it) {
+                    throw FollowTraceException(currentIndex)
+                }
+            }
+        }
+    }
+
     @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth")
     fun test(
         passedSettings: Settings = Settings(),
-        captureOutput: CaptureOutput = ::defaultCaptureOutput
+        captureOutput: CaptureOutput = ::defaultCaptureOutput,
+        followTrace: List<Int>? = null
     ): TestResults {
         if (solution.solution.isDesignOnly()) {
             throw DesignOnlyTestingError(solution.solution)
@@ -398,9 +416,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
 
         val random = if (settings.seed == -1) {
-            Random
+            RecordingRandom(follow = followTrace)
         } else {
-            Random(settings.seed.toLong())
+            RecordingRandom(settings.seed.toLong(), follow = followTrace)
         }
 
         val runners: MutableList<TestRunner> = mutableListOf()
@@ -415,7 +433,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             if (Thread.interrupted()) {
-                return runners.toResults(settings, timeout = true, finishedReceivers = false)
+                return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
             }
 
             val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
@@ -434,7 +452,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 @Suppress("UnusedPrivateMember")
                 for (unused in 0 until (settings.receiverCount * settings.receiverRetries)) {
                     if (Thread.interrupted()) {
-                        return runners.toResults(settings, timeout = true, finishedReceivers = false)
+                        return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
                     }
                     TestRunner(
                         runners.size,
@@ -442,14 +460,15 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         generators,
                         receiverGenerators,
                         captureOutput,
-                        genMethodIterator(random)
+                        genMethodIterator(random),
+                        settings = settings
                     ).also { runner ->
                         runner.next(stepCount++)
                         runners.add(runner)
                     }
                     runners.failed()?.also {
                         if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
-                            return runners.toResults(settings, finishedReceivers = false)
+                            return runners.toResults(settings, random, finishedReceivers = false)
                         }
                     }
                     if (runners.readyCount() == settings.receiverCount) {
@@ -460,7 +479,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 // If we couldn't generate the requested number of receivers due to constructor failures,
                 // just give up and return at this point
                 if (!receiverGoalMet) {
-                    return runners.toResults(settings, finishedReceivers = false)
+                    return runners.toResults(settings, random, finishedReceivers = false)
                 }
                 Pair(
                     ReceiverGenerator(
@@ -522,7 +541,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             var totalCount = 0
             while (totalCount < totalTests) {
                 if (Thread.interrupted()) {
-                    return runners.toResults(settings, timeout = true)
+                    return runners.toResults(settings, random, timeout = true)
                 }
                 val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                     TestRunner(
@@ -531,7 +550,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         generators,
                         receiverGenerators,
                         captureOutput,
-                        genMethodIterator(random)
+                        genMethodIterator(random),
+                        settings = settings
                     ).also { runner ->
                         runner.next(stepCount++)
                         runners.add(runner)
@@ -550,7 +570,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
                 runners.failed()?.also {
                     if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
-                        return runners.toResults(settings)
+                        return runners.toResults(settings, random)
                     }
                 }
 
@@ -564,7 +584,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                                 receiverGenerators,
                                 captureOutput,
                                 genMethodIterator(random),
-                                returnedReceiver
+                                returnedReceiver,
+                                settings = settings
                             )
                         )
                     }
@@ -574,9 +595,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     totalCount++
                 }
             }
-            return runners.toResults(settings, completed = true)
+            return runners.toResults(settings, random, completed = true)
+        } catch (e: FollowTraceException) {
+            throw e
         } catch (e: Throwable) {
-            return runners.toResults(settings, threw = e)
+            return runners.toResults(settings, random, threw = e)
         }
     }
 }
@@ -667,3 +690,5 @@ fun unwrap(run: () -> Any?): Any? = try {
 }
 
 fun Class<*>.isKotlin() = getAnnotation(Metadata::class.java) != null
+
+class FollowTraceException(index: Int) : RuntimeException("Random generator out of sync at index $index")

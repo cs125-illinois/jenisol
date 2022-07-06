@@ -83,8 +83,14 @@ fun Solution.fullTest(
             firstResult.runnerID shouldBe secondResult.runnerID
         }
     }
-    val first = submissionKlass.test(Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024))
-    val second = submissionKlass.test(Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024))
+    val first = submissionKlass.test(
+        Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024),
+        followTrace = solutionResults?.randomTrace
+    )
+    val second = submissionKlass.test(
+        Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024),
+        followTrace = solutionResults?.randomTrace
+    )
     first.size shouldBe if (badReceivers) {
         first.settings.receiverCount * first.settings.receiverRetries
     } else {
@@ -96,6 +102,7 @@ fun Solution.fullTest(
         submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
         firstResult.runnerID shouldBe secondResult.runnerID
     }
+    /*
     if (solutionResults != null) {
         solutionResults.size shouldBe first.size
         solutionResults.forEachIndexed { index, solutionResult ->
@@ -107,6 +114,7 @@ fun Solution.fullTest(
             solutionResult.runnerID shouldBe firstResult.runnerID
         }
     }
+     */
     return first
 }
 
@@ -147,7 +155,12 @@ fun Class<*>.test() = this.testingClasses().apply {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
                     }
-                    fullTest(incorrect, badReceivers = incorrect in badReceivers).also { results ->
+                    fullTest(
+                        incorrect,
+                        seed = seed,
+                        solutionResults = solutionResults,
+                        badReceivers = incorrect in badReceivers
+                    ).also { results ->
                         results.threw shouldBe null
                         results.timeout shouldBe false
                         results.failed shouldBe true
