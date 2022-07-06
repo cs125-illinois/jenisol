@@ -52,9 +52,13 @@ fun Class<*>.testingClasses(): TestingClasses {
     return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badReceivers, badDesign)
 }
 
-fun Solution.fullTest(klass: Class<*>, badReceivers: Boolean = false): TestResults {
+fun Solution.fullTest(
+    klass: Class<*>,
+    seed: Int = Random.nextInt(),
+    solutionResults: TestResults? = null,
+    badReceivers: Boolean = false
+): TestResults {
     val submissionKlass = submission(klass)
-    val seed = Random.nextInt()
     run {
         val first = submissionKlass.test(Settings(seed = seed))
         val second = submissionKlass.test(Settings(seed = seed))
@@ -92,23 +96,37 @@ fun Solution.fullTest(klass: Class<*>, badReceivers: Boolean = false): TestResul
         submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
         firstResult.runnerID shouldBe secondResult.runnerID
     }
+    if (solutionResults != null) {
+        solutionResults.size shouldBe first.size
+        solutionResults.forEachIndexed { index, solutionResult ->
+            val firstResult = first[index]
+            val secondResult = second[index]
+            submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
+            firstResult.runnerID shouldBe secondResult.runnerID
+            submissionKlass.compare(solutionResult.parameters, firstResult.parameters) shouldBe true
+            solutionResult.runnerID shouldBe firstResult.runnerID
+        }
+    }
     return first
 }
 
 @Suppress("NestedBlockDepth", "ComplexMethod")
 fun Class<*>.test() = this.testingClasses().apply {
+    val seed = Random.nextInt()
     solution(primarySolution).apply {
-        submission(primarySolution).also {
+        val solutionResults = submission(primarySolution).let {
             if (!primarySolution.isDesignOnly()) {
-                fullTest(primarySolution).also { results ->
+                fullTest(primarySolution, seed = seed).also { results ->
                     check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
                 }
+            } else {
+                null
             }
         }
         otherSolutions.forEach { correct ->
             submission(correct).also {
                 if (!primarySolution.isDesignOnly()) {
-                    fullTest(correct).also { results ->
+                    fullTest(correct, seed = seed, solutionResults = solutionResults).also { results ->
                         check(!results.timeout)
                         check(results.succeeded) {
                             "Class marked as correct did not pass testing: ${results.explain(stacktrace = true)}"
@@ -129,7 +147,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
                     }
-                    fullTest(incorrect, incorrect in badReceivers).also { results ->
+                    fullTest(incorrect, badReceivers = incorrect in badReceivers).also { results ->
                         results.threw shouldBe null
                         results.timeout shouldBe false
                         results.failed shouldBe true
