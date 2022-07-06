@@ -20,6 +20,7 @@ data class TestingClasses(
     val primarySolution: Class<*>,
     val otherSolutions: List<Class<*>>,
     val incorrect: List<Class<*>>,
+    val badReceivers: List<Class<*>>,
     val badDesign: List<Class<*>>
 )
 
@@ -43,17 +44,48 @@ fun Class<*>.testingClasses(): TestingClasses {
 
     val incorrect = testingClasses
         .filter { it.simpleName.startsWith("Incorrect") }
+    val badReceivers = testingClasses
+        .filter { it.simpleName.startsWith("BadReceivers") }
     val badDesign = testingClasses
         .filter { it.simpleName.startsWith("Design") }
 
-    return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badDesign)
+    return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badReceivers, badDesign)
 }
 
-fun Solution.doubleTest(klass: Class<*>): TestResults {
+fun Solution.fullTest(klass: Class<*>, badReceivers: Boolean = false): TestResults {
     val submissionKlass = submission(klass)
     val seed = Random.nextInt()
-    val first = submissionKlass.test(Settings(seed = seed))
-    val second = submissionKlass.test(Settings(seed = seed))
+    run {
+        val first = submissionKlass.test(Settings(seed = seed))
+        val second = submissionKlass.test(Settings(seed = seed))
+        first.size shouldBe second.size
+        first.forEachIndexed { index, firstResult ->
+            val secondResult = second[index]
+            submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
+            firstResult.runnerID shouldBe secondResult.runnerID
+        }
+    }
+    run {
+        val first = submissionKlass.test(Settings(seed = seed, shrink = false))
+        val second = submissionKlass.test(Settings(seed = seed, shrink = false))
+
+        if (first.size != second.size) {
+            println(second.explain())
+        }
+        first.size shouldBe second.size
+        first.forEachIndexed { index, firstResult ->
+            val secondResult = second[index]
+            submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
+            firstResult.runnerID shouldBe secondResult.runnerID
+        }
+    }
+    val first = submissionKlass.test(Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024))
+    val second = submissionKlass.test(Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024))
+    first.size shouldBe if (badReceivers) {
+        first.settings.receiverCount * first.settings.receiverRetries
+    } else {
+        1024
+    }
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
@@ -68,7 +100,7 @@ fun Class<*>.test() = this.testingClasses().apply {
     solution(primarySolution).apply {
         submission(primarySolution).also {
             if (!primarySolution.isDesignOnly()) {
-                doubleTest(primarySolution).also { results ->
+                fullTest(primarySolution).also { results ->
                     check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
                 }
             }
@@ -76,7 +108,7 @@ fun Class<*>.test() = this.testingClasses().apply {
         otherSolutions.forEach { correct ->
             submission(correct).also {
                 if (!primarySolution.isDesignOnly()) {
-                    doubleTest(correct).also { results ->
+                    fullTest(correct).also { results ->
                         check(!results.timeout)
                         check(results.succeeded) {
                             "Class marked as correct did not pass testing: ${results.explain(stacktrace = true)}"
@@ -85,11 +117,11 @@ fun Class<*>.test() = this.testingClasses().apply {
                 }
             }
         }
-        (incorrect + badDesign)
+        (incorrect + badDesign + badReceivers)
             .apply {
                 check(isNotEmpty()) { "No incorrect examples.java.examples for $testName" }
             }.forEach { incorrect ->
-                if (incorrect.simpleName.startsWith("Design")) {
+                if (incorrect in badDesign) {
                     shouldThrow<SubmissionDesignError> {
                         submission(incorrect)
                     }
@@ -97,7 +129,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                     check(!primarySolution.isDesignOnly()) {
                         "Can't test Incorrect* examples when solution is design only"
                     }
-                    doubleTest(incorrect).also { results ->
+                    fullTest(incorrect, incorrect in badReceivers).also { results ->
                         results.threw shouldBe null
                         results.timeout shouldBe false
                         results.failed shouldBe true

@@ -1,9 +1,9 @@
 package examples.java.receiver.custominstancecheck;
 
-public class Incorrect0 {
+public class BadReceivers0 {
   private int[] values;
 
-  public Incorrect0() {
+  public BadReceivers0() {
     values = new int[32];
   }
 

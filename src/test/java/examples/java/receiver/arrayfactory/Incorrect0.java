@@ -12,6 +12,6 @@ public class Incorrect0 {
   }
 
   public static Incorrect0[] create() {
-    return new Incorrect0[] {new Incorrect0(2)};
+    return new Incorrect0[] {new Incorrect0(0), new Incorrect0(2)};
   }
 }

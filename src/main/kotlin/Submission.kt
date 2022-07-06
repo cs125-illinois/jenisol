@@ -325,19 +325,23 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
+    fun List<TestRunner>.testCount() = map { it.testResults }.flatten().count()
+
     @Suppress("UNCHECKED_CAST")
     fun List<TestRunner>.toResults(
         settings: Settings,
         completed: Boolean = false,
         threw: Throwable? = null,
-        timeout: Boolean = false
+        timeout: Boolean = false,
+        finishedReceivers: Boolean = true
     ) =
         TestResults(
             map { it.testResults as List<TestResult<Any, ParameterGroup>> }.flatten().sortedBy { it.stepCount },
             settings,
             completed,
             threw,
-            timeout
+            timeout,
+            finishedReceivers
         )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
@@ -411,7 +415,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             if (Thread.interrupted()) {
-                return runners.toResults(settings, timeout = true)
+                return runners.toResults(settings, timeout = true, finishedReceivers = false)
             }
 
             val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
@@ -428,9 +432,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 )
                 var receiverGoalMet = false
                 @Suppress("UnusedPrivateMember")
-                for (unused in 0..(settings.receiverCount * settings.receiverRetries)) {
+                for (unused in 0 until (settings.receiverCount * settings.receiverRetries)) {
                     if (Thread.interrupted()) {
-                        return runners.toResults(settings)
+                        return runners.toResults(settings, timeout = true, finishedReceivers = false)
                     }
                     TestRunner(
                         runners.size,
@@ -445,7 +449,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     }
                     runners.failed()?.also {
                         if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
-                            return runners.toResults(settings)
+                            return runners.toResults(settings, finishedReceivers = false)
                         }
                     }
                     if (runners.readyCount() == settings.receiverCount) {
@@ -456,7 +460,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 // If we couldn't generate the requested number of receivers due to constructor failures,
                 // just give up and return at this point
                 if (!receiverGoalMet) {
-                    return runners.toResults(settings)
+                    return runners.toResults(settings, finishedReceivers = false)
                 }
                 Pair(
                     ReceiverGenerator(
@@ -491,7 +495,15 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             val totalTests = if (settings.overrideTotalCount != -1) {
-                settings.overrideTotalCount
+                if (!solution.skipReceiver) {
+                    check(settings.overrideTotalCount > runners.testCount()) {
+                        "Invalid testing settings: overrideTotalCount must be " +
+                            "greater than steps required to generate receivers"
+                    }
+                    settings.overrideTotalCount - runners.testCount()
+                } else {
+                    settings.overrideTotalCount
+                }
             } else {
                 settings.receiverCount * settings.methodCount
             }.let {
@@ -507,9 +519,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 settings.methodCount
             }
 
-            for (totalCount in 0 until totalTests) {
+            var totalCount = 0
+            while (totalCount < totalTests) {
                 if (Thread.interrupted()) {
-                    return runners.toResults(settings)
+                    return runners.toResults(settings, timeout = true)
                 }
                 val usedRunner = if (runners.readyCount() < settings.receiverCount) {
                     TestRunner(
@@ -521,9 +534,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         genMethodIterator(random)
                     ).also { runner ->
                         runner.next(stepCount++)
-                        if (solution.initializer != null && runner.ready) {
-                            runner.next(stepCount++)
-                        }
                         runners.add(runner)
                         receiverGenerator?.runners?.add(runner)
                     }
@@ -539,7 +549,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     }
                 }
                 runners.failed()?.also {
-                    if (!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) {
+                    if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
                         return runners.toResults(settings)
                     }
                 }
@@ -560,8 +570,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     }
                     usedRunner.returnedReceivers = null
                 }
+                if (usedRunner.ranLastTest) {
+                    totalCount++
+                }
             }
-            return runners.toResults(settings, true)
+            return runners.toResults(settings, completed = true)
         } catch (e: Throwable) {
             return runners.toResults(settings, threw = e)
         }

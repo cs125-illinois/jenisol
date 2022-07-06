@@ -223,21 +223,24 @@ fun print(value: Any?): String = when {
     else -> value.safePrint()
 }
 
-@Suppress("UNUSED")
+@Suppress("UNUSED", "LongParameterList")
 class TestResults(
     val results: List<TestResult<Any, ParameterGroup>>,
     val settings: Settings,
     val completed: Boolean,
     val threw: Throwable? = null,
     val timeout: Boolean,
+    val finishedReceivers: Boolean,
     designOnly: Boolean? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
-    val succeeded = designOnly ?: all { it.succeeded } && completed
+    val succeeded = designOnly ?: finishedReceivers && all { it.succeeded } && completed
     val failed = !succeeded
     fun explain(stacktrace: Boolean = false) = if (succeeded) {
         "Passed by completing ${results.size} tests"
-    } else if (!completed) {
-        "Did not complete testing"
+    } else if (!finishedReceivers) {
+        "Didn't complete generating receivers"
+    } else if (!completed && !failed) {
+        "Did not complete testing: $timeout"
     } else {
         filter { it.failed }.sortedBy { it.complexity }.let { result ->
             val leastComplex = result.first().complexity
@@ -263,6 +266,7 @@ class TestRunner(
     val ready: Boolean
         get() = testResults.none { it.failed } && receivers != null && shouldContinue
     private var shouldContinue = true
+    var ranLastTest = false
 
     var lastComplexity: Complexity? = null
 
@@ -310,6 +314,7 @@ class TestRunner(
 
     @Suppress("ComplexMethod", "LongMethod", "ComplexCondition", "ReturnCount", "NestedBlockDepth")
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null) {
+        ranLastTest = false
         val creating = !created && type != TestResult.Type.INITIALIZER
 
         val isBoth = solutionExecutable.isAnnotationPresent(Both::class.java)
@@ -456,6 +461,7 @@ class TestRunner(
             Pair(null, null)
         }
 
+        ranLastTest = true
         val step = TestResult(
             runnerID,
             stepCount, count++,
