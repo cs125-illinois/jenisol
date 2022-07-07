@@ -232,6 +232,7 @@ class TestResults(
     val timeout: Boolean,
     val finishedReceivers: Boolean,
     designOnly: Boolean? = null,
+    val skippedSteps: List<Int>,
     val randomTrace: List<Int>? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
     val succeeded = designOnly ?: finishedReceivers && all { it.succeeded } && completed
@@ -262,18 +263,21 @@ class TestRunner(
     val settings: Settings
 ) {
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
+    val skippedTests: MutableList<Int> = mutableListOf()
+
     var staticOnly = submission.solution.skipReceiver
 
     val failed: Boolean
         get() = testResults.any { it.failed }
     val ready: Boolean
         get() = shouldContinue && if (staticOnly) {
-            shouldContinue
+            settings.runAll!! || testResults.none { it.failed }
         } else {
             (settings.runAll!! && receivers?.solution != null) || (testResults.none { it.failed } && receivers != null)
         }
     private var shouldContinue = true
     var ranLastTest = false
+    var skippedLastTest = false
 
     var lastComplexity: Complexity? = null
 
@@ -321,7 +325,11 @@ class TestRunner(
     @Suppress("ComplexMethod", "LongMethod", "ComplexCondition", "ReturnCount", "NestedBlockDepth")
     fun run(solutionExecutable: Executable, stepCount: Int, type: TestResult.Type? = null) {
         ranLastTest = false
+        skippedLastTest = false
+
         val creating = !created && type != TestResult.Type.INITIALIZER
+        // Only proceed past failures if forced
+        check(!failed || settings.runAll!!)
 
         val isBoth = solutionExecutable.isAnnotationPresent(Both::class.java)
 
@@ -426,11 +434,18 @@ class TestRunner(
             }
             error("TestingControl exception mismatch: ${solutionResult.threw::class.java})")
         }
+
+        if (settings.runAll!! && !staticOnly && created && receivers!!.submission == null) {
+            skippedLastTest = true
+            skippedTests += stepCount
+            return
+        }
+
         val submissionResult =
             submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
 
         val (solutionCopy, submissionCopy) = if (
-            creating && solutionResult.returned != null && (submissionResult.returned != null || settings.runAll!!)
+            creating && solutionResult.returned != null && (submissionResult.returned != null || settings.runAll)
         ) {
             // If we are creating receivers and that succeeded, create a second pair to donate to the receiver
             // generator
@@ -514,7 +529,7 @@ class TestRunner(
         }
         testResults.add(step)
 
-        if (step.succeeded || settings.runAll!!) {
+        if (step.succeeded || settings.runAll) {
             generator?.next()
         } else {
             generator?.prev()
@@ -522,9 +537,7 @@ class TestRunner(
 
         lastComplexity = parameters.complexity
 
-        // If both receiver generators throw identically, then the step didn't fail but
-        // this test runner still can't proceed
-        if ((step.succeeded || settings.runAll!!) && creating && step.solution.returned != null) {
+        if ((step.succeeded || settings.runAll) && creating && step.solution.returned != null) {
             if (!step.solution.returned::class.java.isArray) {
                 receivers = Value(
                     step.solution.returned,
@@ -540,7 +553,7 @@ class TestRunner(
                 val submissionCopies = submissionCopy!!.returned as Array<*>
                 check(
                     (
-                        settings.runAll!! || (
+                        settings.runAll || (
                             solutions.size == submissions.size &&
                                 solutions.size == submissionCopies.size
                             )
@@ -651,6 +664,7 @@ class TestRunner(
             run(submission.solution.initializer, stepCount, TestResult.Type.INITIALIZER)
             initialized = true
         } else {
+            initialized = true
             run(methodIterator.first(), stepCount)
             if (submission.solution.shouldContinue != null && receivers != null) {
                 shouldContinue = unwrap {

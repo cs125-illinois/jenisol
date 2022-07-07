@@ -3,9 +3,11 @@
 package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
+import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.ReceiverGenerator
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGeneratorGenerator
+import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import java.lang.RuntimeException
 import java.lang.reflect.Constructor
@@ -343,6 +345,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             threw,
             timeout,
             finishedReceivers,
+            skippedSteps = map { it.skippedTests }.flatten().sorted(),
             randomTrace = recordingRandom.finish()
         )
 
@@ -439,6 +442,22 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
 
+            fun addRunner(generators: Generators, receivers: Value<Any?>? = null) = TestRunner(
+                runners.size,
+                this,
+                generators,
+                receiverGenerators,
+                captureOutput,
+                genMethodIterator(random),
+                receivers = receivers,
+                settings = settings
+            ).also { runner ->
+                if (receivers == null) {
+                    runner.next(stepCount++)
+                }
+                runners.add(runner)
+            }
+
             if (Thread.interrupted()) {
                 return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
             }
@@ -455,37 +474,24 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     null,
                     solution.receiversAndInitializers
                 )
-                var receiverGoalMet = false
                 @Suppress("UnusedPrivateMember")
                 for (unused in 0 until (settings.receiverCount * settings.receiverRetries)) {
                     if (Thread.interrupted()) {
                         return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
                     }
-                    TestRunner(
-                        runners.size,
-                        this,
-                        generators,
-                        receiverGenerators,
-                        captureOutput,
-                        genMethodIterator(random),
-                        settings = settings
-                    ).also { runner ->
-                        runner.next(stepCount++)
-                        runners.add(runner)
-                    }
+                    addRunner(generators)
                     runners.failed()?.also {
                         if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
                             return runners.toResults(settings, random, finishedReceivers = false)
                         }
                     }
                     if (runners.readyCount() == settings.receiverCount) {
-                        receiverGoalMet = true
                         break
                     }
                 }
                 // If we couldn't generate the requested number of receivers due to constructor failures,
                 // just give up and return at this point
-                if (!receiverGoalMet) {
+                if (runners.readyCount() != settings.receiverCount) {
                     return runners.toResults(settings, random, finishedReceivers = false)
                 }
                 Pair(
@@ -550,17 +556,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     return runners.toResults(settings, random, timeout = true)
                 }
                 val usedRunner = if (runners.readyCount() < settings.receiverCount) {
-                    TestRunner(
-                        runners.size,
-                        this,
-                        generators,
-                        receiverGenerators,
-                        captureOutput,
-                        genMethodIterator(random),
-                        settings = settings
-                    ).also { runner ->
-                        runner.next(stepCount++)
-                        runners.add(runner)
+                    addRunner(generators).also { runner ->
                         receiverGenerator?.runners?.add(runner)
                     }
                 } else {
@@ -582,22 +578,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
                 if (usedRunner.returnedReceivers != null) {
                     usedRunner.returnedReceivers!!.forEach { returnedReceiver ->
-                        runners.add(
-                            TestRunner(
-                                runners.size,
-                                this,
-                                generators,
-                                receiverGenerators,
-                                captureOutput,
-                                genMethodIterator(random),
-                                returnedReceiver,
-                                settings = settings
-                            )
-                        )
+                        addRunner(generators, returnedReceiver)
                     }
                     usedRunner.returnedReceivers = null
                 }
-                if (usedRunner.ranLastTest) {
+                if (usedRunner.ranLastTest || usedRunner.skippedLastTest) {
                     totalCount++
                 }
             }

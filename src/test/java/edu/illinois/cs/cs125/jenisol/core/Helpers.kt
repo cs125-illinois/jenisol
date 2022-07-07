@@ -4,6 +4,7 @@ import io.github.classgraph.ClassGraph
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import kotlin.random.Random
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
@@ -52,6 +53,7 @@ fun Class<*>.testingClasses(): TestingClasses {
     return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badReceivers, badDesign)
 }
 
+@Suppress("LongMethod")
 fun Solution.fullTest(
     klass: Class<*>,
     seed: Int = Random.nextInt(),
@@ -90,7 +92,7 @@ fun Solution.fullTest(
         Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024, testing = true),
         followTrace = solutionResults?.randomTrace
     )
-    first.size shouldBe 1024
+    first.size + first.skippedSteps.size shouldBe 1024
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
@@ -98,10 +100,17 @@ fun Solution.fullTest(
         firstResult.runnerID shouldBe secondResult.runnerID
     }
     if (solutionResults != null) {
-        solutionResults.size shouldBe first.size
-        solutionResults.forEachIndexed { index, solutionResult ->
-            val firstResult = first[index]
-            val secondResult = second[index]
+        solutionResults.size shouldBe first.size + first.skippedSteps.size
+        solutionResults.forEach { solutionResult ->
+            val firstResult = first.find { it.stepCount == solutionResult.stepCount }
+            val secondResult = second.find { it.stepCount == solutionResult.stepCount }
+            if (firstResult == null) {
+                secondResult shouldBe null
+                first.skippedSteps.find { it == solutionResult.stepCount } shouldNotBe null
+                second.skippedSteps.find { it == solutionResult.stepCount } shouldNotBe null
+                return@forEach
+            }
+            check(secondResult != null)
             submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
             firstResult.runnerID shouldBe secondResult.runnerID
             submissionKlass.compare(solutionResult.parameters, firstResult.parameters) shouldBe true
