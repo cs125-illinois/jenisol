@@ -401,6 +401,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
         }
+
         fun finish(): List<Int> {
             if (follow != null && currentIndex != trace.size) {
                 throw FollowTraceException(currentIndex)
@@ -520,15 +521,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             val totalTests = if (settings.overrideTotalCount != -1) {
-                if (!solution.skipReceiver) {
-                    check(settings.overrideTotalCount > runners.testCount()) {
-                        "Invalid testing settings: overrideTotalCount must be " +
-                            "greater than steps required to generate receivers"
-                    }
-                    settings.overrideTotalCount - runners.testCount()
-                } else {
-                    settings.overrideTotalCount
+                check(settings.overrideTotalCount > runners.testCount()) {
+                    "Invalid testing settings: overrideTotalCount (${settings.overrideTotalCount}) must be " +
+                        "greater than steps required to generate receivers (${runners.testCount()})"
                 }
+                settings.overrideTotalCount
             } else {
                 settings.receiverCount * settings.methodCount
             }.let {
@@ -537,7 +534,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 } else {
                     it
                 }
-            }
+            } - runners.testCount()
+
+            check(totalTests > 0) { "Invalid test count" }
+
             val startMultipleCount = if (settings.startMultipleCount != -1) {
                 settings.startMultipleCount
             } else {
