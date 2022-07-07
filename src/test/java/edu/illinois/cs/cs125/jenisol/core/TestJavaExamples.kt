@@ -334,6 +334,9 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.addone.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.staticfield.Correct::class.java.also {
+            "f: ${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {

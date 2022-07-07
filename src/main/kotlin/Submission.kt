@@ -668,7 +668,7 @@ class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : Submissio
 
 class SubmissionStaticFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
     "Field ${field.fullName()} is static in submission class ${klass.name}, " +
-        "but static fields are not used by the solution"
+        "but static fields are not permitted for this problem"
 )
 
 class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionDesignError(
