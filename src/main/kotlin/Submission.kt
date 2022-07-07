@@ -424,6 +424,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
         check(settings.runAll != null)
+        check(!(settings.runAll && settings.shrink!!)) {
+            "Running all tests combined with test shrinking produce inconsistent results"
+        }
 
         val random = if (settings.seed == -1) {
             RecordingRandom(follow = followTrace)
