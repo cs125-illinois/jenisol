@@ -325,9 +325,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    fun List<TestRunner>.testCount() = map { it.testResults }.flatten().count()
+    private fun List<TestRunner>.testCount() = map { it.testResults }.flatten().count()
 
-    @Suppress("UNCHECKED_CAST")
+    @Suppress("UNCHECKED_CAST", "LongParameterList")
     fun List<TestRunner>.toResults(
         settings: Settings,
         recordingRandom: RecordingRandom,
@@ -343,7 +343,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             threw,
             timeout,
             finishedReceivers,
-            randomTrace = recordingRandom.trace.toList(),
+            randomTrace = recordingRandom.finish()
         )
 
     private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
@@ -384,14 +384,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     private fun genMethodIterator(random: Random): Sequence<Executable> {
         val executablePicker = ExecutablePicker(random)
         return sequence {
-            // yield(solution.methodsToTest.shuffled(random).first())
             yield(executablePicker.next())
         }
     }
 
     class RecordingRandom(seed: Long = Random.nextLong(), private val follow: List<Int>? = null) : Random() {
         private val random = Random(seed)
-        val trace = mutableListOf<Int>()
+        private val trace = mutableListOf<Int>()
         private var currentIndex = 0
         override fun nextBits(bitCount: Int): Int {
             return random.nextBits(bitCount).also {
@@ -402,9 +401,15 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
         }
+        fun finish(): List<Int> {
+            if (follow != null && currentIndex != trace.size) {
+                throw FollowTraceException(currentIndex)
+            }
+            return trace.toList()
+        }
     }
 
-    @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth")
+    @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth", "ThrowsCount")
     fun test(
         passedSettings: Settings = Settings(),
         captureOutput: CaptureOutput = ::defaultCaptureOutput,
@@ -414,6 +419,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             throw DesignOnlyTestingError(solution.solution)
         }
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
+        check(settings.runAll != null)
 
         val random = if (settings.seed == -1) {
             RecordingRandom(follow = followTrace)
@@ -467,7 +473,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         runners.add(runner)
                     }
                     runners.failed()?.also {
-                        if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
+                        if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
                             return runners.toResults(settings, random, finishedReceivers = false)
                         }
                     }
@@ -569,7 +575,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     }
                 }
                 runners.failed()?.also {
-                    if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll!!) {
+                    if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
                         return runners.toResults(settings, random)
                     }
                 }
@@ -599,6 +605,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         } catch (e: FollowTraceException) {
             throw e
         } catch (e: Throwable) {
+            if (settings.testing!!) {
+                throw e
+            }
             return runners.toResults(settings, random, threw = e)
         }
     }

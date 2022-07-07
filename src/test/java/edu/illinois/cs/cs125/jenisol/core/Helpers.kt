@@ -55,13 +55,12 @@ fun Class<*>.testingClasses(): TestingClasses {
 fun Solution.fullTest(
     klass: Class<*>,
     seed: Int = Random.nextInt(),
-    solutionResults: TestResults? = null,
-    badReceivers: Boolean = false
+    solutionResults: TestResults? = null
 ): TestResults {
     val submissionKlass = submission(klass)
     run {
-        val first = submissionKlass.test(Settings(seed = seed))
-        val second = submissionKlass.test(Settings(seed = seed))
+        val first = submissionKlass.test(Settings(seed = seed, testing = true))
+        val second = submissionKlass.test(Settings(seed = seed, testing = true))
         first.size shouldBe second.size
         first.forEachIndexed { index, firstResult ->
             val secondResult = second[index]
@@ -70,8 +69,8 @@ fun Solution.fullTest(
         }
     }
     run {
-        val first = submissionKlass.test(Settings(seed = seed, shrink = false))
-        val second = submissionKlass.test(Settings(seed = seed, shrink = false))
+        val first = submissionKlass.test(Settings(seed = seed, shrink = false, testing = true))
+        val second = submissionKlass.test(Settings(seed = seed, shrink = false, testing = true))
 
         if (first.size != second.size) {
             println(second.explain())
@@ -84,25 +83,20 @@ fun Solution.fullTest(
         }
     }
     val first = submissionKlass.test(
-        Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024),
+        Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024, testing = true),
         followTrace = solutionResults?.randomTrace
     )
     val second = submissionKlass.test(
-        Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024),
+        Settings(seed = seed, shrink = false, runAll = true, overrideTotalCount = 1024, testing = true),
         followTrace = solutionResults?.randomTrace
     )
-    first.size shouldBe if (badReceivers) {
-        first.settings.receiverCount * first.settings.receiverRetries
-    } else {
-        1024
-    }
+    first.size shouldBe 1024
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
         submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
         firstResult.runnerID shouldBe secondResult.runnerID
     }
-    /*
     if (solutionResults != null) {
         solutionResults.size shouldBe first.size
         solutionResults.forEachIndexed { index, solutionResult ->
@@ -114,7 +108,6 @@ fun Solution.fullTest(
             solutionResult.runnerID shouldBe firstResult.runnerID
         }
     }
-     */
     return first
 }
 
@@ -158,8 +151,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                     fullTest(
                         incorrect,
                         seed = seed,
-                        solutionResults = solutionResults,
-                        badReceivers = incorrect in badReceivers
+                        solutionResults = solutionResults
                     ).also { results ->
                         results.threw shouldBe null
                         results.timeout shouldBe false

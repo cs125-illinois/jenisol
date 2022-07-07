@@ -270,7 +270,7 @@ class TestRunner(
         get() = shouldContinue && if (staticOnly) {
             shouldContinue
         } else {
-            testResults.none { it.failed } && receivers != null
+            (settings.runAll!! && receivers?.solution != null) || (testResults.none { it.failed } && receivers != null)
         }
     private var shouldContinue = true
     var ranLastTest = false
@@ -430,7 +430,7 @@ class TestRunner(
             submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
 
         val (solutionCopy, submissionCopy) = if (
-            creating && solutionResult.returned != null && submissionResult.returned != null
+            creating && solutionResult.returned != null && (submissionResult.returned != null || settings.runAll!!)
         ) {
             // If we are creating receivers and that succeeded, create a second pair to donate to the receiver
             // generator
@@ -439,18 +439,34 @@ class TestRunner(
                 submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
             )
         } else if (created &&
-            solutionResult.returned != null && submissionResult.returned != null &&
+            solutionResult.returned != null &&
             (
                 (
-                    solutionResult.returned::class.java == submission.solution.solution &&
-                        submissionResult.returned::class.java == submission.submission
-                    ) || (
-                    solutionResult.returned::class.java.isArray && submissionResult.returned::class.java.isArray &&
-                        solutionResult.returned::class.java.getArrayType() == submission.solution.solution &&
-                        submissionResult.returned::class.java.getArrayType() == submission.submission &&
-                        solutionResult.returned::class.java.getArrayDimension()
-                        == submissionResult.returned::class.java.getArrayDimension()
-                    )
+                    submissionResult.returned != null &&
+                        (
+                            (
+                                solutionResult.returned::class.java == submission.solution.solution &&
+                                    submissionResult.returned::class.java == submission.submission
+                                ) ||
+                                (
+                                    solutionResult.returned::class.java.isArray &&
+                                        submissionResult.returned::class.java.isArray &&
+                                        solutionResult.returned::class.java.getArrayType() ==
+                                        submission.solution.solution &&
+                                        submissionResult.returned::class.java.getArrayType() ==
+                                        submission.submission &&
+                                        solutionResult.returned::class.java.getArrayDimension()
+                                        == submissionResult.returned::class.java.getArrayDimension()
+                                    )
+                            )
+                    ) ||
+                    (
+                        (solutionResult.returned::class.java == submission.solution.solution) ||
+                            (
+                                solutionResult.returned::class.java.isArray &&
+                                    solutionResult.returned::class.java.getArrayType() == submission.solution.solution
+                                )
+                        )
                 )
         ) {
             if (solutionResult.returned::class.java.isArray) {
@@ -498,7 +514,7 @@ class TestRunner(
         }
         testResults.add(step)
 
-        if (step.succeeded || settings.runAll == true) {
+        if (step.succeeded || settings.runAll!!) {
             generator?.next()
         } else {
             generator?.prev()
@@ -508,7 +524,7 @@ class TestRunner(
 
         // If both receiver generators throw identically, then the step didn't fail but
         // this test runner still can't proceed
-        if (step.succeeded && creating && step.solution.returned != null) {
+        if ((step.succeeded || settings.runAll!!) && creating && step.solution.returned != null) {
             if (!step.solution.returned::class.java.isArray) {
                 receivers = Value(
                     step.solution.returned,
@@ -523,9 +539,14 @@ class TestRunner(
                 val solutionCopies = solutionCopy!!.returned as Array<*>
                 val submissionCopies = submissionCopy!!.returned as Array<*>
                 check(
-                    solutions.size == submissions.size &&
-                        solutions.size == solutionCopies.size &&
-                        solutions.size == submissionCopies.size
+                    (
+                        settings.runAll!! || (
+                            solutions.size == submissions.size &&
+                                solutions.size == submissionCopies.size
+                            )
+                        ) &&
+                        solutions.size == solutionCopies.size
+
                 ) {
                     "Receiver array generation returned unequal arrays: ${solutions.size} ${submissions.size}"
                 }
@@ -540,12 +561,30 @@ class TestRunner(
                     if (solutions.size > 1) {
                         val receiverList = mutableListOf<Value<Any?>>()
                         for (i in 1 until solutions.size) {
+                            val submissionAtIndex = if (step.succeeded) {
+                                submissions[i]
+                            } else {
+                                try {
+                                    submissions[i]
+                                } catch (_: ArrayIndexOutOfBoundsException) {
+                                    null
+                                }
+                            }
+                            val submissionCopyAtIndex = if (step.succeeded) {
+                                submissionCopies[i]
+                            } else {
+                                try {
+                                    submissionCopies[i]
+                                } catch (_: ArrayIndexOutOfBoundsException) {
+                                    null
+                                }
+                            }
                             receiverList.add(
                                 Value(
                                     solutions[i],
-                                    submissions[i],
+                                    submissionAtIndex,
                                     solutionCopies[i],
-                                    submissionCopies[i],
+                                    submissionCopyAtIndex,
                                     parameters.complexity
                                 )
                             )

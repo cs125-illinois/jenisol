@@ -614,7 +614,8 @@ data class Settings(
     val fixedCount: Int = -1,
     val overrideTotalCount: Int = -1,
     val minTestCount: Int = -1,
-    val startMultipleCount: Int = -1
+    val startMultipleCount: Int = -1,
+    val testing: Boolean? = null
 ) {
     companion object {
         val DEFAULTS = Settings(
@@ -624,11 +625,12 @@ data class Settings(
             simpleCount = Int.MAX_VALUE,
             edgeCount = Int.MAX_VALUE,
             mixedCount = Int.MAX_VALUE,
-            fixedCount = Int.MAX_VALUE
+            fixedCount = Int.MAX_VALUE,
+            testing = false
         )
     }
 
-    @Suppress("LongMethod")
+    @Suppress("LongMethod", "ComplexMethod")
     infix fun merge(other: Settings): Settings {
         return Settings(
             other.shrink ?: shrink,
@@ -687,7 +689,8 @@ data class Settings(
                 other.startMultipleCount
             } else {
                 startMultipleCount
-            }
+            },
+            other.testing ?: testing
         )
     }
 }
