@@ -336,6 +336,11 @@ annotation class Configure(val strictOutput: Boolean = false)
 annotation class DesignOnly
 
 fun Class<*>.isDesignOnly() = isAnnotationPresent(DesignOnly::class.java)
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class CheckDesign
+
+fun Executable.isCheckDesign() = isAnnotationPresent(CheckDesign::class.java)
 
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)

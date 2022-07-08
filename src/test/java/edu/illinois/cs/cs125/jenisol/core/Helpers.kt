@@ -82,11 +82,23 @@ fun Solution.fullTest(
         }
     }
     val first = submissionKlass.test(
-        Settings(seed = seed, shrink = false, runAll = solutionResults != null, overrideTotalCount = 1024, testing = true),
+        Settings(
+            seed = seed,
+            shrink = false,
+            runAll = solutionResults != null,
+            overrideTotalCount = 1024,
+            testing = true
+        ),
         followTrace = solutionResults?.randomTrace
     )
     val second = submissionKlass.test(
-        Settings(seed = seed, shrink = false, runAll = solutionResults != null, overrideTotalCount = 1024, testing = true),
+        Settings(
+            seed = seed,
+            shrink = false,
+            runAll = solutionResults != null,
+            overrideTotalCount = 1024,
+            testing = true
+        ),
         followTrace = solutionResults?.randomTrace
     )
     first.size + first.skippedSteps.size shouldBe 1024

@@ -207,7 +207,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     throw SubmissionDesignExtraFieldError(submission, it)
                 }
                 if (it.isStatic()) {
-                    throw SubmissionStaticFieldError(submission, it)
+                    if (!solution.skipReceiver) {
+                        throw SubmissionStaticFieldError(submission, it)
+                    } else if (!it.isPrivate()) {
+                        throw SubmissionStaticPublicFieldError(submission, it)
+                    }
                 }
             }
         }
@@ -669,6 +673,10 @@ class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : Submissio
 class SubmissionStaticFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
     "Field ${field.fullName()} is static in submission class ${klass.name}, " +
         "but static fields are not permitted for this problem"
+)
+
+class SubmissionStaticPublicFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
+    "Static field ${field.fullName()} in submission class ${klass.name} must be private"
 )
 
 class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionDesignError(
