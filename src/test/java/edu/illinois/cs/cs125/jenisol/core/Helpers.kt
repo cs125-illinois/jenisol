@@ -60,7 +60,7 @@ fun Solution.fullTest(
     isCorrect: Boolean,
     solutionResults: TestResults? = null
 ): Pair<TestResults, TestResults> {
-    val baseSettings = Settings(seed = seed, testing = true, minTestCount = 32, maxTestCount = 1024)
+    val baseSettings = Settings(seed = seed, testing = true, minTestCount = 64, maxTestCount = 1024)
 
     @Suppress("RethrowCaughtException")
     fun TestResults.checkResults() = try {

@@ -170,13 +170,20 @@ class Solution(val solution: Class<*>) {
             generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size
         } * 2
     }
-    val defaultMethodCount = (allExecutables - receiverGenerators).sumOf {
-        if (it.receiverParameter() || (receiverGenerators.isNotEmpty() && it.objectParameter())) {
-            defaultReceiverCount
-        } else {
-            generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1)
-        }
-    } * 2 + bothExecutables.size
+    val defaultMethodCount = (
+        (allExecutables - receiverGenerators).sumOf {
+            if (it.receiverParameter()) {
+                defaultReceiverCount
+            } else {
+                generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1) +
+                    if (receiverGenerators.isNotEmpty() && it.objectParameter()) {
+                        defaultReceiverCount
+                    } else {
+                        0
+                    }
+            }
+        } * 2
+        ) + bothExecutables.size
     private val defaultTotalCount = (defaultReceiverCount * Settings.DEFAULT_RECEIVER_RETRIES) +
         (defaultMethodCount * defaultReceiverCount.coerceAtLeast(1))
 
