@@ -10,8 +10,8 @@ public class Correct {
   }
 
   @CheckDesign
-  private int helper(int value) {
-    return value + 1;
+  private int helper(int newValue) {
+    return newValue + 1;
   }
 
   public int plusOne() {

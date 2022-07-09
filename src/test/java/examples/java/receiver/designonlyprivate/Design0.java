@@ -7,8 +7,8 @@ public class Design0 {
     value = setValue;
   }
 
-  private int helping(int value) {
-    return value + 1;
+  private int helping(int newValue) {
+    return newValue + 1;
   }
 
   public int plusOne() {
