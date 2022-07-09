@@ -457,15 +457,18 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         val (receiverGenerator, generatorOverrides) = if (!solution.skipReceiver) {
             val receiverGenerator = ReceiverGenerator(random, mutableListOf())
-            Pair(receiverGenerator, mutableMapOf(
-                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
-                (Any::class.java as Type) to { r: Random ->
-                    ObjectGenerator(
-                        r,
-                        receiverGenerator
-                    )
-                }
-            ))
+            Pair(
+                receiverGenerator,
+                mutableMapOf(
+                    (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
+                    (Any::class.java as Type) to { r: Random ->
+                        ObjectGenerator(
+                            r,
+                            receiverGenerator
+                        )
+                    }
+                )
+            )
         } else {
             Pair<ReceiverGenerator?, Map<Type, TypeGeneratorGenerator>>(null, mapOf())
         }
@@ -484,7 +487,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 receivers = receivers,
                 settings = settings
             ).also { runner ->
-                if (receivers == null) {
+                if (receivers == null && !solution.skipReceiver) {
                     runner.next(stepCount++)
                 }
                 runners.add(runner)
@@ -494,8 +497,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
             }
 
+            val neededReceivers = if (solution.skipReceiver) {
+                1
+            } else {
+                settings.receiverCount
+            }
             @Suppress("UnusedPrivateMember")
-            for (unused in 0 until (settings.receiverCount * settings.receiverRetries)) {
+            for (unused in 0 until (neededReceivers * settings.receiverRetries)) {
                 if (Thread.interrupted()) {
                     return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
                 }
@@ -507,22 +515,28 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                         return runners.toResults(settings, random, finishedReceivers = false)
                     }
                 }
-                if (runners.readyCount() == settings.receiverCount) {
+                if (runners.readyCount() == neededReceivers) {
                     break
                 }
             }
             // If we couldn't generate the requested number of receivers due to constructor failures,
             // just give up and return at this point
-            if (runners.readyCount() != settings.receiverCount) {
+            if (runners.readyCount() != neededReceivers) {
                 return runners.toResults(settings, random, finishedReceivers = false)
             }
 
-            val totalTests = if (settings.overrideTotalCount != -1) {
-                check(settings.overrideTotalCount > runners.testCount()) {
-                    "Invalid testing settings: overrideTotalCount (${settings.overrideTotalCount}) must be " +
+            if (solution.skipReceiver) {
+                check(runners.testCount() == 0)
+            } else if (solution.fauxStatic && solution.initializer == null) {
+                check(runners.testCount() == 1)
+            }
+
+            val totalTests = if (settings.totalTestCount != -1) {
+                check(settings.totalTestCount > runners.testCount()) {
+                    "Invalid testing settings: overrideTotalCount (${settings.totalTestCount}) must be " +
                         "greater than steps required to generate receivers (${runners.testCount()})"
                 }
-                settings.overrideTotalCount
+                settings.totalTestCount
             } else {
                 settings.receiverCount * settings.methodCount
             }.let {
@@ -538,7 +552,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             val startMultipleCount = if (settings.startMultipleCount != -1) {
                 settings.startMultipleCount
             } else {
-                settings.methodCount
+                solution.defaultMethodCount
             }
 
             var totalCount = 0
@@ -546,7 +560,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 if (Thread.interrupted()) {
                     return runners.toResults(settings, random, timeout = true)
                 }
-                val usedRunner = if (runners.readyCount() < settings.receiverCount) {
+                val usedRunner = if (runners.readyCount() < neededReceivers) {
+                    check(!solution.skipReceiver) {
+                        "Static testing should never drop receivers"
+                    }
                     addRunner(generators).also { runner ->
                         receiverGenerator?.runners?.add(runner)
                     }
@@ -592,17 +609,17 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
-        if (executable.isStatic() && !klass.isKotlin()) {
-            "static "
-        } else {
-            ""
-        }
+    if (executable.isStatic() && !klass.isKotlin()) {
+        "static "
+    } else {
+        ""
+    }
     }${
-        if (executable is Method) {
-            "method"
-        } else {
-            "constructor"
-        }
+    if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }
     } ${executable.fullName(klass.isKotlin())}"
 )
 
@@ -624,17 +641,17 @@ class SubmissionDesignKotlinIsModifiableError(klass: Class<*>, field: String) : 
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} provided extra ${
-        if (executable.isStatic() && !klass.isKotlin()) {
-            "static "
-        } else {
-            ""
-        }
+    if (executable.isStatic() && !klass.isKotlin()) {
+        "static "
+    } else {
+        ""
+    }
     }${
-        if (executable is Method) {
-            "method"
-        } else {
-            "constructor"
-        }
+    if (executable is Method) {
+        "method"
+    } else {
+        "constructor"
+    }
     } ${executable.fullName(klass.isKotlin())}"
 )
 

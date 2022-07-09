@@ -579,19 +579,19 @@ class ObjectGenerator(
         check(defaultObjects.isNotEmpty()) { "No default objects to generate" }
     }
 
-    override val simple = (
-        listOf(JenisolAny(random.nextInt())).values(ZeroComplexity) +
-            (receiverGenerator?.simple ?: setOf()) +
-            defaultObjects.values.map { it.simple }.flatten().distinct().take(SIMPLE_LIMIT)
-        ).toSet()
-        as Set<Value<Any>>
+    override val simple: Set<Value<Any>>
+        get() = (
+            listOf(JenisolAny(random.nextInt())).values(ZeroComplexity) +
+                (receiverGenerator?.simple ?: setOf()) +
+                defaultObjects.values.map { it.simple }.flatten().distinct().take(SIMPLE_LIMIT)
+            ).toSet() as Set<Value<Any>>
 
-    override val edge = (
-        listOf(null as Any?).values(ZeroComplexity) +
-            (receiverGenerator?.edge ?: setOf()) +
-            defaultObjects.values.map { it.edge }.flatten().distinct().take(EDGE_LIMIT)
-        ).toSet()
-        as Set<Value<Any?>>
+    override val edge: Set<Value<Any?>>
+        get() = (
+            listOf(null as Any?).values(ZeroComplexity) +
+                (receiverGenerator?.edge ?: setOf()) +
+                defaultObjects.values.map { it.edge }.flatten().distinct().take(EDGE_LIMIT)
+            ).toSet() as Set<Value<Any?>>
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =
         if (receiverGenerator != null && random.nextBoolean()) {

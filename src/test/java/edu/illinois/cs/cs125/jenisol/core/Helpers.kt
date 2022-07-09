@@ -57,22 +57,44 @@ fun Class<*>.testingClasses(): TestingClasses {
 fun Solution.fullTest(
     klass: Class<*>,
     seed: Int = Random.nextInt(),
+    isCorrect: Boolean,
     solutionResults: TestResults? = null
-): TestResults {
+): Pair<TestResults, TestResults> {
+    val baseSettings = Settings(seed = seed, testing = true, minTestCount = 32, maxTestCount = 1024)
+
+    @Suppress("RethrowCaughtException")
+    fun TestResults.checkResults() = try {
+        if (isCorrect) {
+            succeeded shouldBe true
+        } else {
+            succeeded shouldBe false
+            threw shouldBe null
+            timeout shouldBe false
+            failed shouldBe true
+            results.filter { it.failed }
+                .map { it.type }
+                .distinct() shouldNotContainAll testingStepsShouldNotContain
+        }
+        this
+    } catch (e: Throwable) {
+        throw e
+    }
+
     val submissionKlass = submission(klass)
+    val original = submissionKlass.test(baseSettings).checkResults()
     run {
-        val first = submissionKlass.test(Settings(seed = seed, testing = true))
-        val second = submissionKlass.test(Settings(seed = seed, testing = true))
-        first.size shouldBe second.size
-        first.forEachIndexed { index, firstResult ->
+        val second = submissionKlass.test(baseSettings).checkResults()
+        original.size shouldBe second.size
+        original.forEachIndexed { index, firstResult ->
             val secondResult = second[index]
             submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
             firstResult.runnerID shouldBe secondResult.runnerID
         }
     }
     run {
-        val first = submissionKlass.test(Settings(seed = seed, shrink = false, testing = true))
-        val second = submissionKlass.test(Settings(seed = seed, shrink = false, testing = true))
+        val noShrinkSettings = baseSettings.copy(shrink = false)
+        val first = submissionKlass.test(noShrinkSettings).checkResults()
+        val second = submissionKlass.test(noShrinkSettings).checkResults()
 
         first.size shouldBe second.size
         first.forEachIndexed { index, firstResult ->
@@ -81,26 +103,10 @@ fun Solution.fullTest(
             firstResult.runnerID shouldBe secondResult.runnerID
         }
     }
-    val first = submissionKlass.test(
-        Settings(
-            seed = seed,
-            shrink = false,
-            runAll = solutionResults != null,
-            overrideTotalCount = 1024,
-            testing = true
-        ),
-        followTrace = solutionResults?.randomTrace
-    )
-    val second = submissionKlass.test(
-        Settings(
-            seed = seed,
-            shrink = false,
-            runAll = solutionResults != null,
-            overrideTotalCount = 1024,
-            testing = true
-        ),
-        followTrace = solutionResults?.randomTrace
-    )
+    val testAllSettings =
+        baseSettings.copy(shrink = false, runAll = !isCorrect, totalTestCount = 1024, minTestCount = -1)
+    val first = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
+    val second = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
     first.size + first.skippedSteps.size shouldBe 1024
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
@@ -126,26 +132,31 @@ fun Solution.fullTest(
             solutionResult.runnerID shouldBe firstResult.runnerID
         }
     }
-    return first
+    return Pair(original, first)
 }
 
 @Suppress("NestedBlockDepth", "ComplexMethod")
 fun Class<*>.test() = this.testingClasses().apply {
     val seed = Random.nextInt()
     solution(primarySolution).apply {
-        val solutionResults = submission(primarySolution).let {
+        val (_, solutionResults) = submission(primarySolution).let {
             if (!primarySolution.isDesignOnly()) {
-                fullTest(primarySolution, seed = seed).also { results ->
+                fullTest(primarySolution, seed = seed, isCorrect = true).also { (results) ->
                     check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
                 }
             } else {
-                null
+                Pair(null, null)
             }
         }
         otherSolutions.forEach { correct ->
             submission(correct).also {
                 if (!primarySolution.isDesignOnly()) {
-                    fullTest(correct, seed = seed, solutionResults = solutionResults).also { results ->
+                    fullTest(
+                        correct,
+                        seed = seed,
+                        isCorrect = true,
+                        solutionResults = solutionResults
+                    ).first.also { results ->
                         check(!results.timeout)
                         check(results.succeeded) {
                             "Class marked as correct did not pass testing: ${results.explain(stacktrace = true)}"
@@ -169,8 +180,9 @@ fun Class<*>.test() = this.testingClasses().apply {
                     fullTest(
                         incorrect,
                         seed = seed,
+                        isCorrect = false,
                         solutionResults = solutionResults
-                    ).also { results ->
+                    ).first.also { results ->
                         results.threw shouldBe null
                         results.timeout shouldBe false
                         results.failed shouldBe true

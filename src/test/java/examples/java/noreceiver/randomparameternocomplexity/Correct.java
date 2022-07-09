@@ -11,8 +11,8 @@ public class Correct {
   @FixedParameters private static final List<One<Long>> FIXED = Arrays.asList(new One<>(8888L));
 
   @RandomParameters
-  private static One<Long> valueParameters(Random random) {
-    return new One<>(random.nextLong());
+  private static Long valueParameters(Random random) {
+    return random.nextLong();
   }
 
   public static boolean value(long first) {

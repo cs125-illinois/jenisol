@@ -271,7 +271,7 @@ class TestRunner(
         get() = testResults.any { it.failed }
     val ready: Boolean
         get() = shouldContinue && if (staticOnly) {
-            settings.runAll!! || testResults.none { it.failed }
+            true
         } else {
             (settings.runAll!! && receivers?.solution != null) || (testResults.none { it.failed } && receivers != null)
         }
@@ -329,7 +329,7 @@ class TestRunner(
 
         val creating = !created && type != TestResult.Type.INITIALIZER
         // Only proceed past failures if forced
-        check(!failed || settings.runAll!!)
+        check(!failed || (settings.runAll!! || staticOnly))
 
         val isBoth = solutionExecutable.isAnnotationPresent(Both::class.java)
 
