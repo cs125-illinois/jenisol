@@ -177,7 +177,7 @@ class Solution(val solution: Class<*>) {
             generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1)
         }
     } * 2 + bothExecutables.size
-    private val defaultTotalCount = (defaultReceiverCount * Settings.DEFAULTS.receiverRetries) +
+    private val defaultTotalCount = (defaultReceiverCount * Settings.DEFAULT_RECEIVER_RETRIES) +
         (defaultMethodCount * defaultReceiverCount.coerceAtLeast(1))
 
     @Suppress("LongMethod", "ComplexMethod", "NestedBlockDepth")
@@ -217,19 +217,19 @@ class Solution(val solution: Class<*>) {
         } else {
             if (settings.receiverCount != -1 && settings.methodCount != -1) {
                 check(
-                    (settings.receiverCount * settings.receiverRetries) + settings.methodCount
+                    (settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES) + settings.methodCount
                         == settings.totalTestCount
                 ) {
                     "Invalid settings"
                 }
                 settings
             } else if (settings.receiverCount != -1) {
-                val methodCount = settings.totalTestCount - (settings.receiverCount * settings.receiverRetries)
+                val methodCount = settings.totalTestCount - (settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)
                 settings.copy(methodCount = methodCount)
             } else if (settings.methodCount != -1) {
                 val receiverCount = (
                     (settings.totalTestCount - settings.methodCount).toDouble() /
-                        settings.receiverRetries.toDouble()
+                        Settings.DEFAULT_RECEIVER_RETRIES.toDouble()
                     ).toInt()
                 settings.copy(receiverCount = receiverCount)
             } else {
@@ -243,10 +243,10 @@ class Solution(val solution: Class<*>) {
                             settings.totalTestCount
                         ).toInt().coerceAtLeast(2)
                 }
-                val methodCount = settings.totalTestCount - (receiverCount * settings.receiverRetries)
+                val methodCount = settings.totalTestCount - (receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)
                 settings.copy(methodCount = methodCount, receiverCount = receiverCount)
             }.let {
-                it.copy(totalTestCount = it.methodCount + (it.receiverCount * settings.receiverRetries))
+                it.copy(totalTestCount = it.methodCount + (it.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES))
             }
         }.also {
             check(it.methodCount > 0) { "Invalid method count: $settings" }
@@ -648,7 +648,6 @@ data class Settings(
     val runAll: Boolean? = null,
     val methodCount: Int = -1,
     val receiverCount: Int = -1,
-    val receiverRetries: Int = -1,
     val seed: Int = -1,
     val simpleCount: Int = -1,
     val edgeCount: Int = -1,
@@ -661,10 +660,10 @@ data class Settings(
     val testing: Boolean? = null
 ) {
     companion object {
+        const val DEFAULT_RECEIVER_RETRIES = 4
         val DEFAULTS = Settings(
             shrink = true,
             runAll = false,
-            receiverRetries = 4,
             simpleCount = Int.MAX_VALUE,
             edgeCount = Int.MAX_VALUE,
             mixedCount = Int.MAX_VALUE,
@@ -687,11 +686,6 @@ data class Settings(
                 other.receiverCount
             } else {
                 receiverCount
-            },
-            if (other.receiverRetries != -1) {
-                other.receiverRetries
-            } else {
-                receiverRetries
             },
             if (other.seed != -1) {
                 other.seed

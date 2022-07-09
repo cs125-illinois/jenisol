@@ -503,7 +503,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 settings.receiverCount
             }
             @Suppress("UnusedPrivateMember")
-            for (unused in 0 until (neededReceivers * settings.receiverRetries)) {
+            for (unused in 0 until (neededReceivers * Settings.DEFAULT_RECEIVER_RETRIES)) {
                 if (Thread.interrupted()) {
                     return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
                 }

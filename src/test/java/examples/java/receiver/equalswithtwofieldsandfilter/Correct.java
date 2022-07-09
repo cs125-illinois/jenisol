@@ -23,7 +23,7 @@ public class Correct {
 
   @FilterParameters
   private static void filterConstructor(double setFirst, double setSecond) {
-    if (setFirst <= 0 || setSecond <= 0) {
+    if (setFirst <= 0 && setSecond <= 0) {
       throw new SkipTest();
     }
   }

@@ -6,7 +6,7 @@ public class Correct {
 
   public Correct(int setValue) {
     if (setValue < 0) {
-      throw new IllegalArgumentException("setValue should be positive");
+      throw new IllegalArgumentException();
     }
     value = setValue;
   }

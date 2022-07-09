@@ -340,6 +340,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.designonlyprivate.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.equalstwofieldsplusboth.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {
