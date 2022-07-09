@@ -172,7 +172,7 @@ class Solution(val solution: Class<*>) {
     }
     val defaultMethodCount = (allExecutables - receiverGenerators).sumOf {
         if (it.receiverParameter() || (receiverGenerators.isNotEmpty() && it.objectParameter())) {
-            defaultReceiverCount * 2
+            defaultReceiverCount
         } else {
             generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1)
         }
@@ -200,7 +200,7 @@ class Solution(val solution: Class<*>) {
             } else if (fauxStatic) {
                 1
             } else {
-                (defaultReceiverCount * multiplier).toInt()
+                (defaultReceiverCount * multiplier).toInt().coerceAtLeast(2)
             }
             val totalTestCount = defaultTotalCount.coerceAtLeast(settings.minTestCount).coerceAtMost(
                 if (settings.maxTestCount != -1) {
@@ -241,7 +241,7 @@ class Solution(val solution: Class<*>) {
                     (
                         (defaultReceiverCount.toDouble() / defaultTotalCount.toDouble()) *
                             settings.totalTestCount
-                        ).toInt()
+                        ).toInt().coerceAtLeast(2)
                 }
                 val methodCount = settings.totalTestCount - (receiverCount * settings.receiverRetries)
                 settings.copy(methodCount = methodCount, receiverCount = receiverCount)
@@ -253,9 +253,9 @@ class Solution(val solution: Class<*>) {
             if (skipReceiver) {
                 check(it.receiverCount == 0) { "Invalid receiver count: ${it.receiverCount}" }
             } else if (fauxStatic) {
-                check(it.receiverCount == 1) { "Invalid receiver count" }
+                check(it.receiverCount == 1) { "Invalid receiver count: ${it.receiverCount}" }
             } else {
-                check(it.receiverCount > 1) { "Invalid receiver count" }
+                check(it.receiverCount > 1) { "Invalid receiver count: ${it.receiverCount}" }
             }
             if (settings.minTestCount != -1) {
                 check(it.totalTestCount >= settings.minTestCount) {
