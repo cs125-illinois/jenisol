@@ -441,14 +441,39 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val runners: MutableList<TestRunner> = mutableListOf()
         var stepCount = 0
 
+        val receiverGenerators = sequence {
+            while (true) {
+                yieldAll(solution.receiverGenerators.toList().shuffled(random))
+            }
+        }
+
+        if (!solution.skipReceiver) {
+            if (solution.fauxStatic) {
+                check(settings.receiverCount == 1) { "Incorrect receiver count" }
+            } else {
+                check(settings.receiverCount > 1) { "Incorrect receiver count" }
+            }
+        }
+
+        val (receiverGenerator, generatorOverrides) = if (!solution.skipReceiver) {
+            val receiverGenerator = ReceiverGenerator(random, mutableListOf())
+            Pair(receiverGenerator, mutableMapOf(
+                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
+                (Any::class.java as Type) to { r: Random ->
+                    ObjectGenerator(
+                        r,
+                        receiverGenerator
+                    )
+                }
+            ))
+        } else {
+            Pair<ReceiverGenerator?, Map<Type, TypeGeneratorGenerator>>(null, mapOf())
+        }
+
+        val generators = solution.generatorFactory.get(random, settings, generatorOverrides)
+
         @Suppress("TooGenericExceptionCaught")
         try {
-            val receiverGenerators = sequence {
-                while (true) {
-                    yieldAll(solution.receiverGenerators.toList().shuffled(random))
-                }
-            }
-
             fun addRunner(generators: Generators, receivers: Value<Any?>? = null) = TestRunner(
                 runners.size,
                 this,
@@ -469,68 +494,27 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
             }
 
-            val (receiverGenerator, initialGenerators) = if (!solution.skipReceiver) {
-                if (solution.fauxStatic) {
-                    check(settings.receiverCount == 1) { "Incorrect receiver count" }
-                } else {
-                    check(settings.receiverCount > 1) { "Incorrect receiver count" }
+            @Suppress("UnusedPrivateMember")
+            for (unused in 0 until (settings.receiverCount * settings.receiverRetries)) {
+                if (Thread.interrupted()) {
+                    return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
                 }
-                val generators = solution.generatorFactory.get(
-                    random,
-                    settings,
-                    null,
-                    solution.receiversAndInitializers
-                )
-                @Suppress("UnusedPrivateMember")
-                for (unused in 0 until (settings.receiverCount * settings.receiverRetries)) {
-                    if (Thread.interrupted()) {
-                        return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
-                    }
-                    addRunner(generators)
-                    runners.failed()?.also {
-                        if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
-                            return runners.toResults(settings, random, finishedReceivers = false)
-                        }
-                    }
-                    if (runners.readyCount() == settings.receiverCount) {
-                        break
+                addRunner(generators).also { runner ->
+                    receiverGenerator?.runners?.add(runner)
+                }
+                runners.failed()?.also {
+                    if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
+                        return runners.toResults(settings, random, finishedReceivers = false)
                     }
                 }
-                // If we couldn't generate the requested number of receivers due to constructor failures,
-                // just give up and return at this point
-                if (runners.readyCount() != settings.receiverCount) {
-                    return runners.toResults(settings, random, finishedReceivers = false)
+                if (runners.readyCount() == settings.receiverCount) {
+                    break
                 }
-                Pair(
-                    ReceiverGenerator(
-                        random,
-                        runners.filter { it.ready }.toMutableList()
-                    ),
-                    generators
-                )
-            } else {
-                Pair(null, null)
             }
-
-            @Suppress("UNCHECKED_CAST")
-            val generatorOverrides = if (receiverGenerator != null) {
-                mutableMapOf(
-                    (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
-                    (Any::class.java as Type) to { r: Random ->
-                        ObjectGenerator(
-                            r,
-                            receiverGenerator
-                        )
-                    }
-                )
-            } else {
-                mapOf()
-            }
-
-            val generators =
-                solution.generatorFactory.get(random, settings, generatorOverrides, from = initialGenerators)
-            runners.filter { it.ready }.forEach {
-                it.generators = generators
+            // If we couldn't generate the requested number of receivers due to constructor failures,
+            // just give up and return at this point
+            if (runners.readyCount() != settings.receiverCount) {
+                return runners.toResults(settings, random, finishedReceivers = false)
             }
 
             val totalTests = if (settings.overrideTotalCount != -1) {
@@ -608,17 +592,17 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} didn't provide ${
-    if (executable.isStatic() && !klass.isKotlin()) {
-        "static "
-    } else {
-        ""
-    }
+        if (executable.isStatic() && !klass.isKotlin()) {
+            "static "
+        } else {
+            ""
+        }
     }${
-    if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
     } ${executable.fullName(klass.isKotlin())}"
 )
 
@@ -640,17 +624,17 @@ class SubmissionDesignKotlinIsModifiableError(klass: Class<*>, field: String) : 
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
     "Submission class ${klass.name} provided extra ${
-    if (executable.isStatic() && !klass.isKotlin()) {
-        "static "
-    } else {
-        ""
-    }
+        if (executable.isStatic() && !klass.isKotlin()) {
+            "static "
+        } else {
+            ""
+        }
     }${
-    if (executable is Method) {
-        "method"
-    } else {
-        "constructor"
-    }
+        if (executable is Method) {
+            "method"
+        } else {
+            "constructor"
+        }
     } ${executable.fullName(klass.isKotlin())}"
 )
 
