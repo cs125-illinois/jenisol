@@ -349,6 +349,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.withshouldcontinueandinit.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.withkotlinconstructorrequire.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {
