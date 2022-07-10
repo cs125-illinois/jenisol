@@ -331,8 +331,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    private fun List<TestRunner>.testCount() = map { it.testResults }.flatten().count()
-
     @Suppress("UNCHECKED_CAST", "LongParameterList")
     fun List<TestRunner>.toResults(
         settings: Settings,
@@ -433,6 +431,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             "Running all tests combined with test shrinking produce inconsistent results"
         }
 
+        if (!solution.skipReceiver) {
+            if (solution.fauxStatic) {
+                check(settings.receiverCount == 1) { "Incorrect receiver count" }
+            } else {
+                check(settings.receiverCount > 1) { "Incorrect receiver count" }
+            }
+        }
+
         val random = if (settings.seed == -1) {
             RecordingRandom(follow = followTrace)
         } else {
@@ -445,14 +451,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         val receiverGenerators = sequence {
             while (true) {
                 yieldAll(solution.receiverGenerators.toList().shuffled(random))
-            }
-        }
-
-        if (!solution.skipReceiver) {
-            if (solution.fauxStatic) {
-                check(settings.receiverCount == 1) { "Incorrect receiver count" }
-            } else {
-                check(settings.receiverCount > 1) { "Incorrect receiver count" }
             }
         }
 
@@ -494,61 +492,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 runners.add(runner)
             }
 
-            if (Thread.interrupted()) {
-                return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
-            }
-
-            val neededReceivers = if (solution.skipReceiver) {
-                1
-            } else {
-                settings.receiverCount
-            }
-            @Suppress("UnusedPrivateMember")
-            for (unused in 0 until (neededReceivers * Settings.DEFAULT_RECEIVER_RETRIES)) {
-                if (Thread.interrupted()) {
-                    return runners.toResults(settings, random, timeout = true, finishedReceivers = false)
-                }
-                addRunner(generators).also { runner ->
-                    receiverGenerator?.runners?.add(runner)
-                }
-                runners.failed()?.also {
-                    if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
-                        return runners.toResults(settings, random, finishedReceivers = false)
-                    }
-                }
-                if (runners.readyCount() == neededReceivers) {
-                    break
-                }
-            }
-            // If we couldn't generate the requested number of receivers due to constructor failures,
-            // just give up and return at this point
-            if (runners.readyCount() != neededReceivers) {
-                return runners.toResults(settings, random, finishedReceivers = false)
-            }
-
-            if (solution.skipReceiver) {
-                check(runners.testCount() == 0)
-            } else if (solution.fauxStatic && solution.initializer == null) {
-                check(runners.testCount() == 1)
-            }
-
-            val totalTests = if (settings.totalTestCount != -1) {
-                check(settings.totalTestCount > runners.testCount()) {
-                    "Invalid testing settings: overrideTotalCount (${settings.totalTestCount}) must be " +
-                        "greater than steps required to generate receivers (${runners.testCount()})"
-                }
-                settings.totalTestCount
-            } else {
-                settings.receiverCount * settings.methodCount
-            }.let {
-                if (settings.minTestCount != -1) {
-                    listOf(settings.minTestCount, it).maxOrNull() ?: error("Bad min")
-                } else {
-                    it
-                }
-            } - runners.testCount()
-
-            check(totalTests > 0) { "Invalid test count" }
+            val neededReceivers = settings.receiverCount.coerceAtLeast(1)
 
             val startMultipleCount = if (settings.startMultipleCount != -1) {
                 settings.startMultipleCount
@@ -556,43 +500,55 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 solution.defaultMethodCount
             }
 
+            if (solution.skipReceiver) {
+                addRunner(generators).also {
+                    check(it.ready) { "Static method receivers should start ready" }
+                }
+            }
+
             var totalCount = 0
-            while (totalCount < totalTests) {
+            var receiverStepCount = 0
+            var testStepCount = 0
+            while (totalCount < settings.totalTestCount) {
+                val finishedReceivers = runners.size >= neededReceivers
                 if (Thread.interrupted()) {
-                    return runners.toResults(settings, random, timeout = true)
+                    return runners.toResults(settings, random, timeout = true, finishedReceivers = finishedReceivers)
+                }
+                if (receiverStepCount > settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES) {
+                    return runners.toResults(settings, random, finishedReceivers = false)
                 }
                 val usedRunner = if (runners.readyCount() < neededReceivers) {
-                    check(!solution.skipReceiver) {
-                        "Static testing should never drop receivers"
-                    }
+                    check(!solution.skipReceiver) { "Static testing should never drop receivers" }
                     addRunner(generators).also { runner ->
                         receiverGenerator?.runners?.add(runner)
+                    }.also {
+                        if (it.ranLastTest || it.skippedLastTest) {
+                            receiverStepCount++
+                            totalCount++
+                        }
                     }
                 } else {
-                    if (totalCount < startMultipleCount) {
-                        runners.first { it.ready }.also {
-                            it.next(stepCount++)
-                        }
+                    if (testStepCount < startMultipleCount) {
+                        runners.first { it.ready }.next(stepCount++)
                     } else {
-                        runners.filter { it.ready }.shuffled(random).first().also {
-                            it.next(stepCount++)
+                        runners.filter { it.ready }.shuffled(random).first().next(stepCount++)
+                    }.also {
+                        if (it.ranLastTest || it.skippedLastTest) {
+                            testStepCount++
+                            totalCount++
                         }
                     }
                 }
                 runners.failed()?.also {
                     if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
-                        return runners.toResults(settings, random)
+                        return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
                     }
                 }
-
                 if (usedRunner.returnedReceivers != null) {
                     usedRunner.returnedReceivers!!.forEach { returnedReceiver ->
                         addRunner(generators, returnedReceiver)
                     }
                     usedRunner.returnedReceivers = null
-                }
-                if (usedRunner.ranLastTest || usedRunner.skippedLastTest) {
-                    totalCount++
                 }
             }
             return runners.toResults(settings, random, completed = true)

@@ -656,7 +656,7 @@ class TestRunner(
         }
     }
 
-    fun next(stepCount: Int): Boolean {
+    fun next(stepCount: Int): TestRunner {
         if (!created) {
             run(receiverGenerators.first(), stepCount)
             created = true
@@ -672,7 +672,7 @@ class TestRunner(
                 } as Boolean
             }
         }
-        return ready
+        return this
     }
 }
 

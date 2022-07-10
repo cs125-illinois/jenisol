@@ -16,6 +16,6 @@ public class Correct {
 
   @RandomType
   private static int randomInt(int complexity, Random random) {
-    return random.nextInt(32);
+    return random.nextInt(16);
   }
 }
