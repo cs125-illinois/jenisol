@@ -427,6 +427,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             throw DesignOnlyTestingError(solution.solution)
         }
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)
+
         check(settings.runAll != null)
         check(!(settings.runAll && settings.shrink!!)) {
             "Running all tests combined with test shrinking produce inconsistent results"

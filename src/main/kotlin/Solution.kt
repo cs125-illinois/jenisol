@@ -161,7 +161,7 @@ class Solution(val solution: Class<*>) {
 
     val generatorFactory: GeneratorFactory = GeneratorFactory(allExecutables + initializers, this)
 
-    private val defaultReceiverCount = if (skipReceiver) {
+    private var defaultReceiverCount = if (skipReceiver) {
         0
     } else if (fauxStatic) {
         1
@@ -170,7 +170,7 @@ class Solution(val solution: Class<*>) {
             generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size
         } * 2
     }
-    val defaultMethodCount = (
+    var defaultMethodCount = (
         (allExecutables - receiverGenerators).sumOf {
             if (it.receiverParameter()) {
                 defaultReceiverCount
@@ -184,8 +184,11 @@ class Solution(val solution: Class<*>) {
             }
         } * 2
         ) + bothExecutables.size
+
     private val defaultTotalCount = (defaultReceiverCount * Settings.DEFAULT_RECEIVER_RETRIES) +
         (defaultMethodCount * defaultReceiverCount.coerceAtLeast(1))
+
+    private val testingEquals = allExecutables.any { it.objectParameter() && it.name == "equals" }
 
     @Suppress("LongMethod", "ComplexMethod", "NestedBlockDepth")
     fun setCounts(settings: Settings): Settings {
@@ -207,7 +210,13 @@ class Solution(val solution: Class<*>) {
             } else if (fauxStatic) {
                 1
             } else {
-                (defaultReceiverCount * multiplier).toInt().coerceAtLeast(2)
+                (defaultReceiverCount * multiplier).toInt().coerceAtLeast(
+                    if (testingEquals) {
+                        defaultReceiverCount
+                    } else {
+                        2
+                    }
+                )
             }
             val totalTestCount = defaultTotalCount.coerceAtLeast(settings.minTestCount).coerceAtMost(
                 if (settings.maxTestCount != -1) {
@@ -248,15 +257,28 @@ class Solution(val solution: Class<*>) {
                     (
                         (defaultReceiverCount.toDouble() / defaultTotalCount.toDouble()) *
                             settings.totalTestCount
-                        ).toInt().coerceAtLeast(2)
+                        ).toInt().coerceAtLeast(
+                        if (testingEquals) {
+                            defaultReceiverCount
+                        } else {
+                            2
+                        }
+                    )
                 }
-                val methodCount = settings.totalTestCount - (receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)
+                val methodCount =
+                    (settings.totalTestCount - (receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)).coerceAtLeast(
+                        settings.totalTestCount / 2
+                    )
                 settings.copy(methodCount = methodCount, receiverCount = receiverCount)
             }.let {
-                it.copy(totalTestCount = it.methodCount + (it.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES))
+                if (it.totalTestCount == -1) {
+                    it.copy(totalTestCount = it.methodCount + (it.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES))
+                } else {
+                    it
+                }
             }
         }.also {
-            check(it.methodCount > 0) { "Invalid method count: $settings" }
+            check(it.methodCount > 0) { "Invalid method count: $it" }
             if (skipReceiver) {
                 check(it.receiverCount == 0) { "Invalid receiver count: ${it.receiverCount}" }
             } else if (fauxStatic) {

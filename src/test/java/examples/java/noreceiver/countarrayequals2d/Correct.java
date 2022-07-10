@@ -3,6 +3,7 @@ package examples.java.noreceiver.countarrayequals2d;
 import edu.illinois.cs.cs125.jenisol.core.RandomType;
 import java.util.Random;
 
+@SuppressWarnings("ForLoopReplaceableByForEach")
 public class Correct {
   public int value(int[][] values, int check) {
     int count = 0;
@@ -18,6 +19,6 @@ public class Correct {
 
   @RandomType
   private static int randomInt(int complexity, Random random) {
-    return random.nextInt(32);
+    return random.nextInt(16);
   }
 }

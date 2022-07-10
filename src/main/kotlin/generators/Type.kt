@@ -268,7 +268,7 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
     override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
-        val listSize = random.nextInt(complexity.squared().coerceAtLeast(2).toInt())
+        val listSize = random.nextInt((complexity.squared() / 2).coerceAtLeast(2).toInt())
         return mutableListOf<Any>().apply {
             repeat(listSize) {
                 add(componentGenerator.random(complexity, runner).solutionCopy!!)
@@ -334,7 +334,7 @@ class MapGenerator(
     override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
-        val keySize = random.nextInt(complexity.squared().coerceAtLeast(2).toInt())
+        val keySize = random.nextInt((complexity.squared() / 2).coerceAtLeast(2).toInt())
         return mutableMapOf<Any, Any>().apply {
             repeat(keySize) {
                 this[keyGenerator.random(complexity, runner).solutionCopy!!] =
@@ -380,7 +380,7 @@ class ArrayGenerator(random: Random, private val klass: Class<*>, private val co
         } else {
             Pair(complexity, null)
         }
-        val arraySize = random.nextInt(currentComplexity.squared().coerceAtLeast(2).toInt()).let {
+        val arraySize = random.nextInt((currentComplexity.squared() / 2).coerceAtLeast(2).toInt()).let {
             if (top && it == 0) {
                 1
             } else {

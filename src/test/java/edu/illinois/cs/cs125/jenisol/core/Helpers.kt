@@ -103,11 +103,18 @@ fun Solution.fullTest(
             firstResult.runnerID shouldBe secondResult.runnerID
         }
     }
+    val testAllCounts = solutionResults?.size ?: 256.coerceAtLeast(original.size)
     val testAllSettings =
-        baseSettings.copy(shrink = false, runAll = !isCorrect, totalTestCount = 1024, minTestCount = -1)
+        baseSettings.copy(
+            shrink = false,
+            runAll = !isCorrect,
+            totalTestCount = testAllCounts,
+            minTestCount = -1,
+            maxTestCount = -1
+        )
     val first = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
     val second = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
-    first.size + first.skippedSteps.size shouldBe 1024
+    first.size + first.skippedSteps.size shouldBe testAllCounts
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
         val secondResult = second[index]
