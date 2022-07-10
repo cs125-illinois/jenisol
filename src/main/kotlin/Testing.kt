@@ -275,7 +275,8 @@ class TestRunner(
         } else {
             (settings.runAll!! && receivers?.solution != null) || (testResults.none { it.failed } && receivers != null)
         }
-    private var shouldContinue = true
+    var shouldContinue = true
+        private set
     var ranLastTest = false
     var skippedLastTest = false
 

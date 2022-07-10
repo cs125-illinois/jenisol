@@ -189,6 +189,9 @@ class Solution(val solution: Class<*>) {
         (defaultMethodCount * defaultReceiverCount.coerceAtLeast(1))
 
     private val testingEquals = allExecutables.any { it.objectParameter() && it.name == "equals" }
+    val receiverAsParameter = methodsToTest.any { executable ->
+        executable.receiverParameter() || executable.objectParameter()
+    }
 
     @Suppress("LongMethod", "ComplexMethod", "NestedBlockDepth")
     fun setCounts(settings: Settings): Settings {

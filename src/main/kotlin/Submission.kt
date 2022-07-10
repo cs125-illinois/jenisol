@@ -476,6 +476,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         @Suppress("TooGenericExceptionCaught")
         try {
+            fun List<TestRunner>.createdCount() =
+                count { it.created && (solution.skipReceiver || it.receivers?.solution != null) }
+
             fun addRunner(generators: Generators, receivers: Value<Any?>? = null) = TestRunner(
                 runners.size,
                 this,
@@ -492,8 +495,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 runners.add(runner)
             }
 
-            val neededReceivers = settings.receiverCount.coerceAtLeast(1)
-
             val startMultipleCount = if (settings.startMultipleCount != -1) {
                 settings.startMultipleCount
             } else {
@@ -506,18 +507,39 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
 
+            val neededReceivers = settings.receiverCount.coerceAtLeast(1)
+            var currentReceiverCount = if (solution.receiverAsParameter) {
+                neededReceivers
+            } else {
+                runners.size
+            }
+
             var totalCount = 0
             var receiverStepCount = 0
             var testStepCount = 0
+
             while (totalCount < settings.totalTestCount) {
-                val finishedReceivers = runners.size >= neededReceivers
+                val createdCount = runners.createdCount()
+                val stepsLeft = settings.totalTestCount - totalCount
+                val receiverStepsLeft = ((neededReceivers - createdCount) * Settings.DEFAULT_RECEIVER_RETRIES)
+                    .coerceAtLeast(0)
+                val finishedReceivers = createdCount >= neededReceivers
+                @Suppress("ComplexCondition")
+                if (currentReceiverCount < neededReceivers &&
+                    !(currentReceiverCount == 1 && testStepCount < startMultipleCount) &&
+                    (runners.isEmpty() || (random.nextDouble() < (receiverStepsLeft.toDouble() / stepsLeft.toDouble())))
+                ) {
+                    currentReceiverCount++
+                }
                 if (Thread.interrupted()) {
                     return runners.toResults(settings, random, timeout = true, finishedReceivers = finishedReceivers)
                 }
-                if (receiverStepCount > settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES) {
+                if (!finishedReceivers &&
+                    receiverStepCount > settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES
+                ) {
                     return runners.toResults(settings, random, finishedReceivers = false)
                 }
-                val usedRunner = if (runners.readyCount() < neededReceivers) {
+                val usedRunner = if (runners.readyCount() < currentReceiverCount) {
                     check(!solution.skipReceiver) { "Static testing should never drop receivers" }
                     addRunner(generators).also { runner ->
                         receiverGenerator?.runners?.add(runner)
@@ -551,6 +573,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     usedRunner.returnedReceivers = null
                 }
             }
+            check(runners.createdCount() >= neededReceivers)
             return runners.toResults(settings, random, completed = true)
         } catch (e: FollowTraceException) {
             throw e
