@@ -75,14 +75,7 @@ data class Parameters(
     }
 }
 
-interface ParametersGenerator {
-    val simple: List<Parameters>
-    val edge: List<Parameters>
-    val mixed: List<Parameters>
-    fun random(complexity: Complexity, runner: TestRunner?): Parameters
-}
-
-typealias ParametersGeneratorGenerator = (random: Random) -> ParametersGenerator
+typealias ParametersGeneratorGenerator = (random: Random) -> TypeParameterGenerator
 
 class GeneratorFactory(private val executables: Set<Executable>, val solution: Solution) {
     val solutionClass = solution.solution
@@ -711,7 +704,7 @@ class TypeParameterGenerator(
     parameters: Array<out Parameter>,
     generators: Map<Type, TypeGeneratorGenerator> = mapOf(),
     private val random: Random = Random
-) : ParametersGenerator {
+) {
     private val parameterGenerators = parameters.map {
         val type = it.parameterizedType
         val generator = if (type in generators) {
@@ -739,19 +732,19 @@ class TypeParameterGenerator(
         }
     }
 
-    override val simple by lazy {
+    val simple by lazy {
         parameterGenerators.map { it.simple }.combine(Parameters.Type.SIMPLE)
     }
-    override val edge by lazy {
+    val edge by lazy {
         parameterGenerators.map { it.edge }.combine(Parameters.Type.EDGE)
     }
-    override val mixed by lazy {
+    val mixed by lazy {
         parameterGenerators.map { it.simple + it.edge }.combine(Parameters.Type.MIXED).filter {
             it !in simple && it !in edge
         }
     }
 
-    override fun random(complexity: Complexity, runner: TestRunner?): Parameters {
+    fun random(complexity: Complexity, runner: TestRunner?): Parameters {
         return parameterGenerators.map { it.random(complexity, runner) }.map {
             Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->

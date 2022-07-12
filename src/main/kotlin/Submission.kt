@@ -27,6 +27,26 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 "is not ${solution.solution.getVisibilityModifier() ?: "package private"}"
             )
         }
+        if (!submission.isKotlin() && (solution.solution.isFinal() != submission.isFinal())) {
+            throw SubmissionDesignClassError(
+                submission,
+                if (solution.solution.isFinal()) {
+                    "is not marked as final but should be"
+                } else {
+                    "is marked as final but should not be"
+                }
+            )
+        }
+        if (solution.solution.isAbstract() != submission.isAbstract()) {
+            throw SubmissionDesignClassError(
+                submission,
+                if (solution.solution.isAbstract()) {
+                    "is not marked as abstract but should be"
+                } else {
+                    "is marked as abstract but should not be"
+                }
+            )
+        }
         if (solution.solution.superclass != null && solution.solution.superclass != submission.superclass) {
             throw SubmissionDesignClassError(
                 submission,
@@ -421,7 +441,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         captureOutput: CaptureOutput = ::defaultCaptureOutput,
         followTrace: List<Int>? = null
     ): TestResults {
-        if (solution.solution.isDesignOnly()) {
+        if (solution.solution.isDesignOnly() || solution.solution.isAbstract()) {
             throw DesignOnlyTestingError(solution.solution)
         }
         val settings = solution.setCounts(Settings.DEFAULTS merge passedSettings)

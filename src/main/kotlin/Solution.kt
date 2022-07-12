@@ -300,6 +300,9 @@ class Solution(val solution: Class<*>) {
         }
     }
 
+    @Suppress("unused")
+    fun getCounts() = setCounts(Settings.DEFAULTS)
+
     val verifiers = solution.declaredMethods.filter { it.isVerify() }.associateBy { verifier ->
         val matchingMethod = methodsToTest.filter { methodToTest ->
             val returnType = when (methodToTest) {
@@ -359,8 +362,10 @@ fun Class<*>.isPrivate() = Modifier.isPrivate(modifiers)
 fun Class<*>.isPublic() = Modifier.isPublic(modifiers)
 fun Class<*>.isProtected() = Modifier.isProtected(modifiers)
 
-@Suppress("unused")
+fun Class<*>.isAbstract() = Modifier.isAbstract(modifiers)
+
 fun Class<*>.isFinal() = Modifier.isFinal(modifiers)
+
 fun Class<*>.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
 fun Executable.isKotlinCompanionAccessor(): Boolean {
