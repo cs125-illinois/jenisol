@@ -553,7 +553,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     .coerceAtLeast(0)
                 val finishedReceivers = createdCount >= neededReceivers
                 @Suppress("ComplexCondition")
-                if (currentReceiverCount < neededReceivers &&
+                if (!finishedReceivers &&
                     !(currentReceiverCount == 1 && testStepCount < startMultipleCount) &&
                     (runners.isEmpty() || (random.nextDouble() < (receiverStepsLeft.toDouble() / stepsLeft.toDouble())))
                 ) {

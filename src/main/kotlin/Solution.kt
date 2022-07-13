@@ -206,7 +206,7 @@ class Solution(val solution: Class<*>) {
         )
 
     @Suppress("MemberVisibilityCanBePrivate")
-    val maxCount = if (limits.keys == methodsToTest) {
+    val maxCount = if (limits.keys == methodsToTest && (skipReceiver || fauxStatic)) {
         defaultTotalCount
     } else {
         Integer.MAX_VALUE
