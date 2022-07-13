@@ -69,6 +69,9 @@ fun Solution.fullTest(
 
     @Suppress("RethrowCaughtException")
     fun TestResults.checkResults() = try {
+        filter { !receiverAsParameter || it.type != TestResult.Type.CONSTRUCTOR }
+            .map { it.runnerID }.zipWithNext().all { (first, second) -> first <= second } shouldBe true
+
         if (isCorrect) {
             succeeded shouldBe true
         } else {
@@ -82,7 +85,6 @@ fun Solution.fullTest(
         }
         this
     } catch (e: Throwable) {
-        println(this.explain())
         throw e
     }
 

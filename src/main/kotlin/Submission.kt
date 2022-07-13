@@ -237,8 +237,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    private fun MutableList<TestRunner>.readyCount() = count { it.ready }
-
     private val comparators = Comparators(
         mutableMapOf(solution.solution to solution.receiverCompare, submission to solution.receiverCompare)
     )
@@ -371,10 +369,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             randomTrace = recordingRandom.finish()
         )
 
-    private fun List<TestRunner>.failed() = filter { it.failed }.also { runners ->
-        check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
-    }.minByOrNull { it.lastComplexity!!.level }
-
     inner class ExecutablePicker(private val random: Random, val methods: Set<Executable>) {
         private val counts: MutableMap<Executable, Int> = methods.filter {
             it in solution.limits.keys
@@ -397,6 +391,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             )
             total = setTotal
         }
+
         init {
             setWeights()
         }
@@ -418,6 +413,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
             return next
         }
+
         fun more() = methods.size > finished.size
     }
 
@@ -529,38 +525,98 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 solution.defaultMethodCount.coerceAtMost(solution.methodLimit)
             }
 
+            var currentRunner: TestRunner? = null
             if (solution.skipReceiver) {
                 addRunner(generators).also {
                     check(it.ready) { "Static method receivers should start ready" }
+                    currentRunner = it
                 }
             }
 
             val neededReceivers = settings.receiverCount.coerceAtLeast(1)
-            var currentReceiverCount = if (solution.receiverAsParameter) {
-                neededReceivers
-            } else {
-                runners.size
-            }
 
             var totalCount = 0
             var receiverStepCount = 0
             var testStepCount = 0
+            var receiverIndex = 0
 
             while (totalCount < settings.totalTestCount) {
                 val createdCount = runners.createdCount()
                 val finishedReceivers = createdCount >= neededReceivers
+
                 if (Thread.interrupted()) {
                     return runners.toResults(settings, random, timeout = true, finishedReceivers = finishedReceivers)
                 }
 
-                if (!finishedReceivers && receiverStepCount > settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES) {
-                    return runners.toResults(settings, random, finishedReceivers = false)
-                }
-
                 val stepsLeft = settings.totalTestCount - totalCount
-                val receiverStepsLeft = ((neededReceivers - createdCount) * Settings.DEFAULT_RECEIVER_RETRIES)
+                val receiverStepsLeft = (neededReceivers - createdCount + Settings.DEFAULT_RECEIVER_RETRIES)
                     .coerceAtLeast(0)
 
+                val readyLeft = runners.filterIndexed { index, runner -> index > receiverIndex && runner.ready }.size
+
+                @Suppress("RedundantIf")
+                val createReceiver = when {
+                    currentRunner == null -> true
+                    finishedReceivers -> false
+                    solution.receiverAsParameter -> true
+                    testStepCount < startMultipleCount -> false
+                    random.nextDouble() < receiverStepsLeft.toDouble() / stepsLeft.toDouble() -> true
+                    else -> false
+                }
+
+                val switchReceivers = when {
+                    createReceiver -> false
+                    solution.skipReceiver -> false
+                    testStepCount < startMultipleCount -> false
+                    random.nextDouble() < readyLeft.toDouble() / ((stepsLeft - receiverStepsLeft).toDouble()) -> true
+                    else -> false
+                }
+
+                if (createReceiver) {
+                    check(!solution.skipReceiver) { "Static testing should never drop receivers" }
+                    addRunner(generators).also { runner ->
+                        receiverGenerator?.runners?.add(runner)
+                    }.also {
+                        if (!solution.receiverAsParameter || currentRunner == null) {
+                            currentRunner = it
+                            receiverIndex = runners.indexOf(currentRunner)
+                        }
+                        if (it.ranLastTest || it.skippedLastTest) {
+                            receiverStepCount++
+                            totalCount++
+                        }
+                    }
+                } else {
+                    if (switchReceivers) {
+                        val previousRunner = currentRunner
+                        currentRunner = runners.filterIndexed { index, _ -> index > receiverIndex }.find { it.ready }
+                        check(currentRunner != null) { runners.indexOf(previousRunner) }
+                        receiverIndex = runners.indexOf(currentRunner)
+                    }
+                    currentRunner!!.next(stepCount++).also {
+                        if (it.ranLastTest || it.skippedLastTest) {
+                            testStepCount++
+                            totalCount++
+                        }
+                    }
+                }
+                if (currentRunner!!.failed) {
+                    if ((!settings.shrink!! || currentRunner!!.lastComplexity!!.level <= Complexity.MIN) &&
+                        !settings.runAll
+                    ) {
+                        return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
+                    }
+                }
+                if (currentRunner!!.returnedReceivers != null) {
+                    currentRunner!!.returnedReceivers!!.forEach { returnedReceiver ->
+                        addRunner(generators, returnedReceiver)
+                    }
+                    currentRunner!!.returnedReceivers = null
+                }
+                if (currentRunner?.ready == false) {
+                    currentRunner = null
+                }
+                /*
                 @Suppress("ComplexCondition")
                 if (!finishedReceivers &&
                     !(currentReceiverCount == 1 && testStepCount < startMultipleCount) &&
@@ -602,6 +658,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     }
                     usedRunner.returnedReceivers = null
                 }
+                 */
             }
             check(runners.createdCount() >= neededReceivers)
             return runners.toResults(settings, random, completed = true)
