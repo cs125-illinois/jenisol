@@ -548,10 +548,19 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
             while (totalCount < settings.totalTestCount) {
                 val createdCount = runners.createdCount()
+                val finishedReceivers = createdCount >= neededReceivers
+                if (Thread.interrupted()) {
+                    return runners.toResults(settings, random, timeout = true, finishedReceivers = finishedReceivers)
+                }
+
+                if (!finishedReceivers && receiverStepCount > settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES) {
+                    return runners.toResults(settings, random, finishedReceivers = false)
+                }
+
                 val stepsLeft = settings.totalTestCount - totalCount
                 val receiverStepsLeft = ((neededReceivers - createdCount) * Settings.DEFAULT_RECEIVER_RETRIES)
                     .coerceAtLeast(0)
-                val finishedReceivers = createdCount >= neededReceivers
+
                 @Suppress("ComplexCondition")
                 if (!finishedReceivers &&
                     !(currentReceiverCount == 1 && testStepCount < startMultipleCount) &&
@@ -559,14 +568,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 ) {
                     currentReceiverCount++
                 }
-                if (Thread.interrupted()) {
-                    return runners.toResults(settings, random, timeout = true, finishedReceivers = finishedReceivers)
-                }
-                if (!finishedReceivers &&
-                    receiverStepCount > settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES
-                ) {
-                    return runners.toResults(settings, random, finishedReceivers = false)
-                }
+
                 val usedRunner = if (runners.readyCount() < currentReceiverCount) {
                     check(!solution.skipReceiver) { "Static testing should never drop receivers" }
                     addRunner(generators).also { runner ->

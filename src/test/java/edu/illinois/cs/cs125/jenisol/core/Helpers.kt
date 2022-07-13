@@ -82,6 +82,7 @@ fun Solution.fullTest(
         }
         this
     } catch (e: Throwable) {
+        println(this.explain())
         throw e
     }
 
