@@ -79,7 +79,7 @@ class Solution(val solution: Class<*>) {
         }
     }
 
-    fun defaultMethodTestingWeight(executable: Executable): Double {
+    fun defaultTestingWeight(executable: Executable): Double {
         require(executable in methodsToTest)
         return if (executable.parameterCount == 0) {
             1.0
@@ -185,8 +185,32 @@ class Solution(val solution: Class<*>) {
         } * 2
         ) + bothExecutables.size
 
-    private val defaultTotalCount = (defaultReceiverCount * Settings.DEFAULT_RECEIVER_RETRIES) +
-        (defaultMethodCount * defaultReceiverCount.coerceAtLeast(1))
+    val limits: Map<Executable, Int> = solution.declaredMethods
+        .filter { it.isLimit() }
+        .associateWith {
+            check(it in (allExecutables + bothExecutables)) {
+                "Can only use @Limit on tested methods and constructors and methods annotated with @Both"
+            }
+            it.getAnnotation(Limit::class.java).value
+        }
+
+    val methodLimit = if (limits.keys == methodsToTest) {
+        limits.values.sum()
+    } else {
+        Integer.MAX_VALUE
+    }
+
+    private val defaultTotalCount = (
+        (defaultReceiverCount * Settings.DEFAULT_RECEIVER_RETRIES) +
+            (defaultMethodCount.coerceAtMost(methodLimit) * defaultReceiverCount.coerceAtLeast(1))
+        )
+
+    @Suppress("MemberVisibilityCanBePrivate")
+    val maxCount = if (limits.keys == methodsToTest) {
+        defaultTotalCount
+    } else {
+        Integer.MAX_VALUE
+    }
 
     private val testingEquals = allExecutables.any { it.objectParameter() && it.name == "equals" }
     val receiverAsParameter = methodsToTest.any { executable ->
@@ -197,6 +221,21 @@ class Solution(val solution: Class<*>) {
     fun setCounts(settings: Settings): Settings {
         check(!(settings.minTestCount != -1 && (settings.receiverCount != -1 || settings.methodCount != -1))) {
             "Can't use both minTestCount and either receiverCount or methodCount"
+        }
+        if (settings.minTestCount != -1) {
+            check(settings.minTestCount <= maxCount) {
+                "Can't run more than $maxCount tests due to all methods having @Limit annotations"
+            }
+        }
+        if (settings.maxTestCount != -1) {
+            check(settings.maxTestCount <= maxCount) {
+                "Can't run more than $maxCount test due to all methods having @Limit annotations"
+            }
+        }
+        if (settings.totalTestCount != -1) {
+            check(settings.totalTestCount <= maxCount) {
+                "Can't run more than $maxCount test due to all methods having @Limit annotations"
+            }
         }
         val multiplier = if (settings.minTestCount != -1 && settings.minTestCount > defaultTotalCount) {
             settings.minTestCount.toDouble() / defaultTotalCount.toDouble()

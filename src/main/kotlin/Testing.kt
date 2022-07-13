@@ -258,7 +258,7 @@ class TestRunner(
     var generators: Generators,
     val receiverGenerators: Sequence<Executable>,
     val captureOutput: CaptureOutput,
-    val methodIterator: Sequence<Executable>,
+    val methodPicker: Submission.ExecutablePicker,
     var receivers: Value<Any?>? = null,
     val settings: Settings
 ) {
@@ -270,7 +270,7 @@ class TestRunner(
     val failed: Boolean
         get() = testResults.any { it.failed }
     val ready: Boolean
-        get() = shouldContinue && if (staticOnly) {
+        get() = shouldContinue && methodPicker.more() && if (staticOnly) {
             true
         } else {
             (settings.runAll!! && receivers?.solution != null) || (testResults.none { it.failed } && receivers != null)
@@ -666,7 +666,7 @@ class TestRunner(
             initialized = true
         } else {
             initialized = true
-            run(methodIterator.first(), stepCount)
+            run(methodPicker.next(), stepCount)
             if (submission.solution.shouldContinue != null && receivers != null) {
                 shouldContinue = unwrap {
                     submission.solution.shouldContinue.invoke(receivers!!.solution)

@@ -60,7 +60,12 @@ fun Solution.fullTest(
     isCorrect: Boolean,
     solutionResults: TestResults? = null
 ): Pair<TestResults, TestResults> {
-    val baseSettings = Settings(seed = seed, testing = true, minTestCount = 64, maxTestCount = 1024)
+    val baseSettings = Settings(
+        seed = seed,
+        testing = true,
+        minTestCount = 64.coerceAtMost(maxCount),
+        maxTestCount = 1024.coerceAtMost(maxCount)
+    )
 
     @Suppress("RethrowCaughtException")
     fun TestResults.checkResults() = try {
@@ -103,7 +108,7 @@ fun Solution.fullTest(
             firstResult.runnerID shouldBe secondResult.runnerID
         }
     }
-    val testAllCounts = solutionResults?.size ?: 256.coerceAtLeast(original.size)
+    val testAllCounts = solutionResults?.size ?: 256.coerceAtLeast(original.size).coerceAtMost(maxCount)
     val testAllSettings =
         baseSettings.copy(
             shrink = false,
@@ -112,6 +117,7 @@ fun Solution.fullTest(
             minTestCount = -1,
             maxTestCount = -1
         )
+
     val first = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
     val second = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
     first.size + first.skippedSteps.size shouldBe testAllCounts

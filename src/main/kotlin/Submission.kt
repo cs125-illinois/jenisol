@@ -375,18 +375,21 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         check(runners.all { it.lastComplexity != null }) { "Runner failed without recording complexity" }
     }.minByOrNull { it.lastComplexity!!.level }
 
-    @Suppress("unused")
-    private inner class ExecutablePicker(private val random: Random) {
-        private val executableWeights =
-            solution.methodsToTest.associateWith { solution.defaultMethodTestingWeight(it) }.toMutableMap()
+    inner class ExecutablePicker(private val random: Random, val methods: Set<Executable>) {
+        private val counts: MutableMap<Executable, Int> = methods.filter {
+            it in solution.limits.keys
+        }.associateWith {
+            0
+        }.toMutableMap()
+        private val finished = mutableSetOf<Executable>()
 
-        val executableChooser: TreeMap<Double, Executable>
-        val total: Double
-
-        init {
+        private lateinit var executableChooser: TreeMap<Double, Executable>
+        var total: Double = 0.0
+        private fun setWeights() {
             var setTotal = 0.0
+            val methodsLeft = methods - finished
             executableChooser = TreeMap(
-                solution.methodsToTest.associateWith { solution.defaultMethodTestingWeight(it) }
+                methodsLeft.associateWith { solution.defaultTestingWeight(it) }
                     .map { (executable, weight) ->
                         setTotal += weight
                         setTotal to executable
@@ -394,23 +397,28 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             )
             total = setTotal
         }
+        init {
+            setWeights()
+        }
 
         private var previous: Executable? = null
         fun next(): Executable {
+            check(more()) { "Ran out of methods to test due to @Limit annotations" }
             var next = executableChooser.higherEntry(random.nextDouble() * total).value!!
-            if (next == previous && solution.methodsToTest.size > 1) {
+            if (next == previous && methods.size > 1) {
                 next = executableChooser.higherEntry(random.nextDouble() * total).value!!
             }
             previous = next
+            if (next in counts) {
+                counts[next] = counts[next]!! + 1
+                if (counts[next]!! == solution.limits[next]!!) {
+                    finished += next
+                    setWeights()
+                }
+            }
             return next
         }
-    }
-
-    private fun genMethodIterator(random: Random): Sequence<Executable> {
-        val executablePicker = ExecutablePicker(random)
-        return sequence {
-            yield(executablePicker.next())
-        }
+        fun more() = methods.size > finished.size
     }
 
     class RecordingRandom(seed: Long = Random.nextLong(), private val follow: List<Int>? = null) : Random() {
@@ -505,7 +513,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 generators,
                 receiverGenerators,
                 captureOutput,
-                genMethodIterator(random),
+                ExecutablePicker(random, solution.methodsToTest),
                 receivers = receivers,
                 settings = settings
             ).also { runner ->
@@ -518,7 +526,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             val startMultipleCount = if (settings.startMultipleCount != -1) {
                 settings.startMultipleCount
             } else {
-                solution.defaultMethodCount
+                solution.defaultMethodCount.coerceAtMost(solution.methodLimit)
             }
 
             if (solution.skipReceiver) {

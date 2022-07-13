@@ -343,18 +343,17 @@ annotation class CheckDesign
 
 fun Executable.isCheckDesign() = isAnnotationPresent(CheckDesign::class.java)
 
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class Limit(val value: Int)
+
+fun Executable.isLimit() = isAnnotationPresent(Limit::class.java)
+
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class NotNull
 
 fun Parameter.isNotNull() = isAnnotationPresent(NotNull::class.java)
-
-fun Field.isStatic() = Modifier.isStatic(modifiers)
-fun Field.isFinal() = Modifier.isFinal(modifiers)
-fun Field.isPublic() = Modifier.isPublic(modifiers)
-fun Field.isPrivate() = Modifier.isPrivate(modifiers)
-fun Field.isProtected() = Modifier.isProtected(modifiers)
-fun Field.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
 fun Executable.isJenisol() = setOf(
     RandomType::class.java,
@@ -373,6 +372,13 @@ fun Executable.isJenisol() = setOf(
 fun Field.isJenisol() = (typeFieldAnnotations + FixedParameters::class.java).any {
     isAnnotationPresent(it)
 }
+
+fun Field.isStatic() = Modifier.isStatic(modifiers)
+fun Field.isFinal() = Modifier.isFinal(modifiers)
+fun Field.isPublic() = Modifier.isPublic(modifiers)
+fun Field.isPrivate() = Modifier.isPrivate(modifiers)
+fun Field.isProtected() = Modifier.isProtected(modifiers)
+fun Field.isPackagePrivate() = !isPublic() && !isPrivate() && !isProtected()
 
 private val parameterGroupTypes = setOf(
     None::class.java,
