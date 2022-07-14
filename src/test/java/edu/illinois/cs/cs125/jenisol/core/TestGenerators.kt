@@ -197,11 +197,11 @@ class TestGenerators : StringSpec(
             }
         }
         "it should generate parameters properly" {
-            methodNamed("testInt").testParameterGenerator(3, 2)
-            methodNamed("testTwoInts").testParameterGenerator(3, 2, 2)
+            methodNamed("testInt").testParameterGenerator(3, 0)
+            methodNamed("testTwoInts").testParameterGenerator(3, 0, 2)
             methodNamed("testIntArray").testParameterGenerator(2, 1)
             methodNamed("testTwoIntArrays").testParameterGenerator(2, 1, 2)
-            methodNamed("testIntAndBoolean").testParameterGenerator(3 * 2, 0, 1, 4)
+            methodNamed("testIntAndBoolean").testParameterGenerator(3 * 2, 0, 1, 0)
         }
         "it should determine array enclosed types correctly" {
             IntArray::class.java.getArrayType() shouldBe Int::class.java

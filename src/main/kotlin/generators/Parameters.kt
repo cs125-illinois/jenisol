@@ -717,7 +717,7 @@ class TypeParameterGenerator(
         )
     }
 
-    private fun List<Set<Value<*>>>.combine(type: Parameters.Type) = product().map { list ->
+    private fun List<Set<Value<*>>>.combine(type: Parameters.Type) = product().shuffled(random).map { list ->
         list.map {
             check(it is Value<*>) { "Didn't find the right type in our parameter list" }
             Quad(it.solution, it.submission, it.submissionCopy, it.submissionCopy)

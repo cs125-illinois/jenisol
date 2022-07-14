@@ -369,7 +369,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             randomTrace = recordingRandom.finish()
         )
 
-    inner class ExecutablePicker(private val random: Random, val methods: Set<Executable>) {
+    inner class ExecutablePicker(private val random: Random, private val methods: Set<Executable>) {
         private val counts: MutableMap<Executable, Int> = methods.filter {
             it in solution.limits.keys
         }.associateWith {
@@ -378,7 +378,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         private val finished = mutableSetOf<Executable>()
 
         private lateinit var executableChooser: TreeMap<Double, Executable>
-        var total: Double = 0.0
+        private var total: Double = 0.0
         private fun setWeights() {
             var setTotal = 0.0
             val methodsLeft = methods - finished
@@ -540,6 +540,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             var testStepCount = 0
             var receiverIndex = 0
 
+            fun nextRunner(checkNull: Boolean = true) {
+                currentRunner = runners.filterIndexed { index, _ -> index > receiverIndex }.find { it.ready }
+                if (checkNull) {
+                    check(currentRunner != null)
+                }
+                receiverIndex = runners.indexOf(currentRunner)
+            }
+
             while (totalCount < settings.totalTestCount) {
                 val createdCount = runners.createdCount()
                 val finishedReceivers = createdCount >= neededReceivers
@@ -577,6 +585,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     addRunner(generators).also { runner ->
                         receiverGenerator?.runners?.add(runner)
                     }.also {
+                        if (it.failed) {
+                            if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) &&
+                                !settings.runAll
+                            ) {
+                                return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
+                            }
+                        }
                         if (!solution.receiverAsParameter || currentRunner == null) {
                             currentRunner = it
                             receiverIndex = runners.indexOf(currentRunner)
@@ -588,10 +603,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     }
                 } else {
                     if (switchReceivers) {
-                        val previousRunner = currentRunner
-                        currentRunner = runners.filterIndexed { index, _ -> index > receiverIndex }.find { it.ready }
-                        check(currentRunner != null) { runners.indexOf(previousRunner) }
-                        receiverIndex = runners.indexOf(currentRunner)
+                        nextRunner()
                     }
                     currentRunner!!.next(stepCount++).also {
                         if (it.ranLastTest || it.skippedLastTest) {
@@ -614,54 +626,15 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     currentRunner!!.returnedReceivers = null
                 }
                 if (currentRunner?.ready == false) {
-                    currentRunner = null
+                    nextRunner(false)
                 }
-                /*
-                @Suppress("ComplexCondition")
-                if (!finishedReceivers &&
-                    !(currentReceiverCount == 1 && testStepCount < startMultipleCount) &&
-                    (runners.isEmpty() || (random.nextDouble() < (receiverStepsLeft.toDouble() / stepsLeft.toDouble())))
-                ) {
-                    currentReceiverCount++
-                }
-
-                val usedRunner = if (runners.readyCount() < currentReceiverCount) {
-                    check(!solution.skipReceiver) { "Static testing should never drop receivers" }
-                    addRunner(generators).also { runner ->
-                        receiverGenerator?.runners?.add(runner)
-                    }.also {
-                        if (it.ranLastTest || it.skippedLastTest) {
-                            receiverStepCount++
-                            totalCount++
-                        }
-                    }
-                } else {
-                    if (testStepCount < startMultipleCount) {
-                        runners.first { it.ready }.next(stepCount++)
-                    } else {
-                        runners.filter { it.ready }.shuffled(random).first().next(stepCount++)
-                    }.also {
-                        if (it.ranLastTest || it.skippedLastTest) {
-                            testStepCount++
-                            totalCount++
-                        }
-                    }
-                }
-                runners.failed()?.also {
-                    if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) && !settings.runAll) {
-                        return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
-                    }
-                }
-                if (usedRunner.returnedReceivers != null) {
-                    usedRunner.returnedReceivers!!.forEach { returnedReceiver ->
-                        addRunner(generators, returnedReceiver)
-                    }
-                    usedRunner.returnedReceivers = null
-                }
-                 */
             }
-            check(runners.createdCount() >= neededReceivers)
-            return runners.toResults(settings, random, completed = true)
+            return runners.toResults(
+                settings,
+                random,
+                completed = true,
+                finishedReceivers = runners.createdCount() >= neededReceivers
+            )
         } catch (e: FollowTraceException) {
             throw e
         } catch (e: Throwable) {
