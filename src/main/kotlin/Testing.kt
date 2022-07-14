@@ -231,6 +231,7 @@ class TestResults(
     val threw: Throwable? = null,
     val timeout: Boolean,
     val finishedReceivers: Boolean,
+    val untestedReceivers: Int,
     designOnly: Boolean? = null,
     val skippedSteps: List<Int>,
     val randomTrace: List<Int>? = null
@@ -270,13 +271,11 @@ class TestRunner(
     val failed: Boolean
         get() = testResults.any { it.failed }
     val ready: Boolean
-        get() = shouldContinue && methodPicker.more() && if (staticOnly) {
+        get() = methodPicker.more() && if (staticOnly) {
             true
         } else {
             (settings.runAll!! && receivers?.solution != null) || (testResults.none { it.failed } && receivers != null)
         }
-    var shouldContinue = true
-        private set
     var ranLastTest = false
     var skippedLastTest = false
 
@@ -286,6 +285,7 @@ class TestRunner(
 
     var created: Boolean
     var initialized: Boolean = false
+    var tested: Boolean = false
 
     init {
         if (receivers == null && staticOnly) {
@@ -667,12 +667,8 @@ class TestRunner(
         } else {
             initialized = true
             run(methodPicker.next(), stepCount)
-            if (submission.solution.shouldContinue != null && receivers != null) {
-                shouldContinue = unwrap {
-                    submission.solution.shouldContinue.invoke(receivers!!.solution)
-                } as Boolean
-            }
         }
+        tested = true
         return this
     }
 }

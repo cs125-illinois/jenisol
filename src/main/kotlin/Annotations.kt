@@ -309,26 +309,6 @@ class CompareException(message: String? = null) : RuntimeException(message)
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class ShouldContinue {
-    companion object {
-        val name: String = ShouldContinue::class.java.simpleName
-        fun validate(method: Method) {
-            check(method.isPrivate()) { "@$name methods must be private" }
-            check(!method.isStatic()) { "@$name methods must not be static" }
-            check(method.returnType.name == "boolean") {
-                "@$name methods must return a boolean"
-            }
-            check(method.parameterTypes.isEmpty()) {
-                "@$name methods must not accept parameters"
-            }
-            method.isAccessible = true
-        }
-    }
-}
-fun Method.isShouldContinue() = isAnnotationPresent(ShouldContinue::class.java)
-
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.RUNTIME)
 annotation class Configure(val strictOutput: Boolean = false)
 
 @Target(AnnotationTarget.CLASS)
@@ -363,8 +343,7 @@ fun Executable.isJenisol() = setOf(
     Both::class.java,
     FilterParameters::class.java,
     InstanceValidator::class.java,
-    Compare::class.java,
-    ShouldContinue::class.java
+    Compare::class.java
 ).any {
     isAnnotationPresent(it)
 }

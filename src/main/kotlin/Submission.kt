@@ -365,6 +365,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             threw,
             timeout,
             finishedReceivers,
+            count { !it.tested },
             skippedSteps = map { it.skippedTests }.flatten().sorted(),
             randomTrace = recordingRandom.finish()
         )
