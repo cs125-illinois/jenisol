@@ -601,8 +601,7 @@ class ConfiguredParametersGenerator(
         notNullParameters[index] && any == null
     }.isNotEmpty()
 
-    private val randomPair =
-        RandomGroup(random.nextLong())
+    private val randomPair = RandomGroup(random.nextLong())
     private var index = 0
     private var bound: Complexity? = null
     private val complexity = Complexity()
@@ -720,7 +719,7 @@ class TypeParameterGenerator(
     private fun List<Set<Value<*>>>.combine(type: Parameters.Type) = product().shuffled(random).map { list ->
         list.map {
             check(it is Value<*>) { "Didn't find the right type in our parameter list" }
-            Quad(it.solution, it.submission, it.submissionCopy, it.submissionCopy)
+            Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
             Parameters(
                 solution.toTypedArray(),

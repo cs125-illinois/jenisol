@@ -2,37 +2,40 @@
 
 package edu.illinois.cs.cs125.jenisol.core.generators
 
+import edu.illinois.cs.cs125.jenisol.core.Submission
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import kotlin.random.Random
 
 @Suppress("UNCHECKED_CAST")
-fun List<TestRunner>.findWithComplexity(complexity: Complexity, random: Random): Value<Any> = filter { it.ready }
-    .map { it.receivers!! }
-    .let { receivers ->
-        check(receivers.isNotEmpty()) { "No receivers available" }
-        val closest = receivers.map { it.complexity.level }.distinct().sorted().let { complexities ->
-            complexities.find { it == complexity.level }
-                ?: complexities.filter { complexity.level >= it }.minOrNull()
-                ?: complexities.filter { complexity.level < it }.sorted().reversed().firstOrNull()
-                ?: error("Couldn't locate a complexity that should exist")
-        }
-        receivers.filter { it.complexity.level == closest }.shuffled(random).firstOrNull() as Value<Any>
+fun List<Value<Any>>.findWithComplexity(complexity: Complexity, random: Random): Value<Any> = let { receivers ->
+    check(receivers.isNotEmpty()) { "No receivers available" }
+    val closest = receivers.map { it.complexity.level }.distinct().sorted().let { complexities ->
+        complexities.find { it == complexity.level }
+            ?: complexities.filter { complexity.level >= it }.minOrNull()
+            ?: complexities.filter { complexity.level < it }.sorted().reversed().firstOrNull()
+            ?: error("Couldn't locate a complexity that should exist")
     }
+    receivers.filter { it.complexity.level == closest }.shuffled(random).firstOrNull() as Value<Any>
+}
 
-class ReceiverGenerator(val random: Random = Random, val runners: MutableList<TestRunner>) : TypeGenerator<Any> {
-    init {
-        check(runners.none { it.receivers == null }) { "Found null receivers" }
-        check(runners.none { !it.ready }) { "Found non-ready receivers" }
-    }
-
-    class ReceiverValue(value: Value<Any>) :
-        Value<Any>(value.solution, value.submission, value.solutionCopy, value.submissionCopy, value.complexity)
+class ReceiverGenerator(
+    val random: Random = Random,
+    val receivers: MutableList<Value<Any>>,
+    val submission: Submission
+) : TypeGenerator<Any> {
 
     @Suppress("UNCHECKED_CAST")
     override val simple: Set<Value<Any>>
-        get() = runners
-            .filter { it.receivers?.complexity?.level == 0 }
-            .map { ReceiverValue(it.receivers as Value<Any>) }
+        get() = receivers
+            .filter { it.complexity.level == 0 }
+            .onEach {
+                check(it.solution::class.java == submission.solution.solution)
+                check(it.solutionCopy::class.java == submission.solution.solution)
+                check(it.submission::class.java == submission.submission)
+                check(it.submissionCopy::class.java == submission.submission)
+                check(it.solution !== it.solutionCopy)
+                check(it.submission !== it.submissionCopy)
+            }
             .toSet()
 
     override val edge: Set<Value<Any?>>
@@ -42,7 +45,14 @@ class ReceiverGenerator(val random: Random = Random, val runners: MutableList<Te
         if (random.nextBoolean()) {
             simple.shuffled(random).first()
         } else {
-            runners.findWithComplexity(complexity, random)
+            receivers.findWithComplexity(complexity, random)
+        }.also {
+            check(it.solution::class.java == submission.solution.solution)
+            check(it.solutionCopy::class.java == submission.solution.solution)
+            check(it.submission::class.java == submission.submission)
+            check(it.submissionCopy::class.java == submission.submission)
+            check(it.solution !== it.solutionCopy)
+            check(it.submission !== it.submissionCopy)
         }
 }
 

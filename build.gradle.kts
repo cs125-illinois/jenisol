@@ -42,7 +42,15 @@ tasks.withType<KotlinCompile> {
 tasks.withType<Test> {
     useJUnitPlatform()
     enableAssertions = true
-    jvmArgs("-ea", "-Xmx1G", "-Xss256k", "-Dfile.encoding=UTF-8", "-XX:-OmitStackTraceInFastThrow")
+    tasks.withType<Test> {
+        useJUnitPlatform()
+        jvmArgs(
+            "-ea", "-Xmx1G", "-Xss256k",
+            "-Dfile.encoding=UTF-8",
+            "-XX:-OmitStackTraceInFastThrow",
+            "--add-opens", "java.base/java.util=ALL-UNNAMED"
+        )
+    }
 }
 tasks.dependencyUpdates {
     fun String.isNonStable() = !(

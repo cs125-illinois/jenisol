@@ -2,6 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
+import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.boxArray
 import edu.illinois.cs.cs125.jenisol.core.generators.compareBoxed
 import edu.illinois.cs.cs125.jenisol.core.generators.isAnyArray
@@ -651,4 +652,11 @@ fun Any.safePrint(): String = try {
     toString()
 } catch (_: Exception) {
     this::class.simpleName ?: this.javaClass.packageName
+}
+
+inline fun <reified T> T.deepCopy(): T {
+    return when {
+        this == null -> null as T
+        else -> Cloner.shared().deepClone(this)
+    }
 }

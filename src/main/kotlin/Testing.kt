@@ -5,8 +5,10 @@ package edu.illinois.cs.cs125.jenisol.core
 import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
+import edu.illinois.cs.cs125.jenisol.core.generators.Quad
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
+import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
 import java.lang.reflect.Constructor
@@ -77,18 +79,24 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField val solutionExecutable: Executable,
     @JvmField val submissionExecutable: Executable,
     @JvmField val type: Type,
-    @JvmField val parameters: P,
-    @JvmField val parameterType: Parameters.Type,
+    @JvmField val allParameters: Parameters,
     @JvmField val solution: Result<T, P>,
     @JvmField val submission: Result<T, P>,
     @JvmField val interval: Interval,
     @JvmField val complexity: Int,
     @JvmField val solutionClass: Class<*>,
     @JvmField val submissionClass: Class<*>,
+    @JvmField val solutionReceiver: Any?,
+    @JvmField val submissionReceiver: Any?,
     @JvmField var message: String? = null,
     @JvmField val differs: MutableSet<Differs> = mutableSetOf(),
-    @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin()
+    @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin(),
+    @JvmField val existingReceiverMismatch: Boolean = false
 ) {
+    @Suppress("UNCHECKED_CAST")
+    @JvmField
+    val parameters: P = allParameters.solutionCopy.toParameterGroup() as P
+
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, STATIC_METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW }
 
@@ -99,11 +107,12 @@ data class TestResult<T, P : ParameterGroup>(
 
     var verifierThrew: Throwable? = null
 
-    fun methodCall() = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
+    fun methodCall() =
+        submissionExecutable.formatBoundMethodCall(allParameters.submission.toParameterGroup(), submissionClass)
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {
-        val methodString = submissionExecutable.formatBoundMethodCall(parameters, submissionClass)
+        val methodString = methodCall()
 
         val resultString = when {
             verifierThrew != null -> "Verifier threw an exception: ${verifierThrew!!.message}"
@@ -250,6 +259,28 @@ class TestResults(
             result.filter { it.complexity == leastComplex }
         }.minByOrNull { it.stepCount }!!.explain(stacktrace)
     }
+
+    @Suppress("MagicNumber")
+    fun printTrace() {
+        forEach { result ->
+            result.apply {
+                println(
+                    "${runnerID.toString().padStart(4, ' ')}: $solutionReceiver ${
+                    solutionExecutable.formatBoundMethodCall(
+                        allParameters.solution.toParameterGroup(),
+                        solutionClass
+                    )
+                    } -> ${solution.returned}" +
+                        "\n${" ".repeat(4)}$runnerID: $submissionReceiver ${
+                        submissionExecutable.formatBoundMethodCall(
+                            allParameters.submission.toParameterGroup(),
+                            submissionClass
+                        )
+                        } -> ${submission.returned}"
+                )
+            }
+        }
+    }
 }
 
 @Suppress("LongParameterList")
@@ -260,8 +291,9 @@ class TestRunner(
     val receiverGenerators: Sequence<Executable>,
     val captureOutput: CaptureOutput,
     val methodPicker: Submission.ExecutablePicker,
-    var receivers: Value<Any?>? = null,
-    val settings: Settings
+    val settings: Settings,
+    val runners: List<TestRunner>,
+    var receivers: Value<Any?>?
 ) {
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
     val skippedTests: MutableList<Int> = mutableListOf()
@@ -306,21 +338,130 @@ class TestRunner(
 
     var count = 0
 
+    fun Executable.checkParameters(parameters: Array<Any?>) {
+        val mismatchedTypes = parameterTypes.zip(parameters).filter { (klass, parameter) ->
+            if (parameter == null) {
+                klass.isPrimitive
+            } else {
+                !klass.boxType().isAssignableFrom(parameter::class.java)
+            }
+        }
+
+        check(mismatchedTypes.isEmpty()) {
+            mismatchedTypes.first().let { (klass, parameter) -> "Can't assign $klass from $parameter" }
+        }
+    }
+
     fun Executable.pairRun(
         receiver: Any?,
         parameters: Array<Any?>,
         parametersCopy: Array<Any?>? = null
-    ): Result<Any, ParameterGroup> = captureOutput {
-        @Suppress("SpreadOperator")
-        unwrap {
-            when (this) {
-                is Method -> this.invoke(receiver, *parameters)
-                is Constructor<*> -> this.newInstance(*parameters)
-                else -> error("Unknown executable type")
-            }
+    ): Result<Any, ParameterGroup> {
+        checkParameters(parameters)
+        if (parametersCopy != null) {
+            checkParameters(parametersCopy)
         }
-    }.let {
-        Result(parameters, it, parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false)
+
+        return captureOutput {
+            @Suppress("SpreadOperator")
+            unwrap {
+                when (this) {
+                    is Method -> this.invoke(receiver, *parameters)
+                    is Constructor<*> -> this.newInstance(*parameters)
+                    else -> error("Unknown executable type")
+                }
+            }
+        }.let {
+            Result(parameters, it, parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false)
+        }
+    }
+
+    @Suppress("ReturnCount")
+    fun Pair<Result<Any, ParameterGroup>, Result<Any, ParameterGroup>>.returnedReceivers(): Boolean {
+        val (solutionResult, submissionResult) = this
+        if (solutionResult.returned == null) {
+            return false
+        }
+        val solutionClass = submission.solution.solution
+        val solutionReturnedClass = solutionResult.returned::class.java
+        if (!(
+            solutionReturnedClass == solutionClass ||
+                (solutionReturnedClass.isArray && solutionReturnedClass.getArrayType() == solutionClass)
+            )
+        ) {
+            return false
+        }
+        if (settings.runAll!!) {
+            return true
+        }
+        if (submissionResult.returned == null) {
+            return false
+        }
+        val submissionClass = submission.submission
+        val submissionReturnedClass = submissionResult.returned::class.java
+        if (submissionClass == submissionReturnedClass && !solutionReturnedClass.isArray) {
+            return true
+        }
+        if (!(submissionReturnedClass.isArray && submissionReturnedClass.getArrayType() == submissionClass)) {
+            return false
+        }
+        check(submissionReturnedClass.isArray)
+        check(solutionReturnedClass.isArray)
+        require(solutionResult.returned::class.java.getArrayDimension() == 1) {
+            "No support for multi-dimensional receiver array donations"
+        }
+        if (submissionResult.returned::class.java.getArrayDimension() != 1) {
+            return false
+        }
+        val solutionSize = (solutionResult.returned as Array<*>).size
+        val submissionSize = (submissionResult.returned as Array<*>).size
+        return solutionSize == submissionSize
+    }
+
+    @Suppress("ReturnCount")
+    fun extractReceivers(
+        results: Quad<Result<Any, ParameterGroup>>,
+        parameters: Parameters,
+        settings: Settings
+    ): MutableList<Value<Any?>> {
+        val (solutionResult, solutionCopy, submissionResult, submissionCopy) = results
+        if (!(Pair(solutionResult, submissionResult).returnedReceivers())) {
+            return mutableListOf()
+        }
+
+        check(solutionCopy.returned!!::class.java == solutionResult.returned!!::class.java) {
+            "${parameters.solutionCopy.map { it }} ${parameters.solution.map { it }} " +
+                "${solutionCopy.returned::class.java} ${solutionResult.returned::class.java}"
+        }
+
+        return if (!solutionResult.returned::class.java.isArray) {
+            listOf(
+                Value(
+                    solutionResult.returned,
+                    submissionResult.returned,
+                    solutionCopy.returned,
+                    submissionCopy.returned,
+                    parameters.complexity
+                )
+            )
+        } else {
+            val solutions = solutionResult.returned as Array<*>
+            val submissions = submissionResult.returned as Array<*>
+            val solutionCopies = solutionCopy.returned as Array<*>
+            val submissionCopies = submissionCopy.returned as Array<*>
+            if (solutions.size != submissions.size && !settings.runAll!!) {
+                return mutableListOf()
+            }
+            solutions.indices.map { i ->
+                Value(
+                    solutions[i],
+                    submissions.getOrNull(i),
+                    solutionCopies[i],
+                    submissionCopies.getOrNull(i),
+                    parameters.complexity
+                )
+            }.toList()
+        }.toMutableList()
     }
 
     @Suppress("ComplexMethod", "LongMethod", "ComplexCondition", "ReturnCount", "NestedBlockDepth")
@@ -353,6 +494,47 @@ class TestRunner(
             } ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
         }
 
+        check(
+            parameters.solution.filterNotNull().none {
+                it::class.java == submission.submission::class.java
+            }
+        )
+        check(
+            parameters.submission.filterNotNull().none {
+                it::class.java == submission.solution.solution::class.java
+            }
+        )
+        check(
+            parameters.submissionCopy.filterNotNull().none {
+                it::class.java == submission.solution.solution::class.java
+            }
+        )
+        check(
+            parameters.solutionCopy.filterNotNull().none {
+                it::class.java == submission.submission::class.java
+            }
+        )
+        check(
+            parameters.solution.zip(parameters.submission).filter { (solutionParameter, submissionParameter) ->
+                solutionParameter != null &&
+                    submissionParameter != null &&
+                    solutionParameter::class.java == submission.solution.solution::class.java &&
+                    submissionParameter::class.java == submission.submission::class.java
+            }.none { (solutionParameter, submissionParameter) ->
+                solutionParameter!!::class.java != submissionParameter!!::class.java
+            }
+        )
+        check(
+            parameters.solutionCopy.zip(parameters.submissionCopy).filter { (solutionParameter, submissionParameter) ->
+                solutionParameter != null &&
+                    submissionParameter != null &&
+                    solutionParameter::class.java == submission.solution.solution::class.java &&
+                    submissionParameter::class.java == submission.submission::class.java
+            }.none { (solutionParameter, submissionParameter) ->
+                solutionParameter!!::class.java != submissionParameter!!::class.java
+            }
+        )
+
         val stepType = type ?: if (!created) {
             when (solutionExecutable) {
                 is Constructor<*> -> TestResult.Type.CONSTRUCTOR
@@ -376,30 +558,18 @@ class TestRunner(
             }
         }
 
-        val stepReceivers = if (receivers != null) {
-            if (solutionExecutable.isStatic() && submissionExecutable.isKotlinCompanion()) {
+        val stepReceivers = when {
+            solutionExecutable.isStatic() && submissionExecutable.isKotlinCompanion() -> {
                 Value(
-                    receivers!!.solution,
+                    receivers?.solution,
                     submission.submission.kotlin.companionObjectInstance,
-                    receivers!!.solutionCopy,
+                    receivers?.solutionCopy,
                     submission.submission.kotlin.companionObjectInstance,
-                    receivers!!.complexity
+                    receivers?.complexity ?: ZeroComplexity
                 )
-            } else {
-                receivers
             }
-        } else {
-            if (solutionExecutable.isStatic() && submissionExecutable.isKotlinCompanion()) {
-                Value(
-                    null,
-                    submission.submission.kotlin.companionObjectInstance,
-                    null,
-                    submission.submission.kotlin.companionObjectInstance,
-                    ZeroComplexity
-                )
-            } else {
-                Value(null, null, null, null, ZeroComplexity)
-            }
+            receivers != null -> receivers
+            else -> Value(null, null, null, null, ZeroComplexity)
         } ?: error("Didn't set receivers")
 
         @Suppress("SpreadOperator")
@@ -419,8 +589,11 @@ class TestRunner(
             error("TestingControl exception mismatch: ${e::class.java})")
         }
 
+        // Have to run these together to keep things in sync
         val solutionResult =
             solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
+        val solutionCopy =
+            solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy)
 
         if (solutionResult.threw != null &&
             TestingControlException::class.java.isAssignableFrom(solutionResult.threw::class.java)
@@ -444,75 +617,37 @@ class TestRunner(
 
         val submissionResult =
             submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
+        val submissionCopy =
+            submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
 
-        val (solutionCopy, submissionCopy) = if (
-            creating && solutionResult.returned != null && (submissionResult.returned != null || settings.runAll)
-        ) {
-            // If we are creating receivers and that succeeded, create a second pair to donate to the receiver
-            // generator
-            Pair(
-                solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy),
-                submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
-            )
-        } else if (created &&
-            solutionResult.returned != null &&
-            (
-                (
-                    submissionResult.returned != null &&
-                        (
-                            (
-                                solutionResult.returned::class.java == submission.solution.solution &&
-                                    submissionResult.returned::class.java == submission.submission
-                                ) ||
-                                (
-                                    solutionResult.returned::class.java.isArray &&
-                                        submissionResult.returned::class.java.isArray &&
-                                        solutionResult.returned::class.java.getArrayType() ==
-                                        submission.solution.solution &&
-                                        submissionResult.returned::class.java.getArrayType() ==
-                                        submission.submission &&
-                                        solutionResult.returned::class.java.getArrayDimension()
-                                        == submissionResult.returned::class.java.getArrayDimension()
-                                    )
-                            )
-                    ) ||
-                    (
-                        (solutionResult.returned::class.java == submission.solution.solution) ||
-                            (
-                                solutionResult.returned::class.java.isArray &&
-                                    solutionResult.returned::class.java.getArrayType() == submission.solution.solution
-                                )
-                        )
-                )
-        ) {
-            if (solutionResult.returned::class.java.isArray) {
-                require(solutionResult.returned::class.java.getArrayDimension() == 1) {
-                    "No support for multi-dimensional receiver array donations yet"
-                }
-            }
-            // Or if we ran a method that generated more receivers, also donate them
-            Pair(
-                solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy),
-                submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
-            )
-        } else {
-            Pair(null, null)
+        val createdReceivers = extractReceivers(
+            Quad(solutionResult, solutionCopy, submissionResult, submissionCopy),
+            parameters,
+            settings
+        )
+        val existingReceiverMismatch = createdReceivers.map {
+            Pair(it, submission.findReceiver(runners, it.solution!!))
+        }.filter { (_, runner) ->
+            runner != null
+        }.any { (result, runner) ->
+            runner!!.receivers!!.submission !== result.submission
         }
 
         ranLastTest = true
         val step = TestResult(
             runnerID,
             stepCount, count++,
-            solutionExecutable, submissionExecutable, stepType, parameters.solutionCopy.toParameterGroup(),
-            parameters.type,
+            solutionExecutable, submissionExecutable, stepType, parameters,
             solutionResult, submissionResult,
             Interval(start),
             parameters.complexity.level,
             submission.solution.solution,
-            submission.submission
+            submission.submission,
+            stepReceivers.solution,
+            stepReceivers.submission,
+            existingReceiverMismatch = existingReceiverMismatch
         )
-
-        if (solutionCopy != null && submission.solution.instanceValidator != null) {
+        if (creating && submissionResult.returned != null && submission.solution.instanceValidator != null) {
             @Suppress("TooGenericExceptionCaught")
             try {
                 unwrap { submission.solution.instanceValidator.invoke(null, submissionResult.returned) }
@@ -538,122 +673,11 @@ class TestRunner(
 
         lastComplexity = parameters.complexity
 
-        if ((step.succeeded || settings.runAll) && creating && step.solution.returned != null) {
-            if (!step.solution.returned::class.java.isArray) {
-                receivers = Value(
-                    step.solution.returned,
-                    step.submission.returned,
-                    solutionCopy!!.returned,
-                    submissionCopy!!.returned,
-                    parameters.complexity
-                )
-            } else {
-                val solutions = step.solution.returned as Array<*>
-                val submissions = step.submission.returned as Array<*>
-                val solutionCopies = solutionCopy!!.returned as Array<*>
-                val submissionCopies = submissionCopy!!.returned as Array<*>
-                check(
-                    (
-                        settings.runAll || (
-                            solutions.size == submissions.size &&
-                                solutions.size == submissionCopies.size
-                            )
-                        ) &&
-                        solutions.size == solutionCopies.size
-
-                ) {
-                    "Receiver array generation returned unequal arrays: ${solutions.size} ${submissions.size}"
-                }
-                if (solutions.isNotEmpty()) {
-                    receivers = Value(
-                        solutions.first(),
-                        submissions.first(),
-                        solutionCopies.first(),
-                        submissionCopies.first(),
-                        parameters.complexity
-                    )
-                    if (solutions.size > 1) {
-                        val receiverList = mutableListOf<Value<Any?>>()
-                        for (i in 1 until solutions.size) {
-                            val submissionAtIndex = if (step.succeeded) {
-                                submissions[i]
-                            } else {
-                                try {
-                                    submissions[i]
-                                } catch (_: ArrayIndexOutOfBoundsException) {
-                                    null
-                                }
-                            }
-                            val submissionCopyAtIndex = if (step.succeeded) {
-                                submissionCopies[i]
-                            } else {
-                                try {
-                                    submissionCopies[i]
-                                } catch (_: ArrayIndexOutOfBoundsException) {
-                                    null
-                                }
-                            }
-                            receiverList.add(
-                                Value(
-                                    solutions[i],
-                                    submissionAtIndex,
-                                    solutionCopies[i],
-                                    submissionCopyAtIndex,
-                                    parameters.complexity
-                                )
-                            )
-                        }
-                        returnedReceivers = receiverList.toList()
-                    }
-                }
-            }
-        } else if (step.succeeded && solutionCopy != null && submissionCopy != null) {
-            check(returnedReceivers == null) { "Returned receivers not retrieved between steps" }
-            if (!step.solution.returned!!::class.java.isArray) {
-                returnedReceivers = listOf(
-                    Value(
-                        step.solution.returned,
-                        step.submission.returned,
-                        solutionCopy.returned,
-                        submissionCopy.returned,
-                        parameters.complexity
-                    )
-                )
-            } else {
-                val solutions = step.solution.returned as Array<*>
-                val submissions = step.submission.returned as Array<*>
-                val solutionCopies = solutionCopy.returned as Array<*>
-                val submissionCopies = submissionCopy.returned as Array<*>
-                check(
-                    solutions.size == submissions.size &&
-                        solutions.size == solutionCopies.size &&
-                        solutions.size == submissionCopies.size
-                ) {
-                    "Receiver array generation returned unequal arrays"
-                }
-                val receiverList = mutableListOf<Value<Any?>>()
-                for (i in solutions.indices) {
-                    receiverList.add(
-                        Value(
-                            solutions[i],
-                            submissions[i],
-                            solutionCopies[i],
-                            submissionCopies[i],
-                            parameters.complexity
-                        )
-                    )
-                }
-                returnedReceivers = receiverList.toList()
-            }
-            returnedReceivers = listOf(
-                Value(
-                    step.solution.returned,
-                    step.submission.returned,
-                    solutionCopy.returned,
-                    submissionCopy.returned,
-                    parameters.complexity
-                )
-            )
+        if ((step.succeeded || settings.runAll) && creating && createdReceivers.isNotEmpty()) {
+            receivers = createdReceivers.removeAt(0)
+        }
+        if ((step.succeeded || settings.runAll)) {
+            returnedReceivers = createdReceivers
         }
     }
 
@@ -676,3 +700,7 @@ class TestRunner(
 data class Interval(val start: Instant, val end: Instant) {
     constructor(start: Instant) : this(start, Instant.now())
 }
+
+sealed class TestingControlException : RuntimeException()
+class SkipTest : TestingControlException()
+class BoundComplexity : TestingControlException()

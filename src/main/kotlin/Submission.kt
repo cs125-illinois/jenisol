@@ -304,6 +304,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
         }
 
+        if (result.existingReceiverMismatch) {
+            result.differs.add(TestResult.Differs.RETURN)
+        }
         if (result.type == TestResult.Type.METHOD || result.type == TestResult.Type.STATIC_METHOD) {
             val customCompare = if (solution.returned != null) {
                 this.solution.customCompares.entries.find { (type, _) ->
@@ -426,7 +429,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             return random.nextBits(bitCount).also {
                 trace += it
             }.also {
-                if (follow != null && follow[currentIndex++] != it) {
+                if (follow != null && (follow.getOrNull(currentIndex++) != it)) {
                     throw FollowTraceException(currentIndex)
                 }
             }
@@ -438,6 +441,13 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
             return trace.toList()
         }
+    }
+
+    fun findReceiver(runners: List<TestRunner>, solutionReceiver: Any) = let {
+        check(solutionReceiver::class.java == solution.solution) {
+            "findReceiver should be passed an instance of the receiver class"
+        }
+        runners.find { it.receivers?.solution === solutionReceiver }
     }
 
     @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth", "ThrowsCount")
@@ -480,7 +490,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
 
         val (receiverGenerator, generatorOverrides) = if (!solution.skipReceiver) {
-            val receiverGenerator = ReceiverGenerator(random, mutableListOf())
+            val receiverGenerator = ReceiverGenerator(random, mutableListOf(), this)
             Pair(
                 receiverGenerator,
                 mutableMapOf(
@@ -511,8 +521,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 receiverGenerators,
                 captureOutput,
                 ExecutablePicker(random, solution.methodsToTest),
-                receivers = receivers,
-                settings = settings
+                settings,
+                runners,
+                receivers
             ).also { runner ->
                 if (receivers == null && !solution.skipReceiver) {
                     runner.next(stepCount++)
@@ -584,7 +595,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 if (createReceiver) {
                     check(!solution.skipReceiver) { "Static testing should never drop receivers" }
                     addRunner(generators).also { runner ->
-                        receiverGenerator?.runners?.add(runner)
+                        @Suppress("UNCHECKED_CAST")
+                        if (runner.ready) {
+                            check(runner.receivers != null)
+                            receiverGenerator?.receivers?.add(runner.receivers as Value<Any>)
+                        }
                     }.also {
                         if (it.failed) {
                             if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) &&
@@ -622,7 +637,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
                 if (currentRunner!!.returnedReceivers != null) {
                     currentRunner!!.returnedReceivers!!.forEach { returnedReceiver ->
-                        addRunner(generators, returnedReceiver)
+                        if (findReceiver(runners, returnedReceiver.solution!!) == null) {
+                            addRunner(generators, returnedReceiver)
+                        } else {
+                            @Suppress("UNCHECKED_CAST")
+                            receiverGenerator?.receivers?.add(returnedReceiver as Value<Any>)
+                        }
                     }
                     currentRunner!!.returnedReceivers = null
                 }

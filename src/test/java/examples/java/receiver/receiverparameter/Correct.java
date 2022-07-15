@@ -2,7 +2,6 @@ package examples.java.receiver.receiverparameter;
 
 public class Correct {
   private int value;
-  private boolean used = false;
 
   public Correct() {
     value = 0;

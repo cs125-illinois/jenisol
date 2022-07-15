@@ -204,7 +204,7 @@ class Solution(val solution: Class<*>) {
         Integer.MAX_VALUE
     }
 
-    val testingEquals = allExecutables.any {
+    private val testingEquals = allExecutables.any {
         it.objectParameter() && (it.name == "equals" || it.name == "comparable") ||
             it.receiverParameter() && it.name == "comparable"
     }

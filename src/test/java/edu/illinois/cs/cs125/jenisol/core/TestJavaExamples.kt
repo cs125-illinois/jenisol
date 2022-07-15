@@ -359,7 +359,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.receiverwithtransformer.Correct::class.java.also {
-            "f: ${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
@@ -390,8 +390,10 @@ class TestJavaExamples : StringSpec(
                         first.size shouldBe second.size
                         first.forEachIndexed { index, firstResult ->
                             val secondResult = second[index]
-                            firstResult.parameters.toArray()
-                                .contentDeepEquals(secondResult.parameters.toArray()) shouldBe true
+                            firstResult.allParameters.solutionCopy.toParameterGroup().toArray()
+                                .contentDeepEquals(
+                                    secondResult.allParameters.solutionCopy.toParameterGroup().toArray()
+                                ) shouldBe true
                         }
                     }
                 }

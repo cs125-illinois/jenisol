@@ -86,6 +86,10 @@ fun Solution.fullTest(
         }
         this
     } catch (e: Throwable) {
+        println(explain())
+        println("-".repeat(80))
+        printTrace()
+        println("-".repeat(80))
         throw e
     }
 

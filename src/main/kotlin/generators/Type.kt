@@ -736,8 +736,8 @@ class RandomGroup(seed: Long = Random.nextLong()) {
     val synced: Boolean
         get() = setOf(
             solution.nextLong(),
-            solutionCopy.nextLong(),
             submission.nextLong(),
+            solutionCopy.nextLong(),
             submissionCopy.nextLong()
         ).size == 1
 }
