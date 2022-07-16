@@ -371,6 +371,8 @@ private val parameterGroupTypes = setOf(
 sealed class ParameterGroup {
     abstract fun toArray(): Array<Any?>
     abstract fun toList(): List<Any?>
+
+    abstract val size: Int
 }
 
 fun ParameterGroup.deepCopy() = toArray().toList().map {
@@ -397,6 +399,8 @@ object None : ParameterGroup() {
     override fun toString(): String {
         return "None()"
     }
+
+    override val size = 0
 }
 
 class One<I>(setFirst: I) : ParameterGroup() {
@@ -410,6 +414,8 @@ class One<I>(setFirst: I) : ParameterGroup() {
 
     override fun toArray() = arrayOf<Any?>(first)
     override fun toList() = listOf<Any?>(first)
+
+    override val size = 1
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -442,6 +448,8 @@ class Two<I, J>(setFirst: I, setSecond: J) : ParameterGroup() {
 
     override fun toArray() = arrayOf(first, second)
     override fun toList() = listOf(first, second)
+
+    override val size = 2
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -487,6 +495,8 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup() 
 
     override fun toArray() = arrayOf(first, second, third)
     override fun toList() = listOf(first, second, third)
+
+    override val size = 3
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
@@ -546,6 +556,8 @@ class Four<I, J, K, L>(
 
     override fun toArray() = arrayOf(first, second, third, fourth)
     override fun toList() = listOf(first, second, third, fourth)
+
+    override val size = 4
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true

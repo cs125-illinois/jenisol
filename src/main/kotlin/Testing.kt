@@ -271,7 +271,7 @@ class TestResults(
                         solutionClass
                     )
                     } -> ${solution.returned}" +
-                        "\n${" ".repeat(4)}$runnerID: $submissionReceiver ${
+                        "\n${" ".repeat(4)}: $submissionReceiver ${
                         submissionExecutable.formatBoundMethodCall(
                             allParameters.submission.toParameterGroup(),
                             submissionClass

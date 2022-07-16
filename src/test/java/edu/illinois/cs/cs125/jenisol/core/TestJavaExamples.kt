@@ -361,6 +361,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.receiverwithtransformer.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.filternotnullwithrandomgeneratesnull.Correct::class.java.also {
+            "!${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {

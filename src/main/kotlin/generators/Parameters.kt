@@ -583,7 +583,7 @@ class ConfiguredParametersGenerator(
     override val fixed: List<Parameters> by lazy {
         if (overrideFixed != null) {
             overrideFixed.toFixedParameters().also { parameters ->
-                check(parameters.none { it.filterNotNull() }) {
+                check(parameters.none { it.filterNotNullParameters() }) {
                     "@FixedParameters list contains null values for parameters marked as @NotNull"
                 }
             }
@@ -593,11 +593,11 @@ class ConfiguredParametersGenerator(
                 it.simple.trim(settings.simpleCount) +
                     it.edge.trim(settings.edgeCount) +
                     it.mixed.trim(settings.mixedCount)
-            }.filter { !it.filterNotNull() }.trim(settings.fixedCount)
+            }.filter { !it.filterNotNullParameters() }.trim(settings.fixedCount)
         }
     }
 
-    private fun Parameters.filterNotNull() = solution.filterIndexed { index, any ->
+    private fun Parameters.filterNotNullParameters() = solution.filterIndexed { index, any ->
         notNullParameters[index] && any == null
     }.isNotEmpty()
 
@@ -635,6 +635,14 @@ class ConfiguredParametersGenerator(
     override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
         val solutionParameters = getRandom(randomPair.solution, runner)
+        check(solutionParameters.size == notNullParameters.size)
+        check(solutionParameters.toList()
+            .zip(notNullParameters)
+            .none { (parameter, notNull) ->
+                parameter == null && notNull
+            }) {
+            "@RandomParameter method parameter generator returned null for parameter annotated as @NotNull"
+        }
         val submissionParameters = getRandom(randomPair.submission, runner)
         val solutionCopyParameters = getRandom(randomPair.solutionCopy, runner)
         val submissionCopyParameters = getRandom(randomPair.submissionCopy, runner)
@@ -659,7 +667,16 @@ class ConfiguredParametersGenerator(
         )
     } else {
         check(generator != null) { "Automatic parameter generator was unexpectedly null" }
-        generator.random(complexity, runner)
+        generator.random(complexity, runner).also {
+            check(it.solution.size == notNullParameters.size)
+            check(it.solution.toList()
+                .zip(notNullParameters)
+                .none { (parameter, notNull) ->
+                    parameter == null && notNull
+                }) {
+                "Built-in method parameter generator returned null for parameter annotated as @NotNull"
+            }
+        }
     }
 
     override fun generate(runner: TestRunner): Parameters {
