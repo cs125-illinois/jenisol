@@ -15,7 +15,7 @@ public class Correct {
     return test != null && string.contains(test);
   }
 
-  @RandomParameters(methodName = "contains")
+  @RandomParameters("contains")
   private String randomString(Random random) {
     if (string == null || string.length() == 0 || random.nextBoolean()) {
       return string;

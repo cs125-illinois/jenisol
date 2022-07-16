@@ -15,11 +15,11 @@ public class Correct {
     return special.getSecond();
   }
 
-  @FixedParameters(methodName = "*")
+  @FixedParameters("*")
   private static final List<Special> FIXED =
       Arrays.asList(new Special(0, ""), new Special(1, "one"));
 
-  @RandomParameters(methodName = "*")
+  @RandomParameters("*")
   private static Special randomSpecial(Random random) {
     return new Special(random.nextInt(), "x".repeat(random.nextInt(32)));
   }

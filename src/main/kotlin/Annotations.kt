@@ -69,12 +69,19 @@ private fun validateTypeMethod(method: Method, name: String, returnsArray: Boole
         check(method.returnType.isArray) { "$name methods must return arrays" }
         method.returnType.componentType
     } else {
-        check(
-            method.parameterTypes.size == 2 &&
-                method.parameterTypes[0] == Int::class.java &&
-                method.parameterTypes[1] == Random::class.java
-        ) {
-            "@$name methods must accept parameters (int complexity, java.util.Random random)"
+        val message = "@${RandomType.name} methods must either accept parameters (java.util.Random random) " +
+            "or (int complexity, java.util.Random random)"
+        when (method.parameterTypes.size) {
+            1 -> {
+                check(method.parameterTypes[0] == Random::class.java) { message }
+            }
+            2 -> {
+                check(
+                    method.parameterTypes[0] == Int::class.java &&
+                        method.parameterTypes[1] == Random::class.java
+                ) { message }
+            }
+            else -> error(message)
         }
         method.returnType
     }
@@ -84,7 +91,7 @@ fun Method.isRandomType() = isAnnotationPresent(RandomType::class.java)
 
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class FixedParameters(val value: String = "", val methodName: String = "") {
+annotation class FixedParameters(val value: String = "") {
     companion object {
         val name: String = FixedParameters::class.java.simpleName
         fun validate(field: Field, solution: Class<*>): Array<Type> {
@@ -117,16 +124,12 @@ annotation class FixedParameters(val value: String = "", val methodName: String 
 }
 
 fun Field.isFixedParameters() = isAnnotationPresent(FixedParameters::class.java)
-fun Field.getFixedFieldParametersName() = getAnnotation(FixedParameters::class.java)!!.let {
-    it.value.ifEmpty {
-        it.methodName
-    }
-}
+fun Field.getFixedFieldParametersName() = getAnnotation(FixedParameters::class.java)!!.value
 fun Field.fixedParametersMatchAll() = getFixedFieldParametersName() == "*"
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class RandomParameters(val value: String = "", val methodName: String = "") {
+annotation class RandomParameters(val value: String = "") {
     companion object {
         val name: String = RandomParameters::class.java.simpleName
         fun validate(method: Method, solution: Class<*>): Array<Type> {
@@ -163,11 +166,7 @@ annotation class RandomParameters(val value: String = "", val methodName: String
 }
 
 fun Method.isRandomParameters() = isAnnotationPresent(RandomParameters::class.java)
-fun Method.getRandomParametersMethodName() = getAnnotation(RandomParameters::class.java)!!.let {
-    it.value.ifEmpty {
-        it.methodName
-    }
-}
+fun Method.getRandomParametersMethodName() = getAnnotation(RandomParameters::class.java)!!.value
 fun Method.randomParametersMatchAll() = getRandomParametersMethodName() == "*"
 
 @Target(AnnotationTarget.FUNCTION)
@@ -504,6 +503,7 @@ class Three<I, J, K>(setFirst: I, setSecond: J, setThird: K) : ParameterGroup() 
     override fun toArray() = arrayOf(first, second, third)
     override fun toList() = listOf(first, second, third)
 
+    @Suppress("MagicNumber")
     override val size = 3
 
     override fun equals(other: Any?): Boolean = when {
@@ -565,6 +565,7 @@ class Four<I, J, K, L>(
     override fun toArray() = arrayOf(first, second, third, fourth)
     override fun toList() = listOf(first, second, third, fourth)
 
+    @Suppress("MagicNumber")
     override val size = 4
 
     override fun equals(other: Any?): Boolean = when {

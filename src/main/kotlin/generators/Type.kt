@@ -6,6 +6,7 @@ import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.RandomType
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
+import edu.illinois.cs.cs125.jenisol.core.unwrap
 import java.lang.IllegalStateException
 import java.lang.reflect.Array
 import java.lang.reflect.Method
@@ -143,6 +144,22 @@ class OverrideTypeGenerator(
     override val edge: Set<Value<Any?>> =
         edgeOverride ?: default?.edge as Set<Value<Any?>>
 
+    @Suppress("TooGenericExceptionCaught")
+    private fun getRandom(random: java.util.Random, complexity: Complexity) = try {
+        unwrap {
+            when (rand!!.parameters.size) {
+                1 -> rand.invoke(null, random)
+                2 -> rand.invoke(null, complexity.level, random)
+                else -> error("Bad argument count for @RandomType")
+            }
+        }.let {
+            check(it != null) { "@RandomType method returned null" }
+            it
+        }
+    } catch (e: Exception) {
+        error("@RandomType method threw an exception: $e")
+    }
+
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         if (rand == null) {
             check(default != null) { "Couldn't find rand generator for $name" }
@@ -151,10 +168,10 @@ class OverrideTypeGenerator(
         check(randomGroup.synced) {
             "grouped random number generator out of sync before call to @${RandomType.name} method for ${klass.name}"
         }
-        val solution = rand.invoke(null, complexity.level, randomGroup.solution)
-        val submission = rand.invoke(null, complexity.level, randomGroup.submission)
-        val solutionCopy = rand.invoke(null, complexity.level, randomGroup.solutionCopy)
-        val submissionCopy = rand.invoke(null, complexity.level, randomGroup.submissionCopy)
+        val solution = getRandom(randomGroup.solution, complexity)
+        val submission = getRandom(randomGroup.submission, complexity)
+        val solutionCopy = getRandom(randomGroup.solutionCopy, complexity)
+        val submissionCopy = getRandom(randomGroup.submissionCopy, complexity)
         check(randomGroup.synced) {
             "grouped random number generator out of sync after call to @${RandomType.name} method for ${klass.name}"
         }

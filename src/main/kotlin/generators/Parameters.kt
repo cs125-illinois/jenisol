@@ -104,8 +104,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     error(
                         """Found @FixedParameter annotations that matched multiple methods
                     |$field matched ${matched.size} methods: $methods
-                    |If you want to match multiple methods, use @FixedParameters(methodName = "*")
-                    |If you want to target one method, use @FixedParameters(methodName = methodName)
+                    |If you want to match multiple methods, use @FixedParameters("*")
+                    |If you want to target one method, use @FixedParameters(methodName)
                         """.trimMargin()
                     )
                 }
@@ -130,8 +130,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     error(
                         """Found @RandomParameters annotations that matched multiple methods
                     |$method matched ${matched.size} methods: $methods
-                    |If you want to match multiple methods, use @RandomParameters(methodName = "*")
-                    |If you want to target one method, use @RandomParameters(methodName = methodName)
+                    |If you want to match multiple methods, use @RandomParameters("*")
+                    |If you want to target one method, use @RandomParameters(methodName)
                         """.trimMargin()
                     )
                 }
@@ -637,11 +637,13 @@ class ConfiguredParametersGenerator(
         check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
         val solutionParameters = getRandom(randomPair.solution, runner)
         check(solutionParameters.size == notNullParameters.size)
-        check(solutionParameters.toList()
-            .zip(notNullParameters)
-            .none { (parameter, notNull) ->
-                parameter == null && notNull
-            }) {
+        check(
+            solutionParameters.toList()
+                .zip(notNullParameters)
+                .none { (parameter, notNull) ->
+                    parameter == null && notNull
+                }
+        ) {
             "@RandomParameter method parameter generator returned null for parameter annotated as @NotNull"
         }
         val submissionParameters = getRandom(randomPair.submission, runner)
@@ -670,11 +672,13 @@ class ConfiguredParametersGenerator(
         check(generator != null) { "Automatic parameter generator was unexpectedly null" }
         generator.random(complexity, runner).also {
             check(it.solution.size == notNullParameters.size)
-            check(it.solution.toList()
-                .zip(notNullParameters)
-                .none { (parameter, notNull) ->
-                    parameter == null && notNull
-                }) {
+            check(
+                it.solution.toList()
+                    .zip(notNullParameters)
+                    .none { (parameter, notNull) ->
+                        parameter == null && notNull
+                    }
+            ) {
                 "Built-in method parameter generator returned null for parameter annotated as @NotNull"
             }
         }
