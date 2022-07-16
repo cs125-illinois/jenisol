@@ -25,10 +25,10 @@ public class Correct {
     return result;
   }
 
-  @FixedParameters(methodName = "length")
+  @FixedParameters("length")
   private static final List<String> FIXED = Collections.singletonList("");
 
-  @RandomParameters(methodName = "length")
+  @RandomParameters("length")
   private static String randomString(Random random) {
     return "a".repeat(random.nextInt(32) + 1);
   }

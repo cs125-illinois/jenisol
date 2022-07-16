@@ -84,7 +84,7 @@ fun Method.isRandomType() = isAnnotationPresent(RandomType::class.java)
 
 @Target(AnnotationTarget.FIELD)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class FixedParameters(val methodName: String = "") {
+annotation class FixedParameters(val value: String = "", val methodName: String = "") {
     companion object {
         val name: String = FixedParameters::class.java.simpleName
         fun validate(field: Field, solution: Class<*>): Array<Type> {
@@ -117,12 +117,16 @@ annotation class FixedParameters(val methodName: String = "") {
 }
 
 fun Field.isFixedParameters() = isAnnotationPresent(FixedParameters::class.java)
-fun Field.getRandomParametersMethodName() = this.getAnnotation(FixedParameters::class.java)!!.methodName
-fun Field.fixedParametersMatchAll() = this.getAnnotation(FixedParameters::class.java)!!.methodName == "*"
+fun Field.getFixedFieldParametersName() = getAnnotation(FixedParameters::class.java)!!.let {
+    it.value.ifEmpty {
+        it.methodName
+    }
+}
+fun Field.fixedParametersMatchAll() = getFixedFieldParametersName() == "*"
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class RandomParameters(val methodName: String = "") {
+annotation class RandomParameters(val value: String = "", val methodName: String = "") {
     companion object {
         val name: String = RandomParameters::class.java.simpleName
         fun validate(method: Method, solution: Class<*>): Array<Type> {
@@ -159,8 +163,12 @@ annotation class RandomParameters(val methodName: String = "") {
 }
 
 fun Method.isRandomParameters() = isAnnotationPresent(RandomParameters::class.java)
-fun Method.getRandomParametersMethodName() = this.getAnnotation(RandomParameters::class.java)!!.methodName
-fun Method.randomParametersMatchAll() = this.getAnnotation(RandomParameters::class.java)!!.methodName == "*"
+fun Method.getRandomParametersMethodName() = getAnnotation(RandomParameters::class.java)!!.let {
+    it.value.ifEmpty {
+        it.methodName
+    }
+}
+fun Method.randomParametersMatchAll() = getRandomParametersMethodName() == "*"
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)

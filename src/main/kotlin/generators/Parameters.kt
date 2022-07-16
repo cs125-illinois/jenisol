@@ -14,6 +14,7 @@ import edu.illinois.cs.cs125.jenisol.core.Solution
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
 import edu.illinois.cs.cs125.jenisol.core.fixedParametersMatchAll
+import edu.illinois.cs.cs125.jenisol.core.getFixedFieldParametersName
 import edu.illinois.cs.cs125.jenisol.core.getRandomParametersMethodName
 import edu.illinois.cs.cs125.jenisol.core.isEdgeType
 import edu.illinois.cs.cs125.jenisol.core.isFixedParameters
@@ -473,7 +474,7 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
             .filter { field ->
                 FixedParameters.validate(field, solution).compareBoxed(parameterTypes)
             }.filter { field ->
-                field.getRandomParametersMethodName().let {
+                field.getFixedFieldParametersName().let {
                     if (it.isNotBlank()) {
                         it == "*" || target.name == it
                     } else {
