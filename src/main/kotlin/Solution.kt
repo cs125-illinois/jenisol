@@ -684,10 +684,9 @@ fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock 
     @Suppress("TooGenericExceptionCaught")
     val result: Pair<Any?, Throwable?> = try {
         Pair(run(), null)
+    } catch (e: ThreadDeath) {
+        throw e
     } catch (e: Throwable) {
-        if (e is ThreadDeath) {
-            throw e
-        }
         Pair(null, e)
     }
     System.setOut(original.first)

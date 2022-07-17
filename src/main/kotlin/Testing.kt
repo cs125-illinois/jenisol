@@ -577,15 +577,12 @@ class TestRunner(
             unwrap {
                 submission.solution.filters[solutionExecutable]?.invoke(null, *parameters.solution)
             }
+        } catch (e: SkipTest) {
+            return
+        } catch (e: BoundComplexity) {
+            generator?.prev()
+            return
         } catch (e: TestingControlException) {
-            if (e is SkipTest) {
-                // Skip this test like it never happened
-                return
-            } else if (e is BoundComplexity) {
-                // Bound complexity at this point but don't fail
-                generator?.prev()
-                return
-            }
             error("TestingControl exception mismatch: ${e::class.java})")
         }
 
@@ -651,10 +648,9 @@ class TestRunner(
             @Suppress("TooGenericExceptionCaught")
             try {
                 unwrap { submission.solution.instanceValidator.invoke(null, submissionResult.returned) }
+            } catch (e: ThreadDeath) {
+                throw e
             } catch (e: Throwable) {
-                if (e is ThreadDeath) {
-                    throw e
-                }
                 step.differs.add(TestResult.Differs.INSTANCE_VALIDATION_THREW)
                 step.verifierThrew = e
             }

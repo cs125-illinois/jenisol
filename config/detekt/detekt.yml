@@ -1,9 +1,14 @@
 style:
   NewLineAtEndOfFile:
     active: false
+  DestructuringDeclarationWithTooManyEntries:
+    active: false
 exceptions:
   SwallowedException:
     active: false
 performance:
   SpreadOperator:
+    active: false
+naming:
+  InvalidPackageDeclaration:
     active: false
