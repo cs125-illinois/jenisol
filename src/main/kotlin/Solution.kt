@@ -103,11 +103,19 @@ class Solution(val solution: Class<*>) {
                 (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty())
             )
 
+    val fauxStatic = solution.superclass == Any::class.java &&
+        solution.declaredFields.all { it.isJenisol() || it.isStatic() } &&
+        solution.declaredMethods.all {
+            it.isJenisol() ||
+                (it.returnType != solution && !it.receiverParameter() && !it.objectParameter())
+        } &&
+        solution.declaredConstructors.let { it.size == 1 && it.first().parameterCount == 0 }
+
     init {
         if (needsReceiver.isNotEmpty()) {
             checkDesign(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
         }
-        if (!skipReceiver && receiverGenerators.isNotEmpty()) {
+        if (!skipReceiver && !fauxStatic && receiverGenerators.isNotEmpty()) {
             checkDesign(!(receiverTransformers.isEmpty() && bothExecutables.isEmpty())) {
                 "No way to verify generated receivers"
             }
@@ -142,14 +150,6 @@ class Solution(val solution: Class<*>) {
         checkDesign { Initializer.validate(it) }
     }
     private val initializers = initializer?.let { setOf(it) } ?: setOf()
-
-    val fauxStatic = solution.superclass == Any::class.java &&
-        solution.declaredFields.all { it.isJenisol() || it.isStatic() } &&
-        solution.declaredMethods.all {
-            it.isJenisol() ||
-                (it.returnType != solution && !it.receiverParameter() && !it.objectParameter())
-        } &&
-        solution.declaredConstructors.let { it.size == 1 && it.first().parameterCount == 0 }
 
     val generatorFactory: GeneratorFactory = GeneratorFactory(allExecutables + initializers, this)
 
