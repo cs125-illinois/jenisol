@@ -108,7 +108,7 @@ data class TestResult<T, P : ParameterGroup>(
     var verifierThrew: Throwable? = null
 
     fun methodCall() =
-        submissionExecutable.formatBoundMethodCall(allParameters.submission.toParameterGroup(), submissionClass)
+        submissionExecutable.formatBoundMethodCall(allParameters.solution.toParameterGroup(), submissionClass)
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {

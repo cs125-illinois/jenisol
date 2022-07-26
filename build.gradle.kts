@@ -28,7 +28,7 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.149")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:5.3.2")
+    testImplementation("io.kotest:kotest-runner-junit5:5.4.0")
     testImplementation("org.slf4j:slf4j-simple:1.7.36")
 }
 tasks.withType<JavaCompile> {

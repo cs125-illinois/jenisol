@@ -454,8 +454,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     fun test(
         passedSettings: Settings = Settings(),
         captureOutput: CaptureOutput = ::defaultCaptureOutput,
+        controlInput: ControlInput<TestResults> = ::defaultControlInput,
         followTrace: List<Int>? = null
-    ): TestResults {
+    ): TestResults = controlInput {
         if (solution.solution.isDesignOnly() || solution.solution.isAbstract()) {
             throw DesignOnlyTestingError(solution.solution)
         }
@@ -490,7 +491,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
 
         val (receiverGenerator, generatorOverrides) = if (!solution.skipReceiver) {
-            val receiverGenerator = ReceiverGenerator(random, mutableListOf(), this)
+            val receiverGenerator = ReceiverGenerator(random, mutableListOf(), this@Submission)
             Pair(
                 receiverGenerator,
                 mutableMapOf(
@@ -516,7 +517,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
             fun addRunner(generators: Generators, receivers: Value<Any?>? = null) = TestRunner(
                 runners.size,
-                this,
+                this@Submission,
                 generators,
                 receiverGenerators,
                 captureOutput,
@@ -565,7 +566,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 val finishedReceivers = createdCount >= neededReceivers
 
                 if (Thread.interrupted()) {
-                    return runners.toResults(settings, random, timeout = true, finishedReceivers = finishedReceivers)
+                    return@controlInput runners.toResults(
+                        settings,
+                        random,
+                        timeout = true,
+                        finishedReceivers = finishedReceivers
+                    )
                 }
 
                 val stepsLeft = settings.totalTestCount - totalCount
@@ -605,7 +611,11 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                             if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) &&
                                 !settings.runAll
                             ) {
-                                return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
+                                return@controlInput runners.toResults(
+                                    settings,
+                                    random,
+                                    finishedReceivers = finishedReceivers
+                                )
                             }
                         }
                         if (!solution.receiverAsParameter || currentRunner == null) {
@@ -632,7 +642,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     if ((!settings.shrink!! || currentRunner!!.lastComplexity!!.level <= Complexity.MIN) &&
                         !settings.runAll
                     ) {
-                        return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
+                        return@controlInput runners.toResults(settings, random, finishedReceivers = finishedReceivers)
                     }
                 }
                 if (currentRunner!!.returnedReceivers != null) {
@@ -650,7 +660,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     nextRunner(false)
                 }
             }
-            return runners.toResults(
+            return@controlInput runners.toResults(
                 settings,
                 random,
                 completed = true,
@@ -662,7 +672,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             if (settings.testing!!) {
                 throw e
             }
-            return runners.toResults(settings, random, threw = e)
+            return@controlInput runners.toResults(settings, random, threw = e)
         }
     }
 }

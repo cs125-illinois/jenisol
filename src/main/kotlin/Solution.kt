@@ -6,8 +6,6 @@ import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
 import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -16,8 +14,6 @@ import java.lang.reflect.Modifier
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import java.lang.reflect.TypeVariable
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlin.random.Random
 import kotlin.reflect.full.companionObject
 
@@ -661,37 +657,6 @@ fun Class<*>.findField(solutionField: Field) = this.declaredFields.find { submis
         submissionField.name == solutionField.name &&
         submissionField.type == solutionField.type &&
         submissionField.isStatic() == solutionField.isStatic()
-}
-
-typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
-
-data class CapturedResult(
-    val returned: Any?,
-    val threw: Throwable?,
-    val stdout: String,
-    val stderr: String,
-    val tag: Any? = null
-)
-
-private val outputLock = ReentrantLock()
-fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock {
-    val original = Pair(System.out, System.err)
-    val diverted = Pair(ByteArrayOutputStream(), ByteArrayOutputStream()).also {
-        System.setOut(PrintStream(it.first))
-        System.setErr(PrintStream(it.second))
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    val result: Pair<Any?, Throwable?> = try {
-        Pair(run(), null)
-    } catch (e: ThreadDeath) {
-        throw e
-    } catch (e: Throwable) {
-        Pair(null, e)
-    }
-    System.setOut(original.first)
-    System.setErr(original.second)
-    return CapturedResult(result.first, result.second, diverted.first.toString(), diverted.second.toString())
 }
 
 class SolutionDesignError(message: String?) : Exception(message)
