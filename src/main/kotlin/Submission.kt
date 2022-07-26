@@ -679,13 +679,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
 sealed class SubmissionDesignError(message: String) : RuntimeException(message)
 class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
-    "Submission class ${klass.name} didn't provide ${
-    if (executable.isStatic() && !klass.isKotlin()) {
-        "static "
-    } else {
-        ""
-    }
-    }${
+    "${klass.name} didn't provide ${
     if (executable is Method) {
         "method"
     } else {
@@ -695,23 +689,23 @@ class SubmissionDesignMissingMethodError(klass: Class<*>, executable: Executable
 )
 
 class SubmissionDesignKotlinNotAccessibleError(klass: Class<*>, field: String) : SubmissionDesignError(
-    "Property $field on submission class ${klass.name} is not accessible (no getter is available)"
+    "Property $field on ${klass.name} is not accessible (no getter is available)"
 )
 
 class SubmissionDesignKotlinNotModifiableError(klass: Class<*>, field: String) : SubmissionDesignError(
-    "Property $field on submission class ${klass.name} is not modifiable (no setter is available)"
+    "Property $field on ${klass.name} is not modifiable (no setter is available)"
 )
 
 class SubmissionDesignKotlinIsAccessibleError(klass: Class<*>, field: String) : SubmissionDesignError(
-    "Property $field on submission class ${klass.name} is accessible but should not be (getter is available)"
+    "Property $field on ${klass.name} is accessible but should not be (getter is available)"
 )
 
 class SubmissionDesignKotlinIsModifiableError(klass: Class<*>, field: String) : SubmissionDesignError(
-    "Property $field on submission class ${klass.name} is modifiable but should not be (setter is available)"
+    "Property $field on ${klass.name} is modifiable but should not be (setter is available)"
 )
 
 class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) : SubmissionDesignError(
-    "Submission class ${klass.name} provided extra ${
+    "${klass.name} provided extra ${
     if (executable.isStatic() && !klass.isKotlin()) {
         "static "
     } else {
@@ -727,32 +721,32 @@ class SubmissionDesignExtraMethodError(klass: Class<*>, executable: Executable) 
 )
 
 class SubmissionDesignInheritanceError(klass: Class<*>, parent: Class<*>) : SubmissionDesignError(
-    "Submission class ${klass.name} didn't inherit from ${parent.name}"
+    "${klass.name} didn't inherit from ${parent.name}"
 )
 
 class SubmissionTypeParameterError(klass: Class<*>) : SubmissionDesignError(
-    "Submission class ${klass.name} has missing, unnecessary, or incorrectly-bounded type parameters"
+    "${klass.name} has missing, unnecessary, or incorrectly-bounded type parameters"
 )
 
 class SubmissionDesignMissingFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
-    "Field ${field.fullName()} is not accessible in submission class ${klass.name} but should be"
+    "Field ${field.fullName()} is not accessible in ${klass.name} but should be"
 )
 
 class SubmissionDesignExtraFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
-    "Field ${field.fullName()} is accessible in submission class ${klass.name} but should not be"
+    "Field ${field.fullName()} is accessible in ${klass.name} but should not be"
 )
 
 class SubmissionStaticFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
-    "Field ${field.fullName()} is static in submission class ${klass.name}, " +
+    "Field ${field.fullName()} is static in ${klass.name}, " +
         "but static fields are not permitted for this problem"
 )
 
 class SubmissionStaticPublicFieldError(klass: Class<*>, field: Field) : SubmissionDesignError(
-    "Static field ${field.fullName()} in submission class ${klass.name} must be private"
+    "Static field ${field.fullName()} in ${klass.name} must be private"
 )
 
 class SubmissionDesignClassError(klass: Class<*>, message: String) : SubmissionDesignError(
-    "Submission class ${klass.name} $message"
+    "${klass.name} $message"
 )
 
 class DesignOnlyTestingError(klass: Class<*>) : Exception(
