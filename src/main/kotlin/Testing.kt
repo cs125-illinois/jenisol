@@ -95,7 +95,7 @@ data class TestResult<T, P : ParameterGroup>(
 ) {
     @Suppress("UNCHECKED_CAST")
     @JvmField
-    val parameters: P = allParameters.solutionCopy.toParameterGroup() as P
+    val parameters: P = allParameters.unmodifiedCopy.toParameterGroup() as P
 
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, STATIC_METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
     enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW }
@@ -107,13 +107,13 @@ data class TestResult<T, P : ParameterGroup>(
 
     var verifierThrew: Throwable? = null
 
-    fun methodCall() =
-        submissionExecutable.formatBoundMethodCall(allParameters.solution.toParameterGroup(), submissionClass)
+    private val methodString = submissionExecutable.formatBoundMethodCall(
+        allParameters.unmodifiedCopy.toParameterGroup(),
+        submissionClass
+    )
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {
-        val methodString = methodCall()
-
         val resultString = when {
             verifierThrew != null -> "Verifier threw an exception: ${verifierThrew!!.message}"
             differs.contains(Differs.THREW) -> {
@@ -382,8 +382,15 @@ class TestRunner(
         }
     }
 
+    private data class SolutionSubmissionResultPair(
+        val solution: Result<Any, ParameterGroup>,
+        val submission: Result<Any, ParameterGroup>
+    )
+
+    private data class SolutionSubmissionReturnPair(val solution: Any, val submission: Any?)
+
     @Suppress("ReturnCount")
-    fun ParameterValues<Result<Any, ParameterGroup>>.returnedReceivers(): Boolean {
+    private fun SolutionSubmissionResultPair.returnedReceivers(): Boolean {
         if (solution.returned == null) {
             return false
         }
@@ -424,12 +431,12 @@ class TestRunner(
     }
 
     @Suppress("ReturnCount")
-    fun extractReceivers(
+    private fun extractReceivers(
         results: ParameterValues<Result<Any, ParameterGroup>>,
         parameters: Parameters,
         settings: Settings
     ): MutableList<Value<Any?>> {
-        if (!results.returnedReceivers()) {
+        if (!SolutionSubmissionResultPair(results.solution, results.submission).returnedReceivers()) {
             return mutableListOf()
         }
 
@@ -465,9 +472,33 @@ class TestRunner(
                     submissions.getOrNull(i),
                     solutionCopies[i],
                     submissionCopies.getOrNull(i),
-                    unmodifiedCopies[i],
+                    unmodifiedCopies.getOrNull(i),
                     parameters.complexity
                 )
+            }.toList()
+        }.toMutableList()
+    }
+
+    @Suppress("ReturnCount")
+    private fun linkReceivers(
+        results: SolutionSubmissionResultPair,
+        settings: Settings
+    ): MutableList<SolutionSubmissionReturnPair> {
+        if (!results.returnedReceivers()) {
+            return mutableListOf()
+        }
+
+        return if (!results.solution.returned!!::class.java.isArray) {
+            listOf(SolutionSubmissionReturnPair(results.solution.returned, results.submission.returned))
+        } else {
+            val solutions = results.solution.returned as Array<*>
+            val submissions = results.submission.returned as Array<*>
+
+            if (solutions.size != submissions.size && !settings.runAll!!) {
+                return mutableListOf()
+            }
+            solutions.indices.map { i ->
+                SolutionSubmissionReturnPair(solutions[i]!!, submissions.getOrNull(i))
             }.toList()
         }.toMutableList()
     }
@@ -575,7 +606,7 @@ class TestRunner(
                     submission.submission.kotlin.companionObjectInstance,
                     receivers?.solutionCopy,
                     submission.submission.kotlin.companionObjectInstance,
-                    receivers?.unmodifiedCopy,
+                    submission.submission.kotlin.companionObjectInstance,
                     receivers?.complexity ?: ZeroComplexity
                 )
             }
@@ -603,8 +634,6 @@ class TestRunner(
             solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
         val solutionCopy =
             solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy)
-        val unmodifiedCopy =
-            solutionExecutable.pairRun(stepReceivers.unmodifiedCopy, parameters.unmodifiedCopy)
 
         if (solutionResult.threw != null &&
             TestingControlException::class.java.isAssignableFrom(solutionResult.threw::class.java)
@@ -631,13 +660,12 @@ class TestRunner(
         val submissionCopy =
             submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
 
-        val createdReceivers = extractReceivers(
-            ParameterValues(solutionResult, submissionResult, solutionCopy, submissionCopy, unmodifiedCopy),
-            parameters,
+        val linkedReceivers = linkReceivers(
+            SolutionSubmissionResultPair(solutionResult, submissionResult),
             settings
         )
-        val existingReceiverMismatch = createdReceivers.map {
-            Pair(it, submission.findReceiver(runners, it.solution!!))
+        val existingReceiverMismatch = linkedReceivers.map {
+            Pair(it, submission.findReceiver(runners, it.solution))
         }.filter { (_, runner) ->
             runner != null
         }.any { (result, runner) ->
@@ -658,6 +686,16 @@ class TestRunner(
             stepReceivers.submission,
             existingReceiverMismatch = existingReceiverMismatch
         )
+
+        val unmodifiedCopy =
+            submissionExecutable.pairRun(stepReceivers.unmodifiedCopy, parameters.unmodifiedCopy)
+
+        val createdReceivers = extractReceivers(
+            ParameterValues(solutionResult, submissionResult, solutionCopy, submissionCopy, unmodifiedCopy),
+            parameters,
+            settings
+        )
+
         if (creating && submissionResult.returned != null && submission.solution.instanceValidator != null) {
             @Suppress("TooGenericExceptionCaught")
             try {

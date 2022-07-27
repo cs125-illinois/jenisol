@@ -31,7 +31,7 @@ class ReceiverGenerator(
                 check(it.solutionCopy::class.java == submission.solution.solution)
                 check(it.submission::class.java == submission.submission)
                 check(it.submissionCopy::class.java == submission.submission)
-                check(it.unmodifiedCopy::class.java == submission.solution.solution)
+                check(it.unmodifiedCopy::class.java == submission.submission)
                 check(it.solution !== it.solutionCopy)
                 check(it.submission !== it.submissionCopy)
             }
@@ -50,7 +50,7 @@ class ReceiverGenerator(
             check(it.solutionCopy::class.java == submission.solution.solution)
             check(it.submission::class.java == submission.submission)
             check(it.submissionCopy::class.java == submission.submission)
-            check(it.unmodifiedCopy::class.java == submission.solution.solution)
+            check(it.unmodifiedCopy::class.java == submission.submission)
             check(it.solution !== it.solutionCopy)
             check(it.submission !== it.submissionCopy)
         }

@@ -156,7 +156,9 @@ fun Solution.fullTest(
             check(secondResult != null)
             submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
             firstResult.runnerID shouldBe secondResult.runnerID
-            submissionKlass.compare(solutionResult.parameters, firstResult.parameters) shouldBe true
+            if (isCorrect) {
+                submissionKlass.compare(solutionResult.parameters, firstResult.parameters) shouldBe true
+            }
             solutionResult.runnerID shouldBe firstResult.runnerID
         }
     }
