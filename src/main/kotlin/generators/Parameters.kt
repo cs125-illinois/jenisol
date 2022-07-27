@@ -35,7 +35,6 @@ import java.lang.reflect.Parameter
 import java.lang.reflect.Type
 import kotlin.random.Random
 
-@Suppress("ArrayInDataClass")
 data class Parameters(
     val solution: Array<Any?>,
     val submission: Array<Any?>,
@@ -58,6 +57,7 @@ data class Parameters(
             } catch (e: Throwable) {
                 false
             }
+
         else -> false
     }
 
@@ -243,6 +243,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                             simpleMethod[klass] = method
                         }
                     }
+
                     method.isEdgeType() -> {
                         val name = EdgeType::class.java.simpleName
                         EdgeType.validate(method).also { klass ->
@@ -256,6 +257,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                             edgeMethod[klass] = method
                         }
                     }
+
                     method.isRandomType() -> {
                         val name = RandomType::class.java.simpleName
                         RandomType.validate(method).also { klass ->
@@ -288,10 +290,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                     it.firstOrNull()
                 }?.also { method ->
                     check(klass !in simpleArray) { "Duplicate @SimpleType method for type ${klass.name}" }
-                    SimpleType.validate(method).also { klass ->
-                        @Suppress("UNCHECKED_CAST")
-                        simpleMethod[klass] = method
-                    }
+                    SimpleType.validate(method).also { klass -> simpleMethod[klass] = method }
                 }
             }
         neededTypes
@@ -366,10 +365,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             }
             // Add this so the next check doesn't fail.
             // The receiver generator cannot be set up until the submission class is available
-            @Suppress("RedundantLambdaArrow")
-            generatorMappings.add(
-                solutionClass to { _: Random -> UnconfiguredReceiverGenerator }
-            )
+            generatorMappings.add(solutionClass to { _: Random -> UnconfiguredReceiverGenerator })
         }
 
         val currentGenerators = generatorMappings.toMap().toMutableMap()
@@ -740,7 +736,7 @@ class TypeParameterGenerator(
     private fun List<Set<Value<*>>>.combine(type: Parameters.Type) = product().shuffled(random).map { list ->
         list.map {
             check(it is Value<*>) { "Didn't find the right type in our parameter list" }
-            Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
+            ParameterValues(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
             Parameters(
                 solution.toTypedArray(),
@@ -766,7 +762,7 @@ class TypeParameterGenerator(
 
     fun random(complexity: Complexity, runner: TestRunner?): Parameters {
         return parameterGenerators.map { it.random(complexity, runner) }.map {
-            Quad(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
+            ParameterValues(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
         }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
             Parameters(
                 solution.toTypedArray(),
@@ -785,16 +781,16 @@ fun List<*>.product() = fold(listOf(listOf<Any?>())) { acc, set ->
     acc.flatMap { list -> set.map { element -> list + element } }
 }.toSet()
 
-data class Quad<T>(val first: T, val second: T, val third: T, val fourth: T)
+data class ParameterValues<T>(val solution: T, val submission: T, val solutionCopy: T, val submissionCopy: T)
 
 @Suppress("MagicNumber")
-fun <E> List<Quad<E>>.unzip(): List<List<E>> {
+fun <E> List<ParameterValues<E>>.unzip(): List<List<E>> {
     @Suppress("RemoveExplicitTypeArguments")
     return fold(listOf(ArrayList<E>(), ArrayList<E>(), ArrayList<E>(), ArrayList<E>())) { r, i ->
-        r[0].add(i.first)
-        r[1].add(i.second)
-        r[2].add(i.third)
-        r[3].add(i.fourth)
+        r[0].add(i.solution)
+        r[1].add(i.submission)
+        r[2].add(i.solutionCopy)
+        r[3].add(i.submissionCopy)
         r
     }
 }

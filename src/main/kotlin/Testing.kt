@@ -4,8 +4,8 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
+import edu.illinois.cs.cs125.jenisol.core.generators.ParameterValues
 import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
-import edu.illinois.cs.cs125.jenisol.core.generators.Quad
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
 import edu.illinois.cs.cs125.jenisol.core.generators.boxType
@@ -420,7 +420,7 @@ class TestRunner(
 
     @Suppress("ReturnCount")
     fun extractReceivers(
-        results: Quad<Result<Any, ParameterGroup>>,
+        results: ParameterValues<Result<Any, ParameterGroup>>,
         parameters: Parameters,
         settings: Settings
     ): MutableList<Value<Any?>> {
@@ -618,7 +618,7 @@ class TestRunner(
             submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
 
         val createdReceivers = extractReceivers(
-            Quad(solutionResult, solutionCopy, submissionResult, submissionCopy),
+            ParameterValues(solutionResult, solutionCopy, submissionResult, submissionCopy),
             parameters,
             settings
         )
