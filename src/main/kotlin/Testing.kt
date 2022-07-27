@@ -71,7 +71,7 @@ internal fun <P : ParameterGroup> Executable.formatBoundMethodCall(parameterValu
         ")"
 }
 
-@Suppress("ArrayInDataClass", "unused")
+@Suppress("unused")
 data class TestResult<T, P : ParameterGroup>(
     @JvmField val runnerID: Int,
     @JvmField val stepCount: Int,
@@ -140,6 +140,7 @@ data class TestResult<T, P : ParameterGroup>(
                     }
                 }
             }
+
             differs.contains(Differs.STDOUT) -> {
                 """
 Solution printed:
@@ -149,6 +150,7 @@ Submission printed:
 ---
 ${submission.stdout}---""".trim()
             }
+
             differs.contains(Differs.STDERR) -> {
                 """
 Solution printed to STDERR:
@@ -158,12 +160,14 @@ Submission printed to STDERR:
 ---
 ${submission.stderr}---""".trim()
             }
+
             differs.contains(Differs.RETURN) -> {
                 """
 Solution returned: ${print(solution.returned)}
 Submission returned: ${print(submission.returned)}
                 """.trim()
             }
+
             differs.contains(Differs.PARAMETERS) -> {
                 if (!solution.modifiedParameters && submission.modifiedParameters) {
                     """
@@ -190,6 +194,7 @@ Submission modified its parameters to ${
                     """.trim()
                 }
             }
+
             else -> error("Unexplained result")
         }
         return "Testing $methodString failed:\n$resultString${message?.let { "\nAdditional Explanation: $it" } ?: ""}"
@@ -322,13 +327,14 @@ class TestRunner(
     init {
         if (receivers == null && staticOnly) {
             receivers = if (!submission.submission.hasKotlinCompanion()) {
-                Value(null, null, null, null, ZeroComplexity)
+                Value(null, null, null, null, null, ZeroComplexity)
             } else {
                 Value(
                     null,
                     submission.submission.kotlin.companionObjectInstance,
                     null,
                     submission.submission.kotlin.companionObjectInstance,
+                    null,
                     ZeroComplexity
                 )
             }
@@ -377,13 +383,12 @@ class TestRunner(
     }
 
     @Suppress("ReturnCount")
-    fun Pair<Result<Any, ParameterGroup>, Result<Any, ParameterGroup>>.returnedReceivers(): Boolean {
-        val (solutionResult, submissionResult) = this
-        if (solutionResult.returned == null) {
+    fun ParameterValues<Result<Any, ParameterGroup>>.returnedReceivers(): Boolean {
+        if (solution.returned == null) {
             return false
         }
-        val solutionClass = submission.solution.solution
-        val solutionReturnedClass = solutionResult.returned::class.java
+        val solutionClass = this@TestRunner.submission.solution.solution
+        val solutionReturnedClass = solution.returned::class.java
         if (!(
             solutionReturnedClass == solutionClass ||
                 (solutionReturnedClass.isArray && solutionReturnedClass.getArrayType() == solutionClass)
@@ -394,11 +399,11 @@ class TestRunner(
         if (settings.runAll!!) {
             return true
         }
-        if (submissionResult.returned == null) {
+        if (submission.returned == null) {
             return false
         }
-        val submissionClass = submission.submission
-        val submissionReturnedClass = submissionResult.returned::class.java
+        val submissionClass = this@TestRunner.submission.submission
+        val submissionReturnedClass = submission.returned::class.java
         if (submissionClass == submissionReturnedClass && !solutionReturnedClass.isArray) {
             return true
         }
@@ -407,14 +412,14 @@ class TestRunner(
         }
         check(submissionReturnedClass.isArray)
         check(solutionReturnedClass.isArray)
-        require(solutionResult.returned::class.java.getArrayDimension() == 1) {
+        require(solution.returned::class.java.getArrayDimension() == 1) {
             "No support for multi-dimensional receiver array donations"
         }
-        if (submissionResult.returned::class.java.getArrayDimension() != 1) {
+        if (submission.returned::class.java.getArrayDimension() != 1) {
             return false
         }
-        val solutionSize = (solutionResult.returned as Array<*>).size
-        val submissionSize = (submissionResult.returned as Array<*>).size
+        val solutionSize = (solution.returned as Array<*>).size
+        val submissionSize = (submission.returned as Array<*>).size
         return solutionSize == submissionSize
     }
 
@@ -424,31 +429,33 @@ class TestRunner(
         parameters: Parameters,
         settings: Settings
     ): MutableList<Value<Any?>> {
-        val (solutionResult, solutionCopy, submissionResult, submissionCopy) = results
-        if (!(Pair(solutionResult, submissionResult).returnedReceivers())) {
+        if (!results.returnedReceivers()) {
             return mutableListOf()
         }
 
-        check(solutionCopy.returned!!::class.java == solutionResult.returned!!::class.java) {
+        check(results.solution.returned!!::class.java == results.solutionCopy.returned!!::class.java) {
             "${parameters.solutionCopy.map { it }} ${parameters.solution.map { it }} " +
-                "${solutionCopy.returned::class.java} ${solutionResult.returned::class.java}"
+                "${results.solution.returned::class.java} ${results.solutionCopy.returned::class.java}"
         }
 
-        return if (!solutionResult.returned::class.java.isArray) {
+        return if (!results.solution.returned::class.java.isArray) {
             listOf(
                 Value(
-                    solutionResult.returned,
-                    submissionResult.returned,
-                    solutionCopy.returned,
-                    submissionCopy.returned,
+                    results.solution.returned,
+                    results.submission.returned,
+                    results.solutionCopy.returned,
+                    results.submissionCopy.returned,
+                    results.unmodifiedCopy.returned,
                     parameters.complexity
                 )
             )
         } else {
-            val solutions = solutionResult.returned as Array<*>
-            val submissions = submissionResult.returned as Array<*>
-            val solutionCopies = solutionCopy.returned as Array<*>
-            val submissionCopies = submissionCopy.returned as Array<*>
+            val solutions = results.solution.returned as Array<*>
+            val submissions = results.submission.returned as Array<*>
+            val solutionCopies = results.solutionCopy.returned as Array<*>
+            val submissionCopies = results.submissionCopy.returned as Array<*>
+            val unmodifiedCopies = results.unmodifiedCopy.returned as Array<*>
+
             if (solutions.size != submissions.size && !settings.runAll!!) {
                 return mutableListOf()
             }
@@ -458,6 +465,7 @@ class TestRunner(
                     submissions.getOrNull(i),
                     solutionCopies[i],
                     submissionCopies.getOrNull(i),
+                    unmodifiedCopies[i],
                     parameters.complexity
                 )
             }.toList()
@@ -548,12 +556,14 @@ class TestRunner(
                     check(!staticOnly) { "Static-only testing should not generate receivers" }
                     TestResult.Type.COPY_CONSTRUCTOR
                 }
+
                 is Method -> {
                     when (staticOnly || submission.solution.fauxStatic) {
                         true -> TestResult.Type.STATIC_METHOD
                         false -> TestResult.Type.METHOD
                     }
                 }
+
                 else -> error("Unexpected executable type")
             }
         }
@@ -565,11 +575,13 @@ class TestRunner(
                     submission.submission.kotlin.companionObjectInstance,
                     receivers?.solutionCopy,
                     submission.submission.kotlin.companionObjectInstance,
+                    receivers?.unmodifiedCopy,
                     receivers?.complexity ?: ZeroComplexity
                 )
             }
+
             receivers != null -> receivers
-            else -> Value(null, null, null, null, ZeroComplexity)
+            else -> Value(null, null, null, null, null, ZeroComplexity)
         } ?: error("Didn't set receivers")
 
         @Suppress("SpreadOperator")
@@ -591,6 +603,8 @@ class TestRunner(
             solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
         val solutionCopy =
             solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy)
+        val unmodifiedCopy =
+            solutionExecutable.pairRun(stepReceivers.unmodifiedCopy, parameters.unmodifiedCopy)
 
         if (solutionResult.threw != null &&
             TestingControlException::class.java.isAssignableFrom(solutionResult.threw::class.java)
@@ -618,7 +632,7 @@ class TestRunner(
             submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
 
         val createdReceivers = extractReceivers(
-            ParameterValues(solutionResult, solutionCopy, submissionResult, submissionCopy),
+            ParameterValues(solutionResult, submissionResult, solutionCopy, submissionCopy, unmodifiedCopy),
             parameters,
             settings
         )

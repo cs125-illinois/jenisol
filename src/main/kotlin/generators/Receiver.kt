@@ -6,7 +6,6 @@ import edu.illinois.cs.cs125.jenisol.core.Submission
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import kotlin.random.Random
 
-@Suppress("UNCHECKED_CAST")
 fun List<Value<Any>>.findWithComplexity(complexity: Complexity, random: Random): Value<Any> = let { receivers ->
     check(receivers.isNotEmpty()) { "No receivers available" }
     val closest = receivers.map { it.complexity.level }.distinct().sorted().let { complexities ->
@@ -24,7 +23,6 @@ class ReceiverGenerator(
     val submission: Submission
 ) : TypeGenerator<Any> {
 
-    @Suppress("UNCHECKED_CAST")
     override val simple: Set<Value<Any>>
         get() = receivers
             .filter { it.complexity.level == 0 }
@@ -33,13 +31,14 @@ class ReceiverGenerator(
                 check(it.solutionCopy::class.java == submission.solution.solution)
                 check(it.submission::class.java == submission.submission)
                 check(it.submissionCopy::class.java == submission.submission)
+                check(it.unmodifiedCopy::class.java == submission.solution.solution)
                 check(it.solution !== it.solutionCopy)
                 check(it.submission !== it.submissionCopy)
             }
             .toSet()
 
     override val edge: Set<Value<Any?>>
-        get() = mutableSetOf(Value(null, null, null, null, ZeroComplexity))
+        get() = mutableSetOf(Value(null, null, null, null, null, ZeroComplexity))
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> =
         if (random.nextBoolean()) {
@@ -51,6 +50,7 @@ class ReceiverGenerator(
             check(it.solutionCopy::class.java == submission.solution.solution)
             check(it.submission::class.java == submission.submission)
             check(it.submissionCopy::class.java == submission.submission)
+            check(it.unmodifiedCopy::class.java == submission.solution.solution)
             check(it.solution !== it.solutionCopy)
             check(it.submission !== it.submissionCopy)
         }

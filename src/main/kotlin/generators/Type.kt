@@ -50,6 +50,7 @@ open class Value<T>(
     val submission: T,
     val solutionCopy: T,
     val submissionCopy: T,
+    val unmodifiedCopy: T,
     val complexity: Complexity
 )
 
@@ -103,16 +104,41 @@ class OverrideTypeGenerator(
             val submission = simpleMethod.invoke(null) as kotlin.Array<*>
             val solutionCopy = simpleMethod.invoke(null) as kotlin.Array<*>
             val submissionCopy = simpleMethod.invoke(null) as kotlin.Array<*>
-            check(setOf(solution.size, submission.size, solutionCopy.size, submissionCopy.size).size == 1) {
+            val unmodifiedCopy = simpleMethod.invoke(null) as kotlin.Array<*>
+            check(
+                setOf(
+                    solution.size,
+                    submission.size,
+                    solutionCopy.size,
+                    submissionCopy.size,
+                    unmodifiedCopy.size
+                ).size == 1
+            ) {
                 "@SimpleType method returned unequal arrays"
             }
             solution.indices.map { i ->
-                check(setOf(solution[i], submission[i], solutionCopy[i], submissionCopy[i]).size == 1) {
+                check(
+                    setOf(
+                        solution[i],
+                        submission[i],
+                        solutionCopy[i],
+                        submissionCopy[i],
+                        unmodifiedCopy[i]
+                    ).size == 1
+                ) {
                     "@SimpleType method did not return equal arrays (you may need to implement hashCode)"
                 }
-                Value(solution[i]!!, submission[i]!!, solutionCopy[i]!!, submissionCopy[i]!!, ZeroComplexity)
+                Value(
+                    solution[i]!!,
+                    submission[i]!!,
+                    solutionCopy[i]!!,
+                    submissionCopy[i]!!,
+                    unmodifiedCopy[i]!!,
+                    ZeroComplexity
+                )
             }.toSet()
         }
+
         else -> null
     }
 
@@ -123,20 +149,37 @@ class OverrideTypeGenerator(
             val submission = edgeMethod.invoke(null) as kotlin.Array<*>
             val solutionCopy = edgeMethod.invoke(null) as kotlin.Array<*>
             val submissionCopy = edgeMethod.invoke(null) as kotlin.Array<*>
-            check(setOf(solution.size, submission.size, solutionCopy.size, submissionCopy.size).size == 1) {
+            val unmodifiedCopy = edgeMethod.invoke(null) as kotlin.Array<*>
+            check(
+                setOf(
+                    solution.size,
+                    submission.size,
+                    solutionCopy.size,
+                    submissionCopy.size,
+                    unmodifiedCopy.size
+                ).size == 1
+            ) {
                 "@EdgeType method returned unequal arrays"
             }
             solution.indices.map { i ->
-                check(setOf(solution[i], submission[i], solutionCopy[i], submissionCopy[i]).size == 1) {
+                check(
+                    setOf(
+                        solution[i],
+                        submission[i],
+                        solutionCopy[i],
+                        submissionCopy[i],
+                        unmodifiedCopy[i]
+                    ).size == 1
+                ) {
                     "@EdgeType method did not return equal arrays (you may need to implement hashCode)"
                 }
-                Value(solution[i], submission[i], solutionCopy[i], submissionCopy[i], ZeroComplexity)
+                Value(solution[i], submission[i], solutionCopy[i], submissionCopy[i], unmodifiedCopy[i], ZeroComplexity)
             }.toSet()
         }
+
         else -> null
     }
-    private val randomGroup: RandomGroup =
-        RandomGroup(random.nextLong())
+    private val randomGroup = RandomGroup(random.nextLong())
 
     override val simple: Set<Value<Any>> =
         simpleOverride ?: default?.simple as Set<Value<Any>>
@@ -172,13 +215,14 @@ class OverrideTypeGenerator(
         val submission = getRandom(randomGroup.submission, complexity)
         val solutionCopy = getRandom(randomGroup.solutionCopy, complexity)
         val submissionCopy = getRandom(randomGroup.submissionCopy, complexity)
+        val unmodifiedCopy = getRandom(randomGroup.unmodifiedCopy, complexity)
         check(randomGroup.synced) {
             "grouped random number generator out of sync after call to @${RandomType.name} method for ${klass.name}"
         }
-        check(setOf(solution, submission, solutionCopy, submissionCopy).size == 1) {
+        check(setOf(solution, submission, solutionCopy, submissionCopy, unmodifiedCopy).size == 1) {
             "@${RandomType.name} method for ${klass.name} did not return equal values"
         }
-        return Value(solution, submission, solutionCopy, submissionCopy, complexity)
+        return Value(solution, submission, solutionCopy, submissionCopy, unmodifiedCopy, complexity)
     }
 }
 
@@ -360,7 +404,6 @@ class MapGenerator(
     }
 }
 
-@Suppress("UNCHECKED_CAST")
 class ArrayGenerator(random: Random, private val klass: Class<*>, private val componentGenerator: TypeGenerator<*>) :
     TypeGenerators<Any>(random) {
 
@@ -425,7 +468,7 @@ class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(rand
     override val simple = primitiveGenerator.simple as Set<Value<Any>>
     override val edge = (
         primitiveGenerator.edge +
-            setOf(Value(null, null, null, null, Complexity(0)))
+            setOf(Value(null, null, null, null, null, ZeroComplexity))
         ) as Set<Value<Any?>>
 
     override fun random(complexity: Complexity, runner: TestRunner?) =
@@ -643,12 +686,19 @@ fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { clo
     toSet().also {
         check(size == it.size) { "Collection of values was not distinct" }
     }.map {
-        Value(cloner.deepClone(it), cloner.deepClone(it), cloner.deepClone(it), cloner.deepClone(it), complexity)
+        Value(
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            complexity
+        )
     }.toSet()
 }
 
 inline fun <reified T> T.value(complexity: Complexity) =
-    Value(deepCopy(), deepCopy(), deepCopy(), deepCopy(), complexity)
+    Value(deepCopy(), deepCopy(), deepCopy(), deepCopy(), deepCopy(), complexity)
 
 fun <T> Class<T>.getArrayType(start: Boolean = true): Class<*> {
     check(!start || isArray) { "Must be called on an array type" }
@@ -767,11 +817,13 @@ class RandomGroup(seed: Long = Random.nextLong()) {
     val submission = java.util.Random().also { it.setSeed(seed) }
     val solutionCopy = java.util.Random().also { it.setSeed(seed) }
     val submissionCopy = java.util.Random().also { it.setSeed(seed) }
+    val unmodifiedCopy = java.util.Random().also { it.setSeed(seed) }
     val synced: Boolean
         get() = setOf(
             solution.nextLong(),
             submission.nextLong(),
             solutionCopy.nextLong(),
-            submissionCopy.nextLong()
+            submissionCopy.nextLong(),
+            unmodifiedCopy.nextLong()
         ).size == 1
 }

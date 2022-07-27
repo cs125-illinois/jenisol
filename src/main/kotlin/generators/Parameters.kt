@@ -40,6 +40,7 @@ data class Parameters(
     val submission: Array<Any?>,
     val solutionCopy: Array<Any?>,
     val submissionCopy: Array<Any?>,
+    val unmodifiedCopy: Array<Any?>,
     val type: Type,
     val complexity: Complexity = ZeroComplexity
 ) {
@@ -69,6 +70,7 @@ data class Parameters(
             arrayOf(value.submission),
             arrayOf(value.solutionCopy),
             arrayOf(value.submissionCopy),
+            arrayOf(value.unmodifiedCopy),
             Type.RECEIVER,
             value.complexity
         )
@@ -566,6 +568,7 @@ class ConfiguredParametersGenerator(
             it.deepCopy().toArray(),
             it.deepCopy().toArray(),
             it.deepCopy().toArray(),
+            it.deepCopy().toArray(),
             Parameters.Type.FIXED_FIELD
         )
     }
@@ -644,12 +647,14 @@ class ConfiguredParametersGenerator(
         val submissionParameters = getRandom(randomPair.submission, runner)
         val solutionCopyParameters = getRandom(randomPair.solutionCopy, runner)
         val submissionCopyParameters = getRandom(randomPair.submissionCopy, runner)
+        val unmodifiedParameters = getRandom(randomPair.unmodifiedCopy, runner)
         check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
         setOf(
             solutionParameters,
             submissionParameters,
             solutionCopyParameters,
-            submissionCopyParameters
+            submissionCopyParameters,
+            unmodifiedParameters
         ).size.also { distinct ->
             check(distinct == 1) {
                 "@${RandomParameters.name} did not generate equal parameters ($distinct)"
@@ -660,6 +665,7 @@ class ConfiguredParametersGenerator(
             submissionParameters.toArray(),
             solutionCopyParameters.toArray(),
             submissionCopyParameters.toArray(),
+            unmodifiedParameters.toArray(),
             Parameters.Type.RANDOM_METHOD,
             complexity
         )
@@ -708,7 +714,9 @@ class ConfiguredParametersGenerator(
 
 @Suppress("EmptyFunctionBlock")
 class EmptyParameterMethodGenerator : ExecutableGenerator {
-    override val fixed = listOf(Parameters(arrayOf(), arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY))
+    override val fixed = listOf(
+        Parameters(arrayOf(), arrayOf(), arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY)
+    )
     override fun random(complexity: Complexity, runner: TestRunner) = fixed.first()
 
     override fun prev() {}
@@ -736,13 +744,14 @@ class TypeParameterGenerator(
     private fun List<Set<Value<*>>>.combine(type: Parameters.Type) = product().shuffled(random).map { list ->
         list.map {
             check(it is Value<*>) { "Didn't find the right type in our parameter list" }
-            ParameterValues(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
-        }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
+            ParameterValues(it.solution, it.submission, it.solutionCopy, it.submissionCopy, it.unmodifiedCopy)
+        }.unzip().let { (solution, submission, solutionCopy, submissionCopy, unmodifiedCopy) ->
             Parameters(
                 solution.toTypedArray(),
                 submission.toTypedArray(),
                 solutionCopy.toTypedArray(),
                 submissionCopy.toTypedArray(),
+                unmodifiedCopy.toTypedArray(),
                 type
             )
         }
@@ -762,13 +771,14 @@ class TypeParameterGenerator(
 
     fun random(complexity: Complexity, runner: TestRunner?): Parameters {
         return parameterGenerators.map { it.random(complexity, runner) }.map {
-            ParameterValues(it.solution, it.submission, it.solutionCopy, it.submissionCopy)
-        }.unzip().let { (solution, submission, solutionCopy, submissionCopy) ->
+            ParameterValues(it.solution, it.submission, it.solutionCopy, it.submissionCopy, it.unmodifiedCopy)
+        }.unzip().let { (solution, submission, solutionCopy, submissionCopy, unmodifiedCopy) ->
             Parameters(
                 solution.toTypedArray(),
                 submission.toTypedArray(),
                 solutionCopy.toTypedArray(),
                 submissionCopy.toTypedArray(),
+                unmodifiedCopy.toTypedArray(),
                 Parameters.Type.RANDOM,
                 complexity
             )
@@ -781,16 +791,23 @@ fun List<*>.product() = fold(listOf(listOf<Any?>())) { acc, set ->
     acc.flatMap { list -> set.map { element -> list + element } }
 }.toSet()
 
-data class ParameterValues<T>(val solution: T, val submission: T, val solutionCopy: T, val submissionCopy: T)
+data class ParameterValues<T>(
+    val solution: T,
+    val submission: T,
+    val solutionCopy: T,
+    val submissionCopy: T,
+    val unmodifiedCopy: T
+)
 
 @Suppress("MagicNumber")
 fun <E> List<ParameterValues<E>>.unzip(): List<List<E>> {
     @Suppress("RemoveExplicitTypeArguments")
-    return fold(listOf(ArrayList<E>(), ArrayList<E>(), ArrayList<E>(), ArrayList<E>())) { r, i ->
+    return fold(listOf(ArrayList<E>(), ArrayList<E>(), ArrayList<E>(), ArrayList<E>(), ArrayList<E>())) { r, i ->
         r[0].add(i.solution)
         r[1].add(i.submission)
         r[2].add(i.solutionCopy)
         r[3].add(i.submissionCopy)
+        r[4].add(i.unmodifiedCopy)
         r
     }
 }
