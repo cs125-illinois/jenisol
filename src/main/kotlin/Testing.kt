@@ -107,7 +107,7 @@ data class TestResult<T, P : ParameterGroup>(
 
     var verifierThrew: Throwable? = null
 
-    private val methodString = submissionExecutable.formatBoundMethodCall(
+    val methodString = submissionExecutable.formatBoundMethodCall(
         allParameters.unmodifiedCopy.toParameterGroup(),
         submissionClass
     )
