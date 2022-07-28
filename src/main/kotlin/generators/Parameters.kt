@@ -633,6 +633,7 @@ class ConfiguredParametersGenerator(
 
     private val randomFastCopy = overrideRandom?.getAnnotation(RandomParameters::class.java)?.fastCopy ?: false
 
+    @Suppress("LongMethod")
     override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
         randomGroup.start()
 
@@ -647,6 +648,7 @@ class ConfiguredParametersGenerator(
         ) {
             "@RandomParameter method parameter generator returned null for parameter annotated as @NotNull"
         }
+        @Suppress("TooGenericExceptionCaught")
         val submissionParameters = try {
             cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
         } catch (e: Throwable) {

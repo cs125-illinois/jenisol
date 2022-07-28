@@ -113,6 +113,7 @@ class OverrideTypeGenerator(
             check(solution.none { it == null }) {
                 "@SimpleType methods must not return arrays containing null"
             }
+            @Suppress("TooGenericExceptionCaught")
             val submission = try {
                 cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
             } catch (e: Throwable) {
@@ -167,6 +168,8 @@ class OverrideTypeGenerator(
         edgeValues != null -> edgeValues.values(ZeroComplexity)
         edgeMethod != null -> {
             val solution = edgeMethod.invoke(null) as kotlin.Array<*>
+
+            @Suppress("TooGenericExceptionCaught")
             val submission = try {
                 cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
             } catch (e: Throwable) {
@@ -240,6 +243,8 @@ class OverrideTypeGenerator(
 
         randomGroup.start()
         val solution = getRandom(randomGroup.random, complexity)
+
+        @Suppress("TooGenericExceptionCaught")
         val submission = try {
             cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
         } catch (e: Throwable) {
