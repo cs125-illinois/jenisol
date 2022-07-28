@@ -3,7 +3,9 @@
 package edu.illinois.cs.cs125.jenisol.core.generators
 
 import com.rits.cloning.Cloner
+import edu.illinois.cs.cs125.jenisol.core.EdgeType
 import edu.illinois.cs.cs125.jenisol.core.RandomType
+import edu.illinois.cs.cs125.jenisol.core.SimpleType
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
 import edu.illinois.cs.cs125.jenisol.core.deepCopy
 import edu.illinois.cs.cs125.jenisol.core.unwrap
@@ -45,6 +47,8 @@ class Complexity(var level: Int = MIN) {
 
 val ZeroComplexity = Complexity(0)
 
+val cloner: Cloner = Cloner.shared()
+
 open class Value<T>(
     val solution: T,
     val submission: T,
@@ -53,6 +57,12 @@ open class Value<T>(
     val unmodifiedCopy: T,
     val complexity: Complexity
 )
+
+fun <T> cloneOrCopy(value: T, fastCopy: Boolean, copier: () -> T): T = if (fastCopy) {
+    cloner.deepClone(value)
+} else {
+    copier()
+}
 
 interface TypeGenerator<T> {
     val simple: Set<Value<T>>
@@ -94,6 +104,8 @@ class OverrideTypeGenerator(
             null
         }
 
+    private val simpleFastCopy = simpleMethod?.getAnnotation(SimpleType::class.java)?.fastCopy ?: false
+
     private val simpleOverride: Set<Value<Any>>? = when {
         simpleValues != null -> simpleValues.values(ZeroComplexity)
         simpleMethod != null -> {
@@ -101,10 +113,17 @@ class OverrideTypeGenerator(
             check(solution.none { it == null }) {
                 "@SimpleType methods must not return arrays containing null"
             }
-            val submission = simpleMethod.invoke(null) as kotlin.Array<*>
-            val solutionCopy = simpleMethod.invoke(null) as kotlin.Array<*>
-            val submissionCopy = simpleMethod.invoke(null) as kotlin.Array<*>
-            val unmodifiedCopy = simpleMethod.invoke(null) as kotlin.Array<*>
+            val submission = try {
+                cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+            } catch (e: Throwable) {
+                if (!simpleFastCopy) {
+                    throw e
+                }
+                error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @SimpleType")
+            }
+            val solutionCopy = cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+            val submissionCopy = cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+            val unmodifiedCopy = cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
             check(
                 setOf(
                     solution.size,
@@ -142,14 +161,23 @@ class OverrideTypeGenerator(
         else -> null
     }
 
+    private val edgeFastCopy = edgeMethod?.getAnnotation(EdgeType::class.java)?.fastCopy ?: false
+
     private val edgeOverride: Set<Value<Any?>>? = when {
         edgeValues != null -> edgeValues.values(ZeroComplexity)
         edgeMethod != null -> {
             val solution = edgeMethod.invoke(null) as kotlin.Array<*>
-            val submission = edgeMethod.invoke(null) as kotlin.Array<*>
-            val solutionCopy = edgeMethod.invoke(null) as kotlin.Array<*>
-            val submissionCopy = edgeMethod.invoke(null) as kotlin.Array<*>
-            val unmodifiedCopy = edgeMethod.invoke(null) as kotlin.Array<*>
+            val submission = try {
+                cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+            } catch (e: Throwable) {
+                if (!simpleFastCopy) {
+                    throw e
+                }
+                error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @EdgeType")
+            }
+            val solutionCopy = cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+            val submissionCopy = cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+            val unmodifiedCopy = cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
             check(
                 setOf(
                     solution.size,
@@ -203,22 +231,28 @@ class OverrideTypeGenerator(
         error("@RandomType method threw an exception: $e")
     }
 
+    private val randomFastCopy = rand?.getAnnotation(RandomType::class.java)?.fastCopy ?: false
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         if (rand == null) {
             check(default != null) { "Couldn't find rand generator for $name" }
             return default.random(complexity, runner) as Value<Any>
         }
-        check(randomGroup.synced) {
-            "grouped random number generator out of sync before call to @${RandomType.name} method for ${klass.name}"
+
+        randomGroup.start()
+        val solution = getRandom(randomGroup.random, complexity)
+        val submission = try {
+            cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        } catch (e: Throwable) {
+            if (!simpleFastCopy) {
+                throw e
+            }
+            error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @RandomType")
         }
-        val solution = getRandom(randomGroup.solution, complexity)
-        val submission = getRandom(randomGroup.submission, complexity)
-        val solutionCopy = getRandom(randomGroup.solutionCopy, complexity)
-        val submissionCopy = getRandom(randomGroup.submissionCopy, complexity)
-        val unmodifiedCopy = getRandom(randomGroup.unmodifiedCopy, complexity)
-        check(randomGroup.synced) {
-            "grouped random number generator out of sync after call to @${RandomType.name} method for ${klass.name}"
-        }
+        val solutionCopy = cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        val submissionCopy = cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        val unmodifiedCopy = cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        randomGroup.stop()
+
         check(setOf(solution, submission, solutionCopy, submissionCopy, unmodifiedCopy).size == 1) {
             "@${RandomType.name} method for ${klass.name} did not return equal values"
         }
@@ -682,20 +716,18 @@ class ObjectGenerator(
     }
 }
 
-fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { cloner ->
-    toSet().also {
-        check(size == it.size) { "Collection of values was not distinct" }
-    }.map {
-        Value(
-            cloner.deepClone(it),
-            cloner.deepClone(it),
-            cloner.deepClone(it),
-            cloner.deepClone(it),
-            cloner.deepClone(it),
-            complexity
-        )
-    }.toSet()
-}
+fun <T> Collection<T>.values(complexity: Complexity) = toSet().also {
+    check(size == it.size) { "Collection of values was not distinct" }
+}.map {
+    Value(
+        cloner.deepClone(it),
+        cloner.deepClone(it),
+        cloner.deepClone(it),
+        cloner.deepClone(it),
+        cloner.deepClone(it),
+        complexity
+    )
+}.toSet()
 
 inline fun <reified T> T.value(complexity: Complexity) =
     Value(deepCopy(), deepCopy(), deepCopy(), deepCopy(), deepCopy(), complexity)
@@ -813,17 +845,36 @@ fun Any.isAnyArray() = when (this) {
 fun Any.isLambdaMethod() = this.javaClass.name.contains("$${"$"}Lambda$")
 
 class RandomGroup(seed: Long = Random.nextLong()) {
-    val solution = java.util.Random().also { it.setSeed(seed) }
-    val submission = java.util.Random().also { it.setSeed(seed) }
-    val solutionCopy = java.util.Random().also { it.setSeed(seed) }
-    val submissionCopy = java.util.Random().also { it.setSeed(seed) }
-    val unmodifiedCopy = java.util.Random().also { it.setSeed(seed) }
-    val synced: Boolean
-        get() = setOf(
-            solution.nextLong(),
-            submission.nextLong(),
-            solutionCopy.nextLong(),
-            submissionCopy.nextLong(),
-            unmodifiedCopy.nextLong()
-        ).size == 1
+    private val seedGenerator = Random(seed)
+    private var _random: java.util.Random? = null
+
+    private var running: Boolean = false
+    private var currentSeed: Long = seedGenerator.nextLong()
+    private var ended: Long? = null
+
+    fun start() {
+        check(!running) { "Already started" }
+        currentSeed = seedGenerator.nextLong()
+        _random = null
+        ended = null
+    }
+
+    val random: java.util.Random
+        get() {
+            val thisEnd = _random?.nextLong()
+            if (ended != null) {
+                check(thisEnd == ended) { "Random generator out of sync: $ended $thisEnd" }
+            }
+            ended = thisEnd
+            _random = java.util.Random().also { it.setSeed(currentSeed) }
+            return _random!!
+        }
+
+    fun stop() {
+        check(_random != null) { "Never used" }
+        val thisEnd = _random?.nextLong()
+        if (ended != null) {
+            check(thisEnd == ended) { "Random generator out of sync" }
+        }
+    }
 }

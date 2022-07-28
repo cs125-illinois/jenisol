@@ -1,4 +1,4 @@
-package examples.java.noreceiver.edgetypemethod;
+package examples.java.noreceiver.edgetypemethodslowcopy;
 
 import java.util.Objects;
 import java.util.Random;

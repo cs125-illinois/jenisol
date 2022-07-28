@@ -1,4 +1,4 @@
-package examples.java.noreceiver.simpletypemethod;
+package examples.java.noreceiver.simpletypemethodslowcopy;
 
 public class Incorrect0 {
   public static int get(Blob blob) {

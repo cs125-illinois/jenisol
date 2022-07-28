@@ -18,7 +18,7 @@ import java.util.Random
 
 @Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class SimpleType {
+annotation class SimpleType(val fastCopy: Boolean = true) {
     companion object {
         fun validate(field: Field) = validateTypeField(field, SimpleType::class.java.simpleName)
         fun validate(method: Method) = validateTypeMethod(method, SimpleType::class.java.simpleName, true)
@@ -30,7 +30,7 @@ fun Method.isSimpleType() = isAnnotationPresent(SimpleType::class.java)
 
 @Target(AnnotationTarget.FIELD, AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class EdgeType {
+annotation class EdgeType(val fastCopy: Boolean = true) {
     companion object {
         fun validate(field: Field): Class<*> = validateTypeField(field, EdgeType::class.java.simpleName)
         fun validate(method: Method) = validateTypeMethod(method, EdgeType::class.java.simpleName, true)
@@ -52,7 +52,7 @@ private fun validateTypeField(field: Field, name: String): Class<*> {
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class RandomType {
+annotation class RandomType(val fastCopy: Boolean = true) {
     companion object {
         val name: String = RandomType::class.java.simpleName
         fun validate(method: Method) = validateTypeMethod(method, RandomType::class.java.simpleName)
@@ -129,7 +129,7 @@ fun Field.fixedParametersMatchAll() = getFixedFieldParametersName() == "*"
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
-annotation class RandomParameters(val value: String = "") {
+annotation class RandomParameters(val value: String = "", val fastCopy: Boolean = true) {
     companion object {
         val name: String = RandomParameters::class.java.simpleName
         fun validate(method: Method, solution: Class<*>): Array<Type> {
@@ -634,7 +634,7 @@ internal fun <T> Array<out T>?.safeContentDeepToString(): String {
     }
 }
 
-@Suppress("ComplexMethod", "KotlinConstantConditions")
+@Suppress("ComplexMethod")
 private fun <T> Array<out T>.safeContentDeepToStringInternal(
     result: StringBuilder,
     processed: MutableList<Array<*>>

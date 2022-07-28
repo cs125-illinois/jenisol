@@ -600,7 +600,7 @@ class ConfiguredParametersGenerator(
         notNullParameters[index] && any == null
     }.isNotEmpty()
 
-    private val randomPair = RandomGroup(random.nextLong())
+    private val randomGroup = RandomGroup(random.nextLong())
     private var index = 0
     private var bound: Complexity? = null
     private val complexity = Complexity()
@@ -631,9 +631,12 @@ class ConfiguredParametersGenerator(
         error("@RandomParameters method threw an exception: $e")
     }
 
+    private val randomFastCopy = overrideRandom?.getAnnotation(RandomParameters::class.java)?.fastCopy ?: false
+
     override fun random(complexity: Complexity, runner: TestRunner): Parameters = if (overrideRandom != null) {
-        check(randomPair.synced) { "Random pair was out of sync before parameter generation" }
-        val solutionParameters = getRandom(randomPair.solution, runner)
+        randomGroup.start()
+
+        val solutionParameters = getRandom(randomGroup.random, runner)
         check(solutionParameters.size == notNullParameters.size)
         check(
             solutionParameters.toList()
@@ -644,11 +647,23 @@ class ConfiguredParametersGenerator(
         ) {
             "@RandomParameter method parameter generator returned null for parameter annotated as @NotNull"
         }
-        val submissionParameters = getRandom(randomPair.submission, runner)
-        val solutionCopyParameters = getRandom(randomPair.solutionCopy, runner)
-        val submissionCopyParameters = getRandom(randomPair.submissionCopy, runner)
-        val unmodifiedParameters = getRandom(randomPair.unmodifiedCopy, runner)
-        check(randomPair.synced) { "Random pair was out of sync after parameter generation" }
+        val submissionParameters = try {
+            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+        } catch (e: Throwable) {
+            if (!randomFastCopy) {
+                throw e
+            }
+            error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @RandomParameters")
+        }
+
+        val solutionCopyParameters =
+            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+        val submissionCopyParameters =
+            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+        val unmodifiedParameters =
+            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+        randomGroup.stop()
+
         setOf(
             solutionParameters,
             submissionParameters,
@@ -717,6 +732,7 @@ class EmptyParameterMethodGenerator : ExecutableGenerator {
     override val fixed = listOf(
         Parameters(arrayOf(), arrayOf(), arrayOf(), arrayOf(), arrayOf(), Parameters.Type.EMPTY)
     )
+
     override fun random(complexity: Complexity, runner: TestRunner) = fixed.first()
 
     override fun prev() {}

@@ -1,4 +1,4 @@
-package examples.java.noreceiver.simpletypemethod;
+package examples.java.noreceiver.simpletypemethodslowcopy;
 
 import java.util.Objects;
 import java.util.Random;

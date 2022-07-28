@@ -247,10 +247,13 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.customarraycompare.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
-        examples.java.noreceiver.simpletypemethod.Correct::class.java.also {
+        examples.java.noreceiver.simpletypemethodslowcopy.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
-        examples.java.noreceiver.edgetypemethod.Correct::class.java.also {
+        examples.java.noreceiver.simpletypemethodfastcopy.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.edgetypemethodslowcopy.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.withexternalverifier.Correct::class.java.also {

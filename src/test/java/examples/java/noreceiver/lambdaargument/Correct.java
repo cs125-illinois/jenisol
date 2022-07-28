@@ -15,7 +15,7 @@ public class Correct {
   @FixedParameters
   private static final List<One<Generator>> FIXED = Collections.singletonList(new One<>(() -> 0));
 
-  @RandomParameters
+  @RandomParameters(fastCopy = false)
   private static One<Generator> randomParameters(int complexity, Random random) {
     int value = random.nextInt();
     return new One<>(() -> value);

@@ -1,4 +1,4 @@
-package examples.java.noreceiver.edgetypemethod;
+package examples.java.noreceiver.edgetypemethodslowcopy;
 
 import edu.illinois.cs.cs125.jenisol.core.EdgeType;
 import edu.illinois.cs.cs125.jenisol.core.RandomType;
@@ -12,12 +12,12 @@ public class Correct {
 
   @SimpleType private static final Blob[] SIMPLE = new Blob[] {};
 
-  @EdgeType
+  @EdgeType(fastCopy = false)
   private static Blob[] edgeBlob() {
     return new Blob[] {};
   }
 
-  @RandomType
+  @RandomType(fastCopy = false)
   private static Blob randomBlob(int complexity, Random random) {
     return new Blob(random.nextInt());
   }

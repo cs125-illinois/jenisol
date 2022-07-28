@@ -1,4 +1,4 @@
-package examples.java.noreceiver.edgetypemethod;
+package examples.java.noreceiver.simpletypemethodfastcopy;
 
 public class Incorrect0 {
   public static int get(Blob blob) {
