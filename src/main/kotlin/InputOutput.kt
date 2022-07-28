@@ -53,20 +53,7 @@ class ResettableStringInputStream : InputStream() {
             field = value
         }
 
-    override fun read() = inputStream.read().also {
-        println("$input: read() $it")
-    }
-
-    override fun close() {
-        println("Close")
-        super.close()
-    }
-
-    override fun available(): Int {
-        return super.available().also {
-            println("$input: available() $it")
-        }
-    }
+    override fun read() = inputStream.read()
 }
 
 private val inputLock = ReentrantLock()

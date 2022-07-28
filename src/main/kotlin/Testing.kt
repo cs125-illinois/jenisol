@@ -91,7 +91,9 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField var message: String? = null,
     @JvmField val differs: MutableSet<Differs> = mutableSetOf(),
     @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin(),
-    @JvmField val existingReceiverMismatch: Boolean = false
+    @JvmField val existingReceiverMismatch: Boolean = false,
+    val solutionMethodString: String,
+    val submissionMethodString: String
 ) {
     @Suppress("UNCHECKED_CAST")
     @JvmField
@@ -106,11 +108,6 @@ data class TestResult<T, P : ParameterGroup>(
         get() = !succeeded
 
     var verifierThrew: Throwable? = null
-
-    val methodString = submissionExecutable.formatBoundMethodCall(
-        allParameters.unmodifiedCopy.toParameterGroup(),
-        submissionClass
-    )
 
     @Suppress("ComplexMethod", "LongMethod", "NestedBlockDepth")
     fun explain(stacktrace: Boolean = false): String {
@@ -197,7 +194,8 @@ Submission modified its parameters to ${
 
             else -> error("Unexplained result")
         }
-        return "Testing $methodString failed:\n$resultString${message?.let { "\nAdditional Explanation: $it" } ?: ""}"
+        return "Testing $submissionMethodString failed:\n" +
+            "$resultString${message?.let { "\nAdditional Explanation: $it" } ?: ""}"
     }
 
     override fun toString(): String {
@@ -270,18 +268,10 @@ class TestResults(
         forEach { result ->
             result.apply {
                 println(
-                    "${runnerID.toString().padStart(4, ' ')}: $solutionReceiver ${
-                    solutionExecutable.formatBoundMethodCall(
-                        allParameters.solution.toParameterGroup(),
-                        solutionClass
-                    )
-                    } -> ${solution.returned}" +
-                        "\n${" ".repeat(4)}: $submissionReceiver ${
-                        submissionExecutable.formatBoundMethodCall(
-                            allParameters.submission.toParameterGroup(),
-                            submissionClass
-                        )
-                        } -> ${submission.returned}"
+                    "${
+                    runnerID.toString().padStart(4, ' ')
+                    }: $solutionReceiver $solutionMethodString -> ${solution.returned}" +
+                        "\n${" ".repeat(4)}: $submissionReceiver $submissionMethodString -> ${submission.returned}"
                 )
             }
         }
@@ -629,6 +619,11 @@ class TestRunner(
             error("TestingControl exception mismatch: ${e::class.java})")
         }
 
+        val solutionMethodString = solutionExecutable.formatBoundMethodCall(
+            parameters.solution.toParameterGroup(),
+            submission.solution.solution
+        )
+
         // Have to run these together to keep things in sync
         val solutionResult =
             solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
@@ -654,6 +649,11 @@ class TestRunner(
             skippedTests += stepCount
             return
         }
+
+        val submissionMethodString = submissionExecutable.formatBoundMethodCall(
+            parameters.submission.toParameterGroup(),
+            submission.submission
+        )
 
         val submissionResult =
             submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
@@ -684,7 +684,9 @@ class TestRunner(
             submission.submission,
             stepReceivers.solution,
             stepReceivers.submission,
-            existingReceiverMismatch = existingReceiverMismatch
+            existingReceiverMismatch = existingReceiverMismatch,
+            solutionMethodString = solutionMethodString,
+            submissionMethodString = submissionMethodString
         )
 
         val unmodifiedCopy =

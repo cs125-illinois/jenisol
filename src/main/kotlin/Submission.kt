@@ -492,18 +492,18 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         val (receiverGenerator, generatorOverrides) = if (!solution.skipReceiver) {
             val receiverGenerator = ReceiverGenerator(random, mutableListOf(), this@Submission)
-            Pair(
-                receiverGenerator,
-                mutableMapOf(
-                    (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator),
-                    (Any::class.java as Type) to { r: Random ->
-                        ObjectGenerator(
-                            r,
-                            receiverGenerator
-                        )
-                    }
-                )
+            val overrideMap = mutableMapOf(
+                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator)
             )
+            if (!solution.generatorFactory.typeGenerators.containsKey(Any::class.java)) {
+                overrideMap[(Any::class.java)] = { r: Random ->
+                    ObjectGenerator(
+                        r,
+                        receiverGenerator
+                    )
+                }
+            }
+            Pair(receiverGenerator, overrideMap.toMap())
         } else {
             Pair<ReceiverGenerator?, Map<Type, TypeGeneratorGenerator>>(null, mapOf())
         }
@@ -580,7 +580,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
                 val readyLeft = runners.filterIndexed { index, runner -> index > receiverIndex && runner.ready }.size
 
-                @Suppress("RedundantIf")
                 val createReceiver = when {
                     currentRunner == null -> true
                     finishedReceivers -> false

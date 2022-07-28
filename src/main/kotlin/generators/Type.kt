@@ -47,8 +47,6 @@ class Complexity(var level: Int = MIN) {
 
 val ZeroComplexity = Complexity(0)
 
-val cloner: Cloner = Cloner.shared()
-
 open class Value<T>(
     val solution: T,
     val submission: T,
@@ -59,7 +57,7 @@ open class Value<T>(
 )
 
 fun <T> cloneOrCopy(value: T, fastCopy: Boolean, copier: () -> T): T = if (fastCopy) {
-    cloner.deepClone(value)
+    Cloner.shared().deepClone(value)
 } else {
     copier()
 }
@@ -681,7 +679,6 @@ class ObjectGenerator(
     random: Random,
     private val receiverGenerator: ReceiverGenerator? = null
 ) : TypeGenerators<Any>(random) {
-
     private val defaultObjects = Defaults.map.filterKeys { !it.isPrimitive && it != Any::class.java }
         .mapValues { (_, generator) -> generator(random) }
 
@@ -721,18 +718,20 @@ class ObjectGenerator(
     }
 }
 
-fun <T> Collection<T>.values(complexity: Complexity) = toSet().also {
-    check(size == it.size) { "Collection of values was not distinct" }
-}.map {
-    Value(
-        cloner.deepClone(it),
-        cloner.deepClone(it),
-        cloner.deepClone(it),
-        cloner.deepClone(it),
-        cloner.deepClone(it),
-        complexity
-    )
-}.toSet()
+fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { cloner ->
+    toSet().also {
+        check(size == it.size) { "Collection of values was not distinct" }
+    }.map {
+        Value(
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            cloner.deepClone(it),
+            complexity
+        )
+    }.toSet()
+}
 
 inline fun <reified T> T.value(complexity: Complexity) =
     Value(deepCopy(), deepCopy(), deepCopy(), deepCopy(), deepCopy(), complexity)

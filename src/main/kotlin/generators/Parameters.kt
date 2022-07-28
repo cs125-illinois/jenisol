@@ -184,7 +184,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     private val typesNeeded = methodParameterGenerators
         .filter { (_, generator) -> generator.needsParameterGenerator }
         .keys
-    private val typeGenerators: Map<Type, TypeGeneratorGenerator>
+    val typeGenerators: Map<Type, TypeGeneratorGenerator>
 
     init {
         val neededTypes = executables
@@ -416,16 +416,12 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         random: Random = Random,
         settings: Settings,
         typeGeneratorOverrides: Map<Type, TypeGeneratorGenerator>? = null,
-        forExecutables: Set<Executable> = executables,
-        from: Generators? = null
+        forExecutables: Set<Executable> = executables
     ): Generators {
         val typeGeneratorsWithOverrides = typeGenerators.toMutableMap().also {
             it.putAll(typeGeneratorOverrides ?: mapOf())
         }
         return forExecutables.associate { executable ->
-            if (from != null && executable in from) {
-                from[executable]
-            }
             if (executable.parameters.isEmpty()) {
                 executable to EmptyParameterMethodGenerator()
             } else {
@@ -447,8 +443,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     }
 }
 
-class Generators(private val map: Map<Executable, ExecutableGenerator>) :
-    Map<Executable, ExecutableGenerator> by map
+class Generators(private val map: Map<Executable, ExecutableGenerator>) : Map<Executable, ExecutableGenerator> by map
 
 interface ExecutableGenerator {
     val fixed: List<Parameters>
@@ -547,6 +542,7 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
     )
 }
 
+@Suppress("LongParameterList")
 class ConfiguredParametersGenerator(
     parametersGenerator: ParametersGeneratorGenerator?,
     private val settings: Settings,
@@ -628,7 +624,7 @@ class ConfiguredParametersGenerator(
             }
         } as ParameterGroup
     } catch (e: Exception) {
-        error("@RandomParameters method threw an exception: $e")
+        error("@RandomParameters method threw an exception: $e\n${e.stackTraceToString()}")
     }
 
     private val randomFastCopy = overrideRandom?.getAnnotation(RandomParameters::class.java)?.fastCopy ?: false
