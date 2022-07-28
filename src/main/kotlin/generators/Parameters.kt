@@ -2,6 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core.generators
 
+import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.EdgeType
 import edu.illinois.cs.cs125.jenisol.core.FixedParameters
 import edu.illinois.cs.cs125.jenisol.core.One
@@ -77,7 +78,7 @@ data class Parameters(
     }
 }
 
-typealias ParametersGeneratorGenerator = (random: Random) -> TypeParameterGenerator
+typealias ParametersGeneratorGenerator = (random: Random, cloner: Cloner) -> TypeParameterGenerator
 
 class GeneratorFactory(private val executables: Set<Executable>, val solution: Solution) {
     val solutionClass = solution.solution
@@ -326,7 +327,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 }
             }
 
-        val generatorMappings: MutableList<Pair<Type, (Random) -> TypeGenerator<Any>>> =
+        val generatorMappings: MutableList<Pair<Type, (Random, Cloner) -> TypeGenerator<Any>>> =
             (simpleArray.keys + simpleMethod.keys + edgeArray.keys + edgeMethod.keys + rand.keys).toSet().map { klass ->
                 val needsDefault = (klass !in simpleArray && klass !in simpleMethod) ||
                     (klass !in edgeArray && klass !in edgeMethod) ||
@@ -336,7 +337,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 } else {
                     null
                 }
-                klass to { random: Random ->
+                klass to { random: Random, cloner: Cloner ->
                     OverrideTypeGenerator(
                         klass,
                         simpleArray[klass],
@@ -345,6 +346,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                         edgeMethod[klass],
                         rand[klass],
                         random,
+                        cloner,
                         defaultGenerator
                     )
                 }
@@ -367,7 +369,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             }
             // Add this so the next check doesn't fail.
             // The receiver generator cannot be set up until the submission class is available
-            generatorMappings.add(solutionClass to { _: Random -> UnconfiguredReceiverGenerator })
+            generatorMappings.add(solutionClass to { _: Random, _: Cloner -> UnconfiguredReceiverGenerator })
         }
 
         val currentGenerators = generatorMappings.toMap().toMutableMap()
@@ -380,11 +382,12 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 var currentArray = it.getArrayType().arrayType()
                 while (true) {
                     val previousArray = currentArray.componentType
-                    currentGenerators[currentArray] = { random ->
+                    currentGenerators[currentArray] = { random, cloner ->
                         ArrayGenerator(
                             random,
+                            cloner,
                             previousArray,
-                            currentGenerators[previousArray]!!.invoke(random)
+                            currentGenerators[previousArray]!!.invoke(random, cloner)
                         )
                     }
                     if (currentArray == it) {
@@ -398,8 +401,8 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             check(it.bounds.size == 1 && it.bounds.first() == Object::class.java) {
                 "No support for generic type bounds yet"
             }
-            currentGenerators[it] = { random ->
-                ObjectGenerator(random)
+            currentGenerators[it] = { random, cloner ->
+                ObjectGenerator(random, cloner)
             }
         }
         typeGenerators = currentGenerators.toMap()
@@ -408,12 +411,13 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     // Check to make sure we can generate all needed parameters
     init {
         executables.filter { it in typesNeeded }.forEach { executable ->
-            TypeParameterGenerator(executable.parameters, typeGenerators)
+            TypeParameterGenerator(executable.parameters, typeGenerators, cloner = Cloner.shared())
         }
     }
 
     fun get(
         random: Random = Random,
+        cloner: Cloner,
         settings: Settings,
         typeGeneratorOverrides: Map<Type, TypeGeneratorGenerator>? = null,
         forExecutables: Set<Executable> = executables
@@ -425,14 +429,15 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
             if (executable.parameters.isEmpty()) {
                 executable to EmptyParameterMethodGenerator()
             } else {
-                val parameterGenerator = { random: Random ->
-                    TypeParameterGenerator(executable.parameters, typeGeneratorsWithOverrides, random)
+                val parameterGenerator = { random: Random, cloner: Cloner ->
+                    TypeParameterGenerator(executable.parameters, typeGeneratorsWithOverrides, random, cloner)
                 }
                 executable to (
                     methodParameterGenerators[executable]?.generate(
                         parameterGenerator,
                         settings,
-                        random
+                        random,
+                        cloner
                     ) ?: error("Didn't find a method parameter generator that should exist")
                     )
             }
@@ -497,8 +502,9 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
         |Target the constructor with @${FixedParameters.name} if you need to create receivers."""
                             .trimMargin().trim()
                     }
-                    val solutionParameters = group.deepCopy()
-                    val submissionParameters = group.deepCopy()
+                    val cloner = Cloner.shared()
+                    val solutionParameters = group.deepCopy(cloner)
+                    val submissionParameters = group.deepCopy(cloner)
                     check(solutionParameters !== submissionParameters) {
                         "@${FixedParameters.name} field produces referentially equal copies"
                     }
@@ -531,11 +537,13 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
     fun generate(
         parametersGenerator: ParametersGeneratorGenerator?,
         settings: Settings,
-        random: Random = Random
+        random: Random = Random,
+        cloner: Cloner
     ) = ConfiguredParametersGenerator(
         parametersGenerator,
         settings,
         random,
+        cloner,
         fixedParameters,
         randomParameters,
         notNullParameters
@@ -547,6 +555,7 @@ class ConfiguredParametersGenerator(
     parametersGenerator: ParametersGeneratorGenerator?,
     private val settings: Settings,
     private val random: Random = Random,
+    private val cloner: Cloner,
     overrideFixed: Collection<ParameterGroup>?,
     private val overrideRandom: Method?,
     private val notNullParameters: List<Boolean>
@@ -555,16 +564,16 @@ class ConfiguredParametersGenerator(
         null
     } else {
         check(parametersGenerator != null) { "Parameter generator required but not provided" }
-        parametersGenerator(random)
+        parametersGenerator(random, cloner)
     }
 
     private fun Collection<ParameterGroup>.toFixedParameters(): List<Parameters> = map {
         Parameters(
-            it.deepCopy().toArray(),
-            it.deepCopy().toArray(),
-            it.deepCopy().toArray(),
-            it.deepCopy().toArray(),
-            it.deepCopy().toArray(),
+            it.deepCopy(cloner).toArray(),
+            it.deepCopy(cloner).toArray(),
+            it.deepCopy(cloner).toArray(),
+            it.deepCopy(cloner).toArray(),
+            it.deepCopy(cloner).toArray(),
             Parameters.Type.FIXED_FIELD
         )
     }
@@ -646,7 +655,7 @@ class ConfiguredParametersGenerator(
         }
         @Suppress("TooGenericExceptionCaught")
         val submissionParameters = try {
-            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+            cloneOrCopy(solutionParameters, cloner, randomFastCopy) { getRandom(randomGroup.random, runner) }
         } catch (e: Throwable) {
             if (!randomFastCopy) {
                 throw e
@@ -655,11 +664,11 @@ class ConfiguredParametersGenerator(
         }
 
         val solutionCopyParameters =
-            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+            cloneOrCopy(solutionParameters, cloner, randomFastCopy) { getRandom(randomGroup.random, runner) }
         val submissionCopyParameters =
-            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+            cloneOrCopy(solutionParameters, cloner, randomFastCopy) { getRandom(randomGroup.random, runner) }
         val unmodifiedParameters =
-            cloneOrCopy(solutionParameters, randomFastCopy) { getRandom(randomGroup.random, runner) }
+            cloneOrCopy(solutionParameters, cloner, randomFastCopy) { getRandom(randomGroup.random, runner) }
         randomGroup.stop()
 
         setOf(
@@ -741,7 +750,8 @@ class EmptyParameterMethodGenerator : ExecutableGenerator {
 class TypeParameterGenerator(
     parameters: Array<out Parameter>,
     generators: Map<Type, TypeGeneratorGenerator> = mapOf(),
-    private val random: Random = Random
+    private val random: Random = Random,
+    private val cloner: Cloner
 ) {
     private val parameterGenerators = parameters.map {
         val type = it.parameterizedType
@@ -750,7 +760,7 @@ class TypeParameterGenerator(
         } else {
             Defaults[type]
         }
-        generator?.invoke(random) ?: error(
+        generator?.invoke(random, cloner) ?: error(
             "Couldn't find generator for parameter ${it.name} with type ${it.parameterizedType.typeName}"
         )
     }

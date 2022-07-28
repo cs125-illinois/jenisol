@@ -1,5 +1,6 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Defaults
 import edu.illinois.cs.cs125.jenisol.core.generators.TypeGenerator
@@ -176,7 +177,7 @@ class TestGenerators : StringSpec(
             }
         }
         "it should generate nested arrays properly" {
-            Defaults.create(Array<Array<IntArray>>::class.java).also { generator ->
+            Defaults.create(Array<Array<IntArray>>::class.java, cloner = Cloner.shared()).also { generator ->
                 (0..128).map {
                     @Suppress("UNCHECKED_CAST")
                     generator.random(Complexity(Complexity.MIN), null)
@@ -242,7 +243,7 @@ private fun methodNamed(name: String) = TestGenerators::class.java.declaredMetho
     .find { it.name == name } ?: error("Couldn't find method $name")
 
 private fun Method.testGenerator(
-    typeGenerator: TypeGenerator<*> = Defaults.create(this.genericParameterTypes.first())
+    typeGenerator: TypeGenerator<*> = Defaults.create(this.genericParameterTypes.first(), cloner = Cloner.shared())
 ) {
     typeGenerator.simple.forEach { invoke(null, it.solutionCopy) }
     typeGenerator.edge.forEach { invoke(null, it.solutionCopy) }
@@ -262,7 +263,7 @@ private fun Method.testParameterGenerator(
     )
 ) {
     val parameterGenerator =
-        TypeParameterGenerator(parameters)
+        TypeParameterGenerator(parameters, cloner = Cloner.shared())
     parameterGenerator.simple.also { simple ->
         simple shouldHaveSize simpleSize.pow(dimensionality)
         simple.forEach { invoke(null, *it.solutionCopy) }
@@ -291,7 +292,7 @@ fun Array<Array<IntArray>>.totalSize() = size.let {
 fun Array<Array<IntArray>>.elementCount(): Int {
     var count = 0
     println(size)
-    for (i in 0 until size) {
+    for (i in indices) {
         println("$i:${get(i).size}")
         for (j in get(i).indices) {
             println("$i:$j:${get(i)[j].size}")

@@ -2,6 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
+import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.ObjectGenerator
@@ -490,15 +491,18 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
         }
 
+        val cloner = Cloner.shared()
+
         val (receiverGenerator, generatorOverrides) = if (!solution.skipReceiver) {
             val receiverGenerator = ReceiverGenerator(random, mutableListOf(), this@Submission)
             val overrideMap = mutableMapOf(
-                (solution.solution as Type) to ({ _: Random -> receiverGenerator } as TypeGeneratorGenerator)
+                (solution.solution as Type) to ({ _: Random, _: Cloner -> receiverGenerator } as TypeGeneratorGenerator)
             )
             if (!solution.generatorFactory.typeGenerators.containsKey(Any::class.java)) {
-                overrideMap[(Any::class.java)] = { r: Random ->
+                overrideMap[(Any::class.java)] = { r: Random, c: Cloner ->
                     ObjectGenerator(
                         r,
+                        c,
                         receiverGenerator
                     )
                 }
@@ -508,7 +512,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             Pair<ReceiverGenerator?, Map<Type, TypeGeneratorGenerator>>(null, mapOf())
         }
 
-        val generators = solution.generatorFactory.get(random, settings, generatorOverrides)
+        val generators = solution.generatorFactory.get(random, cloner, settings, generatorOverrides)
 
         @Suppress("TooGenericExceptionCaught")
         try {

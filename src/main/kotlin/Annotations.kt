@@ -382,11 +382,11 @@ sealed class ParameterGroup {
     abstract val size: Int
 }
 
-fun ParameterGroup.deepCopy() = toArray().toList().map {
+fun ParameterGroup.deepCopy(cloner: Cloner) = toArray().toList().map {
     if (it?.isLambdaMethod() == true) {
         it
     } else {
-        it.deepCopy()
+        it.deepCopy(cloner)
     }
 }.toTypedArray().toParameterGroup()
 
@@ -675,9 +675,9 @@ fun Any.safePrint(): String = try {
     this::class.simpleName ?: this.javaClass.packageName
 }
 
-inline fun <reified T> T.deepCopy(): T {
+inline fun <reified T> T.deepCopy(cloner: Cloner): T {
     return when {
         this == null -> null as T
-        else -> Cloner.shared().deepClone(this)
+        else -> cloner.deepClone(this)
     }
 }

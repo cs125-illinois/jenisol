@@ -2,6 +2,7 @@
 
 package edu.illinois.cs.cs125.jenisol.core
 
+import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
 import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
@@ -155,7 +156,7 @@ class Solution(val solution: Class<*>) {
         1
     } else {
         receiverGenerators.sumOf {
-            generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size
+            generatorFactory.get(Random, Cloner.shared(), Settings.DEFAULTS)[it]!!.fixed.size
         } * 2
     }
     var defaultMethodCount = (
@@ -163,7 +164,7 @@ class Solution(val solution: Class<*>) {
             if (it.receiverParameter()) {
                 defaultReceiverCount
             } else {
-                generatorFactory.get(Random, Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1) +
+                generatorFactory.get(Random, Cloner.shared(), Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1) +
                     if (receiverGenerators.isNotEmpty() && it.objectParameter()) {
                         defaultReceiverCount
                     } else {

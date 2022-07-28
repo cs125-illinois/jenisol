@@ -56,8 +56,8 @@ open class Value<T>(
     val complexity: Complexity
 )
 
-fun <T> cloneOrCopy(value: T, fastCopy: Boolean, copier: () -> T): T = if (fastCopy) {
-    Cloner.shared().deepClone(value)
+fun <T> cloneOrCopy(value: T, cloner: Cloner, fastCopy: Boolean, copier: () -> T): T = if (fastCopy) {
+    cloner.deepClone(value)
 } else {
     copier()
 }
@@ -77,6 +77,7 @@ class OverrideTypeGenerator(
     edgeMethod: Method? = null,
     private val rand: Method? = null,
     random: Random = Random,
+    private val cloner: Cloner,
     defaultGenerator: TypeGeneratorGenerator? = null
 ) : TypeGenerator<Any> {
     init {
@@ -97,7 +98,7 @@ class OverrideTypeGenerator(
             rand == null
         ) {
             check(defaultGenerator != null) { "Override type generator for $name needs default generator" }
-            defaultGenerator(random)
+            defaultGenerator(random, cloner)
         } else {
             null
         }
@@ -105,7 +106,7 @@ class OverrideTypeGenerator(
     private val simpleFastCopy = simpleMethod?.getAnnotation(SimpleType::class.java)?.fastCopy ?: false
 
     private val simpleOverride: Set<Value<Any>>? = when {
-        simpleValues != null -> simpleValues.values(ZeroComplexity)
+        simpleValues != null -> simpleValues.values(ZeroComplexity, cloner)
         simpleMethod != null -> {
             val solution = simpleMethod.invoke(null) as kotlin.Array<*>
             check(solution.none { it == null }) {
@@ -113,16 +114,19 @@ class OverrideTypeGenerator(
             }
             @Suppress("TooGenericExceptionCaught")
             val submission = try {
-                cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+                cloneOrCopy(solution, cloner, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
             } catch (e: Throwable) {
                 if (!simpleFastCopy) {
                     throw e
                 }
                 error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @SimpleType")
             }
-            val solutionCopy = cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
-            val submissionCopy = cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
-            val unmodifiedCopy = cloneOrCopy(solution, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+            val solutionCopy =
+                cloneOrCopy(solution, cloner, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+            val submissionCopy =
+                cloneOrCopy(solution, cloner, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
+            val unmodifiedCopy =
+                cloneOrCopy(solution, cloner, simpleFastCopy) { simpleMethod.invoke(null) as kotlin.Array<*> }
             check(
                 setOf(
                     solution.size,
@@ -163,22 +167,25 @@ class OverrideTypeGenerator(
     private val edgeFastCopy = edgeMethod?.getAnnotation(EdgeType::class.java)?.fastCopy ?: false
 
     private val edgeOverride: Set<Value<Any?>>? = when {
-        edgeValues != null -> edgeValues.values(ZeroComplexity)
+        edgeValues != null -> edgeValues.values(ZeroComplexity, cloner)
         edgeMethod != null -> {
             val solution = edgeMethod.invoke(null) as kotlin.Array<*>
 
             @Suppress("TooGenericExceptionCaught")
             val submission = try {
-                cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+                cloneOrCopy(solution, cloner, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
             } catch (e: Throwable) {
                 if (!simpleFastCopy) {
                     throw e
                 }
                 error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @EdgeType")
             }
-            val solutionCopy = cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
-            val submissionCopy = cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
-            val unmodifiedCopy = cloneOrCopy(solution, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+            val solutionCopy =
+                cloneOrCopy(solution, cloner, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+            val submissionCopy =
+                cloneOrCopy(solution, cloner, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
+            val unmodifiedCopy =
+                cloneOrCopy(solution, cloner, edgeFastCopy) { edgeMethod.invoke(null) as kotlin.Array<*> }
             check(
                 setOf(
                     solution.size,
@@ -244,16 +251,16 @@ class OverrideTypeGenerator(
 
         @Suppress("TooGenericExceptionCaught")
         val submission = try {
-            cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+            cloneOrCopy(solution, cloner, randomFastCopy) { getRandom(randomGroup.random, complexity) }
         } catch (e: Throwable) {
             if (!simpleFastCopy) {
                 throw e
             }
             error("Cloning parameters failed. Try disabling fast copy by setting fastCopy = false on @RandomType")
         }
-        val solutionCopy = cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
-        val submissionCopy = cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
-        val unmodifiedCopy = cloneOrCopy(solution, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        val solutionCopy = cloneOrCopy(solution, cloner, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        val submissionCopy = cloneOrCopy(solution, cloner, randomFastCopy) { getRandom(randomGroup.random, complexity) }
+        val unmodifiedCopy = cloneOrCopy(solution, cloner, randomFastCopy) { getRandom(randomGroup.random, complexity) }
         randomGroup.stop()
 
         check(setOf(solution, submission, solutionCopy, submissionCopy, unmodifiedCopy).size == 1) {
@@ -263,8 +270,8 @@ class OverrideTypeGenerator(
     }
 }
 
-sealed class TypeGenerators<T>(internal val random: Random) : TypeGenerator<T>
-typealias TypeGeneratorGenerator = (random: Random) -> TypeGenerator<*>
+sealed class TypeGenerators<T>(internal val random: Random, private val cloner: Cloner) : TypeGenerator<T>
+typealias TypeGeneratorGenerator = (random: Random, cloner: Cloner) -> TypeGenerator<*>
 
 object Defaults {
     val map = mutableMapOf<Class<*>, TypeGeneratorGenerator>()
@@ -294,11 +301,12 @@ object Defaults {
     operator fun get(klass: Class<*>): TypeGeneratorGenerator {
         map[klass]?.also { return it }
         if (klass.isArray && map.containsKey(klass.getArrayType())) {
-            return { random ->
+            return { random, cloner ->
                 ArrayGenerator(
                     random,
+                    cloner,
                     klass.componentType,
-                    create(klass.componentType, random)
+                    create(klass.componentType, random, cloner)
                 )
             }
         }
@@ -323,22 +331,29 @@ object Defaults {
                     type.actualTypeArguments[0]
                 }
                 if (map.containsKey(typeArgument)) {
-                    return { random -> ListGenerator(random, create(typeArgument, random)) }
+                    return { random, cloner -> ListGenerator(random, cloner, create(typeArgument, random, cloner)) }
                 }
             } else if (
                 type.rawType == java.util.Set::class.java &&
                 type.actualTypeArguments.size == 1 &&
                 map.containsKey(type.actualTypeArguments[0])
             ) {
-                return { random -> SetGenerator(random, create(type.actualTypeArguments[0], random)) }
+                return { random, cloner ->
+                    SetGenerator(
+                        random,
+                        cloner,
+                        create(type.actualTypeArguments[0], random, cloner)
+                    )
+                }
             } else if (type.rawType == java.util.Map::class.java && type.actualTypeArguments.size == 2 &&
                 map.containsKey(type.actualTypeArguments[0]) && map.containsKey(type.actualTypeArguments[1])
             ) {
-                return { random ->
+                return { random, cloner ->
                     MapGenerator(
                         random,
-                        create(type.actualTypeArguments[0], random),
-                        create(type.actualTypeArguments[1], random)
+                        cloner,
+                        create(type.actualTypeArguments[0], random, cloner),
+                        create(type.actualTypeArguments[1], random, cloner)
                     )
                 }
             }
@@ -346,12 +361,12 @@ object Defaults {
         error("Cannot find generator for type ${type.typeName}")
     }
 
-    fun create(klass: Class<*>, random: Random = Random): TypeGenerator<*> = get(klass)(random)
-    fun create(type: Type, random: Random = Random): TypeGenerator<*> = get(type)(random)
+    fun create(klass: Class<*>, random: Random = Random, cloner: Cloner): TypeGenerator<*> = get(klass)(random, cloner)
+    fun create(type: Type, random: Random = Random, cloner: Cloner): TypeGenerator<*> = get(type)(random, cloner)
 }
 
-class ListGenerator(random: Random, private val componentGenerator: TypeGenerator<*>) :
-    TypeGenerators<Any>(random) {
+class ListGenerator(random: Random, private val cloner: Cloner, private val componentGenerator: TypeGenerator<*>) :
+    TypeGenerators<Any>(random, cloner) {
 
     override val simple: Set<Value<Any>>
         get() {
@@ -359,10 +374,10 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
             return setOf(
                 listOf(),
                 simpleCases
-            ).values(ZeroComplexity)
+            ).values(ZeroComplexity, cloner)
         }
 
-    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
+    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity, cloner)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         val listSize = random.nextInt((complexity.level * 2).coerceAtLeast(2))
@@ -370,12 +385,12 @@ class ListGenerator(random: Random, private val componentGenerator: TypeGenerato
             repeat(listSize) {
                 add(componentGenerator.random(complexity, runner).solutionCopy!!)
             }
-        }.value(complexity)
+        }.value(complexity, cloner)
     }
 }
 
-class SetGenerator(random: Random, private val componentGenerator: TypeGenerator<*>) :
-    TypeGenerators<Any>(random) {
+class SetGenerator(random: Random, private val cloner: Cloner, private val componentGenerator: TypeGenerator<*>) :
+    TypeGenerators<Any>(random, cloner) {
 
     override val simple: Set<Value<Any>>
         get() {
@@ -383,10 +398,10 @@ class SetGenerator(random: Random, private val componentGenerator: TypeGenerator
             return setOf(
                 setOf(),
                 simpleCases
-            ).values(ZeroComplexity)
+            ).values(ZeroComplexity, cloner)
         }
 
-    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
+    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity, cloner)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         val setSize = random.nextInt(complexity.level * 2).coerceAtLeast(2)
@@ -394,16 +409,17 @@ class SetGenerator(random: Random, private val componentGenerator: TypeGenerator
             repeat(setSize) {
                 add(componentGenerator.random(complexity, runner).solutionCopy!!)
             }
-        }.value(complexity)
+        }.value(complexity, cloner)
     }
 }
 
 class MapGenerator(
     random: Random,
+    private val cloner: Cloner,
     private val keyGenerator: TypeGenerator<*>,
     private val valueGenerator: TypeGenerator<*>
 ) :
-    TypeGenerators<Any>(random) {
+    TypeGenerators<Any>(random, cloner) {
 
     override val simple: Set<Value<Any>>
         get() {
@@ -425,10 +441,10 @@ class MapGenerator(
             if (keys.size > 1) {
                 maps.add(mapOf(keys[0] to values.first(), keys[1] to values.first()))
             }
-            return maps.toSet().values(ZeroComplexity)
+            return maps.toSet().values(ZeroComplexity, cloner)
         }
 
-    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity)
+    override val edge: Set<Value<Any?>> = setOf<Any?>(null).values(ZeroComplexity, cloner)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         val keySize = random.nextInt((complexity.level * 2).coerceAtLeast(2))
@@ -437,12 +453,17 @@ class MapGenerator(
                 this[keyGenerator.random(complexity, runner).solutionCopy!!] =
                     valueGenerator.random(complexity, runner).solutionCopy!!
             }
-        }.value(complexity)
+        }.value(complexity, cloner)
     }
 }
 
-class ArrayGenerator(random: Random, private val klass: Class<*>, private val componentGenerator: TypeGenerator<*>) :
-    TypeGenerators<Any>(random) {
+class ArrayGenerator(
+    random: Random,
+    private val cloner: Cloner,
+    private val klass: Class<*>,
+    private val componentGenerator: TypeGenerator<*>
+) :
+    TypeGenerators<Any>(random, cloner) {
 
     override val simple: Set<Value<Any>>
         get() {
@@ -454,10 +475,10 @@ class ArrayGenerator(random: Random, private val klass: Class<*>, private val co
                         Array.set(array, index, value)
                     }
                 }
-            ).values(ZeroComplexity)
+            ).values(ZeroComplexity, cloner)
         }
 
-    override val edge: Set<Value<Any?>> = setOf(null).values(ZeroComplexity)
+    override val edge: Set<Value<Any?>> = setOf(null).values(ZeroComplexity, cloner)
 
     override fun random(complexity: Complexity, runner: TestRunner?): Value<Any> {
         return random(complexity, complexity, true, runner)
@@ -495,13 +516,13 @@ class ArrayGenerator(random: Random, private val klass: Class<*>, private val co
                     Array.set(array, index, value)
                 }
             }
-            ).value(complexity)
+            ).value(complexity, cloner)
     }
 }
 
 @Suppress("UNCHECKED_CAST")
-class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(random) {
-    private val primitiveGenerator = Defaults.create(klass, random)
+class BoxedGenerator(random: Random, cloner: Cloner, klass: Class<*>) : TypeGenerators<Any>(random, cloner) {
+    private val primitiveGenerator = Defaults.create(klass, random, cloner)
     override val simple = primitiveGenerator.simple as Set<Value<Any>>
     override val edge = (
         primitiveGenerator.edge +
@@ -512,7 +533,7 @@ class BoxedGenerator(random: Random, klass: Class<*>) : TypeGenerators<Any>(rand
         primitiveGenerator.random(complexity, runner) as Value<Any>
 
     companion object {
-        fun create(klass: Class<*>) = { random: Random -> BoxedGenerator(random, klass) }
+        fun create(klass: Class<*>) = { random: Random, cloner: Cloner -> BoxedGenerator(random, cloner, klass) }
     }
 }
 
@@ -521,127 +542,151 @@ private fun randomNumber(max: Number, range: LongRange, random: Random) =
         check(it in range) { "Random number generated out of range" }
     }
 
-class ByteGenerator(random: Random) : TypeGenerators<Byte>(random) {
+class ByteGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Byte>(random, cloner) {
 
-    override val simple = byteArrayOf(-1, 0, 1).toSet().values(ZeroComplexity)
+    override val simple = byteArrayOf(-1, 0, 1).toSet().values(ZeroComplexity, cloner)
 
-    override val edge = setOf<Byte>().values(ZeroComplexity)
+    override val edge = setOf<Byte>().values(ZeroComplexity, cloner)
 
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) =
             randomNumber(complexity.power(), Byte.MIN_VALUE.toLong()..Byte.MAX_VALUE.toLong(), random)
                 .toByte()
 
-        fun create(random: Random = Random) = ByteGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = ByteGenerator(random, cloner)
     }
 }
 
-class ShortGenerator(random: Random) : TypeGenerators<Short>(random) {
+class ShortGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Short>(random, cloner) {
 
-    override val simple = shortArrayOf(-1, 0, 1).toSet().values(ZeroComplexity)
+    override val simple = shortArrayOf(-1, 0, 1).toSet().values(ZeroComplexity, cloner)
 
-    override val edge = setOf<Short>().values(ZeroComplexity)
+    override val edge = setOf<Short>().values(ZeroComplexity, cloner)
 
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) =
             randomNumber(complexity.power(4), Short.MIN_VALUE.toLong()..Short.MAX_VALUE.toLong(), random)
                 .toShort()
 
-        fun create(random: Random = Random) = ShortGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = ShortGenerator(random, cloner)
     }
 }
 
-class IntGenerator(random: Random) : TypeGenerators<Int>(random) {
+class IntGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Int>(random, cloner) {
 
-    override val simple = (-1..1).toSet().values(ZeroComplexity)
-    override val edge = setOf<Int>().values(ZeroComplexity)
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+    override val simple = (-1..1).toSet().values(ZeroComplexity, cloner)
+    override val edge = setOf<Int>().values(ZeroComplexity, cloner)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) =
             randomNumber(complexity.power(8), Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong(), random)
                 .toInt()
 
-        fun create(random: Random = Random) = IntGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = IntGenerator(random, cloner)
     }
 }
 
-class LongGenerator(random: Random) : TypeGenerators<Long>(random) {
+class LongGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Long>(random, cloner) {
 
-    override val simple = (-1L..1L).toSet().values(ZeroComplexity)
-    override val edge = setOf<Long>().values(ZeroComplexity)
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+    override val simple = (-1L..1L).toSet().values(ZeroComplexity, cloner)
+    override val edge = setOf<Long>().values(ZeroComplexity, cloner)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) =
             randomNumber(complexity.power(16), Long.MIN_VALUE..Long.MAX_VALUE, random)
 
-        fun create(random: Random = Random) = LongGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = LongGenerator(random, cloner)
     }
 }
 
-class FloatGenerator(random: Random) : TypeGenerators<Float>(random) {
+class FloatGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Float>(random, cloner) {
 
-    override val simple = setOf(-0.1f, 0.0f, 0.1f).values(ZeroComplexity)
-    override val edge = setOf<Float>().values(ZeroComplexity)
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+    override val simple = setOf(-0.1f, 0.0f, 0.1f).values(ZeroComplexity, cloner)
+    override val edge = setOf<Float>().values(ZeroComplexity, cloner)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) =
             IntGenerator.random(complexity, random) * random.nextFloat()
 
-        fun create(random: Random = Random) = FloatGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = FloatGenerator(random, cloner)
     }
 }
 
-class DoubleGenerator(random: Random) : TypeGenerators<Double>(random) {
+class DoubleGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Double>(random, cloner) {
 
-    override val simple = setOf(-0.1, 0.0, 0.1).values(ZeroComplexity)
-    override val edge = setOf<Double>().values(ZeroComplexity)
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+    override val simple = setOf(-0.1, 0.0, 0.1).values(ZeroComplexity, cloner)
+    override val edge = setOf<Double>().values(ZeroComplexity, cloner)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         fun random(complexity: Complexity, random: Random = Random) =
             FloatGenerator.random(complexity, random) * random.nextDouble()
 
-        fun create(random: Random = Random) = DoubleGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = DoubleGenerator(random, cloner)
     }
 }
 
-class BooleanGenerator(random: Random) : TypeGenerators<Boolean>(random) {
+class BooleanGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Boolean>(random, cloner) {
 
-    override val simple = setOf(true, false).values(ZeroComplexity)
-    override val edge = setOf<Boolean>().values(ZeroComplexity)
-    override fun random(complexity: Complexity, runner: TestRunner?) = random.nextBoolean().value(complexity)
+    override val simple = setOf(true, false).values(ZeroComplexity, cloner)
+    override val edge = setOf<Boolean>().values(ZeroComplexity, cloner)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random.nextBoolean().value(complexity, cloner)
 
     companion object {
-        fun create(random: Random = Random) = BooleanGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = BooleanGenerator(random, cloner)
     }
 }
 
-class CharGenerator(random: Random) : TypeGenerators<Char>(random) {
+class CharGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<Char>(random, cloner) {
 
-    override val simple = setOf('A', '0').values(ZeroComplexity)
-    override val edge = setOf<Char>().values(ZeroComplexity)
+    override val simple = setOf('A', '0').values(ZeroComplexity, cloner)
+    override val edge = setOf<Char>().values(ZeroComplexity, cloner)
     override fun random(complexity: Complexity, runner: TestRunner?) =
-        ALPHANUMERIC_CHARS.random(random).value(complexity)
+        ALPHANUMERIC_CHARS.random(random).value(complexity, cloner)
 
     companion object {
         val ALPHANUMERIC_CHARS: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9') + ' '
-        fun create(random: Random = Random) = CharGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = CharGenerator(random, cloner)
     }
 }
 
-class StringGenerator(random: Random) : TypeGenerators<String>(random) {
+class StringGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<String>(random, cloner) {
 
     override val simple =
-        setOf("t", "gwa", "8 circle", "").map { it.toCharArray() }.map { String(it) }.toSet().values(ZeroComplexity)
-    override val edge = listOf<String?>(null).values(ZeroComplexity)
-    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(complexity)
+        setOf("t", "gwa", "8 circle", "").map { it.toCharArray() }.map { String(it) }.toSet().values(
+            ZeroComplexity,
+            cloner
+        )
+    override val edge = listOf<String?>(null).values(ZeroComplexity, cloner)
+    override fun random(complexity: Complexity, runner: TestRunner?) = random(complexity, random).value(
+        complexity,
+        cloner
+    )
 
     companion object {
         @Suppress("MemberVisibilityCanBePrivate")
@@ -652,23 +697,23 @@ class StringGenerator(random: Random) : TypeGenerators<String>(random) {
                 .joinToString("")
         }
 
-        fun create(random: Random = Random) = StringGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = StringGenerator(random, cloner)
     }
 }
 
 data class SystemIn(val input: String)
-class SystemInGenerator(random: Random) : TypeGenerators<SystemIn>(random) {
-    private val stringGenerator = StringGenerator(random)
+class SystemInGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<SystemIn>(random, cloner) {
+    private val stringGenerator = StringGenerator(random, cloner)
 
     override val simple =
-        stringGenerator.simple.filter { it.solution != "" }.map { SystemIn(it.solution) }.values(ZeroComplexity)
+        stringGenerator.simple.filter { it.solution != "" }.map { SystemIn(it.solution) }.values(ZeroComplexity, cloner)
 
-    override val edge = listOf(SystemIn("")).values(ZeroComplexity)
+    override val edge = listOf(SystemIn("")).values(ZeroComplexity, cloner)
     override fun random(complexity: Complexity, runner: TestRunner?) =
-        SystemIn(stringGenerator.random(complexity, runner).solution).value(complexity)
+        SystemIn(stringGenerator.random(complexity, runner).solution).value(complexity, cloner)
 
     companion object {
-        fun create(random: Random = Random) = SystemInGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = SystemInGenerator(random, cloner)
     }
 }
 
@@ -677,10 +722,11 @@ data class JenisolAny(private val value: Int)
 @Suppress("UNCHECKED_CAST")
 class ObjectGenerator(
     random: Random,
+    private val cloner: Cloner,
     private val receiverGenerator: ReceiverGenerator? = null
-) : TypeGenerators<Any>(random) {
+) : TypeGenerators<Any>(random, cloner) {
     private val defaultObjects = Defaults.map.filterKeys { !it.isPrimitive && it != Any::class.java }
-        .mapValues { (_, generator) -> generator(random) }
+        .mapValues { (_, generator) -> generator(random, cloner) }
 
     init {
         check(defaultObjects.isNotEmpty()) { "No default objects to generate" }
@@ -688,14 +734,14 @@ class ObjectGenerator(
 
     override val simple: Set<Value<Any>>
         get() = (
-            listOf(JenisolAny(random.nextInt())).values(ZeroComplexity) +
+            listOf(JenisolAny(random.nextInt())).values(ZeroComplexity, cloner) +
                 (receiverGenerator?.simple ?: setOf()) +
                 defaultObjects.values.map { it.simple }.flatten().distinct().take(SIMPLE_LIMIT)
             ).toSet() as Set<Value<Any>>
 
     override val edge: Set<Value<Any?>>
         get() = (
-            listOf(null as Any?).values(ZeroComplexity) +
+            listOf(null as Any?).values(ZeroComplexity, cloner) +
                 (receiverGenerator?.edge ?: setOf()) +
                 defaultObjects.values.map { it.edge }.flatten().distinct().take(EDGE_LIMIT)
             ).toSet() as Set<Value<Any?>>
@@ -712,13 +758,13 @@ class ObjectGenerator(
         }
 
     companion object {
-        fun create(random: Random = Random) = ObjectGenerator(random)
+        fun create(random: Random = Random, cloner: Cloner) = ObjectGenerator(random, cloner)
         const val SIMPLE_LIMIT = 8
         const val EDGE_LIMIT = 8
     }
 }
 
-fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { cloner ->
+fun <T> Collection<T>.values(complexity: Complexity, cloner: Cloner) =
     toSet().also {
         check(size == it.size) { "Collection of values was not distinct" }
     }.map {
@@ -731,10 +777,9 @@ fun <T> Collection<T>.values(complexity: Complexity) = Cloner.shared().let { clo
             complexity
         )
     }.toSet()
-}
 
-inline fun <reified T> T.value(complexity: Complexity) =
-    Value(deepCopy(), deepCopy(), deepCopy(), deepCopy(), deepCopy(), complexity)
+inline fun <reified T> T.value(complexity: Complexity, cloner: Cloner) =
+    Value(deepCopy(cloner), deepCopy(cloner), deepCopy(cloner), deepCopy(cloner), deepCopy(cloner), complexity)
 
 fun <T> Class<T>.getArrayType(start: Boolean = true): Class<*> {
     check(!start || isArray) { "Must be called on an array type" }
