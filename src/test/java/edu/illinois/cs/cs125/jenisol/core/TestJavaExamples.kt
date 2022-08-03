@@ -1,10 +1,13 @@
 package edu.illinois.cs.cs125.jenisol.core
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.lang.IllegalStateException
 import kotlin.time.ExperimentalTime
 
 @ExperimentalTime
@@ -416,8 +419,22 @@ class TestJavaExamples : StringSpec(
                 } catch (_: Exception) { }
             }
         }
-        examples.java.noreceiver.fixedparametersusesrandom.Correct::class.java.also {
-            "!${it.testName()}" { it.test() }
+        examples.java.noreceiver.fixedparametersusesrandom.first.Correct::class.java.also {
+            "${it.testName()}" {
+                val firstSolution = Solution(it)
+                shouldThrow<IllegalStateException> {
+                    firstSolution.checkFields(it)
+                }
+
+                val second = examples.java.noreceiver.fixedparametersusesrandom.second.Correct::class.java
+                val exception = shouldThrow<IllegalStateException> {
+                    firstSolution.checkFields(second)
+                }
+                exception.message shouldContain "Field FIXED"
+
+                val third = examples.java.noreceiver.fixedparametersusesrandom.third.Correct::class.java
+                firstSolution.checkFields(third)
+            }
         }
     }
 )

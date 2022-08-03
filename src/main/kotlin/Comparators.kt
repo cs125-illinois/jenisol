@@ -11,7 +11,7 @@ interface Comparator {
 }
 
 class Comparators(
-    private val comparators: MutableMap<Class<*>, Comparator>
+    private val comparators: MutableMap<Class<*>, Comparator> = mutableMapOf()
 ) : MutableMap<Class<*>, Comparator> by comparators {
     init {
         comparators[Any::class.java] = object : Comparator {
@@ -32,31 +32,37 @@ class Comparators(
                         submission is IllegalArgumentException &&
                         !solutionClass.isKotlin() &&
                         submissionClass.isKotlin() -> true
+
                     solutionClass != null && submissionClass != null &&
                         (solution is AssertionError || solution is IllegalArgumentException) &&
                         submission is NullPointerException &&
                         submission.message?.startsWith("Parameter specified as non-null is null") == true &&
                         !solutionClass.isKotlin() &&
                         submissionClass.isKotlin() -> true
+
                     solutionClass != null && submissionClass != null &&
                         solution is NullPointerException &&
                         solution.message?.startsWith("Parameter specified as non-null is null") == true &&
                         (submission is AssertionError || submission is IllegalArgumentException) &&
                         solutionClass.isKotlin() &&
                         !submissionClass.isKotlin() -> true
+
                     solutionClass != null && submissionClass != null &&
                         solution is IllegalArgumentException &&
                         submission is AssertionError &&
                         solutionClass.isKotlin() &&
                         !submissionClass.isKotlin() -> true
+
                     solutionClass != null && submissionClass != null &&
                         solution is ArrayIndexOutOfBoundsException &&
                         submission is IndexOutOfBoundsException &&
                         solution.message == submission.message -> true
+
                     solutionClass != null && submissionClass != null &&
                         solution is IndexOutOfBoundsException &&
                         submission is ArrayIndexOutOfBoundsException &&
                         solution.message == submission.message -> true
+
                     solutionClass != null && submissionClass != null &&
                         solution is ArrayIndexOutOfBoundsException &&
                         solution.message != null &&
@@ -77,6 +83,7 @@ class Comparators(
                             }
                         }
                     }
+
                     solutionClass != null && submissionClass != null &&
                         solution is java.lang.IndexOutOfBoundsException &&
                         solution.message != null &&
@@ -99,6 +106,7 @@ class Comparators(
                             }
                         }
                     }
+
                     else -> solution::class.java == submission::class.java
                 }
         }
@@ -177,8 +185,10 @@ fun Any.deepEquals(
         solutionClass,
         submissionClass
     )
+
     this is ParameterGroup && submission is ParameterGroup ->
         this.toArray().deepEquals(submission.toArray(), comparators, solutionClass, submissionClass)
+
     this.isAnyArray() != submission.isAnyArray() -> false
     this.isAnyArray() && submission.isAnyArray() -> {
         val solutionBoxed = this.boxArray()
@@ -192,6 +202,7 @@ fun Any.deepEquals(
                 }
             }
     }
+
     else -> this.lambdaGuessEquals(submission) || this == submission
 }
 

@@ -379,6 +379,36 @@ class Solution(val solution: Class<*>) {
     }
 
     fun submission(submission: Class<*>) = Submission(this, submission)
+
+    fun checkFields(otherSolution: Class<*>) {
+        check(solution != otherSolution) {
+            "Should not check fields on identical classes"
+        }
+        solution.declaredFields.filter { it.isJenisol() }.forEach { field ->
+            field.isAccessible = true
+
+            val otherField = otherSolution.declaredFields.find {
+                it.isJenisol() && it.name == field.name
+            }?.also {
+                it.isAccessible = true
+            }
+            check(otherField != null) {
+                "Couldn't find field ${field.name} on alternate solution"
+            }
+
+            val (firstValue, secondValue) = @Suppress("TooGenericExceptionCaught") try {
+                Pair(field.get(null), otherField.get(null))
+            } catch (e: Exception) {
+                error("Retrieving field ${field.name} failed: $e")
+            }
+            check(firstValue.deepEquals(secondValue, Comparators(), null, null)) {
+                error(
+                    "Field ${field.name} was not equal between solution instances. " +
+                        "Make sure any randomness is consistent."
+                )
+            }
+        }
+    }
 }
 
 fun solution(klass: Class<*>) = Solution(klass)
