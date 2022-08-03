@@ -3,7 +3,7 @@ package edu.illinois.cs.cs125.jenisol.core
 import io.github.classgraph.ClassGraph
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotContainAll
-import io.kotest.matchers.ints.shouldBeLessThan
+import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlin.random.Random
@@ -98,7 +98,7 @@ fun Solution.fullTest(
     run {
         val second = submissionKlass.test(baseSettings).checkResults()
         if (!isCorrect) {
-            original.size shouldBeLessThan baseSettings.maxTestCount
+            original.size shouldBeLessThanOrEqual baseSettings.maxTestCount
         }
         original.size shouldBe second.size
         original.forEachIndexed { index, firstResult ->

@@ -364,9 +364,6 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.receiverwithtransformer.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
-        examples.java.noreceiver.filternotnullwithrandomgeneratesnull.Correct::class.java.also {
-            "!${it.testName()}" { it.test() }
-        }
         examples.java.noreceiver.randomtypenocomplexity.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
@@ -382,7 +379,6 @@ class TestJavaExamples : StringSpec(
                     }
                 }
                 withContext(Dispatchers.Default) {
-                    @Suppress("BlockingMethodInNonBlockingContext")
                     Thread(runnable).apply {
                         start()
                         join(2048)
@@ -410,6 +406,18 @@ class TestJavaExamples : StringSpec(
                     }
                 }
             }
+        }
+        // Tests that should fail
+        examples.java.noreceiver.filternotnullwithrandomgeneratesnull.Correct::class.java.also {
+            "${it.testName()}" {
+                try {
+                    it.test()
+                    error("Should have failed")
+                } catch (_: Exception) { }
+            }
+        }
+        examples.java.noreceiver.fixedparametersusesrandom.Correct::class.java.also {
+            "!${it.testName()}" { it.test() }
         }
     }
 )
