@@ -295,7 +295,6 @@ object Defaults {
         map[java.lang.Character::class.java] = BoxedGenerator.create(Char::class.java)
         map[String::class.java] = StringGenerator.Companion::create
         map[Any::class.java] = ObjectGenerator.Companion::create
-        map[SystemIn::class.java] = SystemInGenerator.Companion::create
     }
 
     operator fun get(klass: Class<*>): TypeGeneratorGenerator {
@@ -702,20 +701,6 @@ class StringGenerator(random: Random, private val cloner: Cloner) : TypeGenerato
 }
 
 data class SystemIn(val input: String)
-class SystemInGenerator(random: Random, private val cloner: Cloner) : TypeGenerators<SystemIn>(random, cloner) {
-    private val stringGenerator = StringGenerator(random, cloner)
-
-    override val simple =
-        stringGenerator.simple.filter { it.solution != "" }.map { SystemIn(it.solution) }.values(ZeroComplexity, cloner)
-
-    override val edge = listOf(SystemIn("")).values(ZeroComplexity, cloner)
-    override fun random(complexity: Complexity, runner: TestRunner?) =
-        SystemIn(stringGenerator.random(complexity, runner).solution).value(complexity, cloner)
-
-    companion object {
-        fun create(random: Random = Random, cloner: Cloner) = SystemInGenerator(random, cloner)
-    }
-}
 
 data class JenisolAny(private val value: Int)
 

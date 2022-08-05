@@ -6,7 +6,6 @@ import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import kotlin.random.Random
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
 
@@ -57,7 +56,7 @@ fun Class<*>.testingClasses(): TestingClasses {
 @Suppress("LongMethod")
 fun Solution.fullTest(
     klass: Class<*>,
-    seed: Int = Random.nextInt(),
+    seed: Int,
     isCorrect: Boolean,
     solutionResults: TestResults? = null
 ): Pair<TestResults, TestResults> {
@@ -167,11 +166,10 @@ fun Solution.fullTest(
 
 @Suppress("NestedBlockDepth", "ComplexMethod")
 fun Class<*>.test() = this.testingClasses().apply {
-    val seed = Random.nextInt()
     solution(primarySolution).apply {
         val (_, solutionResults) = submission(primarySolution).let {
             if (!primarySolution.isDesignOnly()) {
-                fullTest(primarySolution, seed = seed, isCorrect = true).also { (results) ->
+                fullTest(primarySolution, seed = 124, isCorrect = true).also { (results) ->
                     check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
                 }
             } else {
@@ -183,7 +181,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                 if (!primarySolution.isDesignOnly()) {
                     fullTest(
                         correct,
-                        seed = seed,
+                        seed = 124,
                         isCorrect = true,
                         solutionResults = solutionResults
                     ).first.also { results ->
@@ -209,7 +207,7 @@ fun Class<*>.test() = this.testingClasses().apply {
                     }
                     fullTest(
                         incorrect,
-                        seed = seed,
+                        seed = 124,
                         isCorrect = false,
                         solutionResults = solutionResults
                     ).first.also { results ->
