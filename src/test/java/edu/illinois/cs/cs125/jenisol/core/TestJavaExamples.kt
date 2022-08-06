@@ -373,6 +373,12 @@ class TestJavaExamples : StringSpec(
         examples.java.noreceiver.fauxstaticprints.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.noreceiver.usessystemin.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.systemininterleaving.Correct::class.java.also {
+            "f: ${it.testName()}" { it.test() }
+        }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {
                 val runnable = object : Runnable {

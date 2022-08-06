@@ -335,7 +335,13 @@ fun Executable.isCheckDesign() = isAnnotationPresent(CheckDesign::class.java)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class Limit(val value: Int)
 
-fun Executable.isLimit() = isAnnotationPresent(Limit::class.java)
+fun Executable.hasLimit() = isAnnotationPresent(Limit::class.java)
+
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.RUNTIME)
+annotation class ProvideSystemIn
+
+fun Executable.provideSystemIn() = isAnnotationPresent(ProvideSystemIn::class.java)
 
 @Target(AnnotationTarget.VALUE_PARAMETER)
 @Retention(AnnotationRetention.RUNTIME)

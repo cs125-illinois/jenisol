@@ -7,6 +7,7 @@ import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
 import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
+import edu.illinois.cs.cs125.jenisol.core.generators.systemInDummyExecutable
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -108,6 +109,8 @@ class Solution(val solution: Class<*>) {
         } &&
         solution.declaredConstructors.let { it.size == 1 && it.first().parameterCount == 0 }
 
+    val usesSystemIn = methodsToTest.any { it.provideSystemIn() }
+
     init {
         if (needsReceiver.isNotEmpty()) {
             checkDesign(receiverGenerators.isNotEmpty()) { "No way to generate needed receivers" }
@@ -147,8 +150,13 @@ class Solution(val solution: Class<*>) {
         checkDesign { Initializer.validate(it) }
     }
     private val initializers = initializer?.let { setOf(it) } ?: setOf()
+    private val generatorExecutables = allExecutables + initializers + if (usesSystemIn) {
+        setOf(systemInDummyExecutable)
+    } else {
+        setOf()
+    }
 
-    val generatorFactory: GeneratorFactory = GeneratorFactory(allExecutables + initializers, this)
+    val generatorFactory: GeneratorFactory = GeneratorFactory(generatorExecutables, this)
 
     private var defaultReceiverCount = if (skipReceiver) {
         0
@@ -175,7 +183,7 @@ class Solution(val solution: Class<*>) {
         ) + bothExecutables.size
 
     val limits: Map<Executable, Int> = solution.declaredMethods
-        .filter { it.isLimit() }
+        .filter { it.hasLimit() }
         .associateWith {
             check(it in (allExecutables + bothExecutables)) {
                 "Can only use @Limit on tested methods and constructors and methods annotated with @Both"

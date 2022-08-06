@@ -191,7 +191,11 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         val neededTypes = executables
             .filter { it in typesNeeded }
             .map { it.parameterTypes }
-            .toTypedArray().flatten().distinct().toSet()
+            .toTypedArray().flatten().distinct().toMutableSet().also { types ->
+                if (solution.usesSystemIn) {
+                    types += SystemIn::class.java
+                }
+            }.toSet()
         val arrayNeededTypes = neededTypes.filter { it.isArray }.map { it.getArrayType() }
 
         val simpleArray: MutableMap<Class<*>, Set<Any>> = mutableMapOf()
@@ -413,6 +417,12 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
         executables.filter { it in typesNeeded }.forEach { executable ->
             TypeParameterGenerator(executable.parameters, typeGenerators, cloner = Cloner.shared())
         }
+        if (solution.usesSystemIn) {
+            require(SystemIn::class.java in typeGenerators) {
+                "Must provide complete type override for edu.illinois.cs.cs125.jenisol.core.generators.SystemIn " +
+                    "when @ProvideSystemIn is used"
+            }
+        }
     }
 
     fun get(
@@ -438,7 +448,7 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                         settings,
                         random,
                         cloner
-                    ) ?: error("Didn't find a method parameter generator that should exist")
+                    ) ?: error("Didn't find a method parameter generator that should exist: $executable")
                     )
             }
         }
@@ -448,7 +458,9 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     }
 }
 
-class Generators(private val map: Map<Executable, ExecutableGenerator>) : Map<Executable, ExecutableGenerator> by map
+class Generators(
+    private val map: Map<Executable, ExecutableGenerator>
+) : Map<Executable, ExecutableGenerator> by map
 
 interface ExecutableGenerator {
     val fixed: List<Parameters>

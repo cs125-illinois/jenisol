@@ -16,6 +16,7 @@ import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 import kotlin.math.pow
 import kotlin.random.Random
+import kotlin.reflect.jvm.javaMethod
 
 class Complexity(var level: Int = MIN) {
     init {
@@ -701,6 +702,10 @@ class StringGenerator(random: Random, private val cloner: Cloner) : TypeGenerato
 }
 
 data class SystemIn(val input: String)
+
+@Suppress("UNUSED_PARAMETER")
+internal fun systemInDummy(systemIn: SystemIn): Nothing = error("Should not be called")
+internal val systemInDummyExecutable = ::systemInDummy.javaMethod!!
 
 data class JenisolAny(private val value: Int)
 

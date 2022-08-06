@@ -6,11 +6,13 @@ import edu.illinois.cs.cs125.jenisol.core.generators.Complexity
 import edu.illinois.cs.cs125.jenisol.core.generators.Generators
 import edu.illinois.cs.cs125.jenisol.core.generators.ParameterValues
 import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
+import edu.illinois.cs.cs125.jenisol.core.generators.SystemIn
 import edu.illinois.cs.cs125.jenisol.core.generators.Value
 import edu.illinois.cs.cs125.jenisol.core.generators.ZeroComplexity
 import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
+import edu.illinois.cs.cs125.jenisol.core.generators.systemInDummyExecutable
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Method
@@ -23,16 +25,23 @@ data class Result<T, P : ParameterGroup>(
     @JvmField val threw: Throwable?,
     @JvmField val stdout: String,
     @JvmField val stderr: String,
+    @JvmField val stdin: String,
     @JvmField val tag: Any?,
     @JvmField val modifiedParameters: Boolean
 ) {
     @Suppress("UNCHECKED_CAST")
-    constructor(parameters: Array<Any?>, capturedResult: CapturedResult, modifiedParameters: Boolean) : this(
+    constructor(
+        parameters: Array<Any?>,
+        capturedResult: CapturedResult,
+        stdin: String,
+        modifiedParameters: Boolean
+    ) : this(
         parameters.toParameterGroup() as P,
         capturedResult.returned as T?,
         capturedResult.threw,
         capturedResult.stdout,
         capturedResult.stderr,
+        stdin,
         capturedResult.tag,
         modifiedParameters
     )
@@ -43,6 +52,7 @@ data class Result<T, P : ParameterGroup>(
             "threw=${threw?.safePrint()}, " +
             "stdout='$stdout', " +
             "stderr='$stderr', " +
+            "stdin='$stdin', " +
             "tag='$tag', " +
             "modifiedParameters=$modifiedParameters)"
     }
@@ -92,8 +102,8 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField val differs: MutableSet<Differs> = mutableSetOf(),
     @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin(),
     @JvmField val existingReceiverMismatch: Boolean = false,
-    val solutionMethodString: String,
-    val submissionMethodString: String
+    @JvmField val solutionMethodString: String,
+    @JvmField val submissionMethodString: String
 ) {
     @Suppress("UNCHECKED_CAST")
     @JvmField
@@ -285,6 +295,7 @@ class TestRunner(
     var generators: Generators,
     val receiverGenerators: Sequence<Executable>,
     val captureOutput: CaptureOutput,
+    val inputController: InputController,
     val methodPicker: Submission.ExecutablePicker,
     val settings: Settings,
     val runners: List<TestRunner>,
@@ -313,6 +324,8 @@ class TestRunner(
     var created: Boolean
     var initialized: Boolean = false
     var tested: Boolean = false
+
+    val systemInParameterGenerator = generators[systemInDummyExecutable]
 
     init {
         if (receivers == null && staticOnly) {
@@ -351,13 +364,18 @@ class TestRunner(
     fun Executable.pairRun(
         receiver: Any?,
         parameters: Array<Any?>,
-        parametersCopy: Array<Any?>? = null
+        parametersCopy: Array<Any?>? = null,
+        systemInParameters: SystemIn? = null
     ): Result<Any, ParameterGroup> {
         checkParameters(parameters)
         if (parametersCopy != null) {
             checkParameters(parametersCopy)
         }
 
+        val systemIn = systemInParameters?.input ?: ""
+        systemInParameters?.input?.let {
+            inputController.open(it)
+        }
         return captureOutput {
             @Suppress("SpreadOperator")
             unwrap {
@@ -368,7 +386,15 @@ class TestRunner(
                 }
             }
         }.let {
-            Result(parameters, it, parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false)
+            systemInParameters?.input?.also {
+                inputController.close()
+            }
+            Result(
+                parameters,
+                it,
+                systemIn,
+                parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false
+            )
         }
     }
 
@@ -523,6 +549,8 @@ class TestRunner(
             } ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
         }
 
+        /*
+        // Enable for debugging
         check(
             parameters.solution.filterNotNull().none {
                 it::class.java == submission.submission::class.java
@@ -563,6 +591,7 @@ class TestRunner(
                 solutionParameter!!::class.java != submissionParameter!!::class.java
             }
         )
+        */
 
         val stepType = type ?: if (!created) {
             when (solutionExecutable) {
@@ -624,11 +653,20 @@ class TestRunner(
             submission.solution.solution
         )
 
+        val systemInParameters = systemInParameterGenerator?.generate(this)
+
         // Have to run these together to keep things in sync
-        val solutionResult =
-            solutionExecutable.pairRun(stepReceivers.solution, parameters.solution, parameters.solutionCopy)
-        val solutionCopy =
-            solutionExecutable.pairRun(stepReceivers.solutionCopy, parameters.solutionCopy)
+        val solutionResult = solutionExecutable.pairRun(
+            stepReceivers.solution,
+            parameters.solution,
+            parameters.solutionCopy,
+            systemInParameters?.solution?.get(0) as SystemIn?
+        )
+        val solutionCopy = solutionExecutable.pairRun(
+            stepReceivers.solutionCopy,
+            parameters.solutionCopy,
+            systemInParameters = systemInParameters?.solutionCopy?.get(0) as SystemIn?
+        )
 
         if (solutionResult.threw != null &&
             TestingControlException::class.java.isAssignableFrom(solutionResult.threw::class.java)
@@ -655,10 +693,17 @@ class TestRunner(
             submission.submission
         )
 
-        val submissionResult =
-            submissionExecutable.pairRun(stepReceivers.submission, parameters.submission, parameters.submissionCopy)
-        val submissionCopy =
-            submissionExecutable.pairRun(stepReceivers.submissionCopy, parameters.submissionCopy)
+        val submissionResult = submissionExecutable.pairRun(
+            stepReceivers.submission,
+            parameters.submission,
+            parameters.submissionCopy,
+            systemInParameters?.submission?.get(0) as SystemIn?
+        )
+        val submissionCopy = submissionExecutable.pairRun(
+            stepReceivers.submissionCopy,
+            parameters.submissionCopy,
+            systemInParameters = systemInParameters?.submissionCopy?.get(0) as SystemIn?
+        )
 
         val linkedReceivers = linkReceivers(
             SolutionSubmissionResultPair(solutionResult, submissionResult),
@@ -689,8 +734,11 @@ class TestRunner(
             submissionMethodString = submissionMethodString
         )
 
-        val unmodifiedCopy =
-            submissionExecutable.pairRun(stepReceivers.unmodifiedCopy, parameters.unmodifiedCopy)
+        val unmodifiedCopy = submissionExecutable.pairRun(
+            stepReceivers.unmodifiedCopy,
+            parameters.unmodifiedCopy,
+            systemInParameters = systemInParameters?.unmodifiedCopy?.get(0) as SystemIn?
+        )
 
         val createdReceivers = extractReceivers(
             ParameterValues(solutionResult, submissionResult, solutionCopy, submissionCopy, unmodifiedCopy),

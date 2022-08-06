@@ -525,6 +525,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 generators,
                 receiverGenerators,
                 captureOutput,
+                this,
                 ExecutablePicker(random, solution.methodsToTest),
                 settings,
                 runners,
