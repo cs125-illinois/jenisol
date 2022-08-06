@@ -701,7 +701,18 @@ class StringGenerator(random: Random, private val cloner: Cloner) : TypeGenerato
     }
 }
 
-data class SystemIn(val input: String)
+class SystemIn(input: List<String>) {
+    val input = input.map { String(it.toCharArray()) }
+
+    constructor(input: String) : this(listOf(input))
+
+    override fun equals(other: Any?) = when (other) {
+        !is SystemIn -> false
+        else -> input == other.input
+    }
+
+    override fun hashCode() = input.hashCode()
+}
 
 @Suppress("UNUSED_PARAMETER")
 internal fun systemInDummy(systemIn: SystemIn): Nothing = error("Should not be called")

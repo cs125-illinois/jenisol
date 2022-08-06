@@ -16,12 +16,12 @@ public class Correct {
     System.out.println(scanner.nextLine());
   }
 
-  @SimpleType private static final SystemIn[] SIMPLE = new SystemIn[] {new SystemIn("Test\n")};
+  @SimpleType private static final SystemIn[] SIMPLE = new SystemIn[] {new SystemIn("Test")};
 
-  @EdgeType private static final SystemIn[] EDGE = new SystemIn[] {new SystemIn("")};
+  @EdgeType private static final SystemIn[] EDGE = new SystemIn[] {};
 
   @RandomType
   private static SystemIn randomInput(Random random) {
-    return new SystemIn(new String("" + random.nextInt()));
+    return new SystemIn("" + random.nextInt());
   }
 }

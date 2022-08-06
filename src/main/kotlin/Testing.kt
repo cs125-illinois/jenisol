@@ -26,6 +26,7 @@ data class Result<T, P : ParameterGroup>(
     @JvmField val stdout: String,
     @JvmField val stderr: String,
     @JvmField val stdin: String,
+    @JvmField val interleavedOutput: String,
     @JvmField val tag: Any?,
     @JvmField val modifiedParameters: Boolean
 ) {
@@ -41,6 +42,7 @@ data class Result<T, P : ParameterGroup>(
         capturedResult.stdout,
         capturedResult.stderr,
         capturedResult.stdin,
+        capturedResult.interleavedInputOutput,
         capturedResult.tag,
         modifiedParameters
     )
@@ -109,7 +111,9 @@ data class TestResult<T, P : ParameterGroup>(
     val parameters: P = allParameters.unmodifiedCopy.toParameterGroup() as P
 
     enum class Type { CONSTRUCTOR, INITIALIZER, METHOD, STATIC_METHOD, FACTORY_METHOD, COPY_CONSTRUCTOR }
-    enum class Differs { STDOUT, STDERR, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW }
+    enum class Differs {
+        STDOUT, STDERR, INTERLEAVED_OUTPUT, RETURN, THREW, PARAMETERS, VERIFIER_THREW, INSTANCE_VALIDATION_THREW
+    }
 
     val succeeded: Boolean
         get() = differs.isEmpty()
@@ -167,6 +171,16 @@ Submission printed to STDERR:
 ${submission.stderr}---""".trim()
             }
 
+            differs.contains(Differs.INTERLEAVED_OUTPUT) -> {
+                """
+Combined solution input and output:
+---
+${solution.interleavedOutput}---
+Combined submission input and output:
+---
+${submission.interleavedOutput}---""".trim()
+            }
+
             differs.contains(Differs.RETURN) -> {
                 """
 Solution returned: ${print(solution.returned)}
@@ -179,9 +193,9 @@ Submission returned: ${print(submission.returned)}
                     """
 Solution did not modify its parameters
 Submission did modify its parameters to ${
-                        print(
-                            submission.parameters.toArray()
-                        )
+                    print(
+                        submission.parameters.toArray()
+                    )
                     }
                     """.trim()
                 } else if (solution.modifiedParameters && !submission.modifiedParameters) {
@@ -193,9 +207,9 @@ Submission did not modify its parameters
                     """
 Solution modified its parameters to ${print(solution.parameters.toArray())}
 Submission modified its parameters to ${
-                        print(
-                            submission.parameters.toArray()
-                        )
+                    print(
+                        submission.parameters.toArray()
+                    )
                     }
                     """.trim()
                 }
@@ -278,7 +292,7 @@ class TestResults(
             result.apply {
                 println(
                     "${
-                        runnerID.toString().padStart(4, ' ')
+                    runnerID.toString().padStart(4, ' ')
                     }: $solutionReceiver $solutionMethodString -> ${solution.returned}" +
                         "\n${" ".repeat(4)}: $submissionReceiver $submissionMethodString -> ${submission.returned}"
                 )
@@ -370,7 +384,7 @@ class TestRunner(
             checkParameters(parametersCopy)
         }
 
-        val systemIn = systemInParameters?.input ?: ""
+        val systemIn = systemInParameters?.input ?: listOf()
 
         return captureOutputControlInput(systemIn) {
             @Suppress("SpreadOperator")
@@ -405,9 +419,9 @@ class TestRunner(
         val solutionClass = this@TestRunner.submission.solution.solution
         val solutionReturnedClass = solution.returned::class.java
         if (!(
-                solutionReturnedClass == solutionClass ||
-                    (solutionReturnedClass.isArray && solutionReturnedClass.getArrayType() == solutionClass)
-                )
+            solutionReturnedClass == solutionClass ||
+                (solutionReturnedClass.isArray && solutionReturnedClass.getArrayType() == solutionClass)
+            )
         ) {
             return false
         }

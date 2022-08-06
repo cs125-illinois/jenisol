@@ -6,6 +6,8 @@ import io.kotest.matchers.collections.shouldNotContainAll
 import io.kotest.matchers.ints.shouldBeLessThanOrEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 fun Class<*>.isKotlinAnchor() = simpleName == "Correct" && declaredMethods.isEmpty()
 
@@ -24,6 +26,26 @@ data class TestingClasses(
     val badReceivers: List<Class<*>>,
     val badDesign: List<Class<*>>
 )
+
+suspend fun Submission.testWithTimeout(settings: Settings, followTrace: List<Int>? = null): TestResults {
+    val runnable = object : Runnable {
+        var results: TestResults? = null
+        override fun run() {
+            results = this@testWithTimeout.test(settings, followTrace = followTrace)
+        }
+    }
+    withContext(Dispatchers.Default) {
+        Thread(runnable).apply {
+            start()
+            join(2048)
+            interrupt()
+            join(1024)
+        }
+    }
+    return runnable.results!!.also {
+        println(it.explain())
+    }
+}
 
 fun Class<*>.testingClasses(): TestingClasses {
     val testName = packageName.removePrefix("examples.")
@@ -54,7 +76,7 @@ fun Class<*>.testingClasses(): TestingClasses {
 }
 
 @Suppress("LongMethod")
-fun Solution.fullTest(
+suspend fun Solution.fullTest(
     klass: Class<*>,
     seed: Int,
     isCorrect: Boolean,
@@ -93,9 +115,9 @@ fun Solution.fullTest(
     }
 
     val submissionKlass = submission(klass)
-    val original = submissionKlass.test(baseSettings).checkResults()
+    val original = submissionKlass.testWithTimeout(baseSettings).checkResults()
     run {
-        val second = submissionKlass.test(baseSettings).checkResults()
+        val second = submissionKlass.testWithTimeout(baseSettings).checkResults()
         if (!isCorrect) {
             original.size shouldBeLessThanOrEqual baseSettings.maxTestCount
         }
@@ -108,8 +130,8 @@ fun Solution.fullTest(
     }
     run {
         val noShrinkSettings = baseSettings.copy(shrink = false)
-        val first = submissionKlass.test(noShrinkSettings).checkResults()
-        val second = submissionKlass.test(noShrinkSettings).checkResults()
+        val first = submissionKlass.testWithTimeout(noShrinkSettings).checkResults()
+        val second = submissionKlass.testWithTimeout(noShrinkSettings).checkResults()
 
         if (!isCorrect) {
             first.indexOfFirst { it.failed } shouldBe first.size - 1
@@ -132,8 +154,10 @@ fun Solution.fullTest(
             maxTestCount = -1
         )
 
-    val first = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
-    val second = submissionKlass.test(testAllSettings, followTrace = solutionResults?.randomTrace).checkResults()
+    val first = submissionKlass.testWithTimeout(testAllSettings, followTrace = solutionResults?.randomTrace)
+        .checkResults()
+    val second = submissionKlass.testWithTimeout(testAllSettings, followTrace = solutionResults?.randomTrace)
+        .checkResults()
     first.size + first.skippedSteps.size shouldBe testAllCounts
     first.size shouldBe second.size
     first.forEachIndexed { index, firstResult ->
@@ -165,7 +189,7 @@ fun Solution.fullTest(
 }
 
 @Suppress("NestedBlockDepth", "ComplexMethod")
-fun Class<*>.test() = this.testingClasses().apply {
+suspend fun Class<*>.test() = this.testingClasses().apply {
     solution(primarySolution).apply {
         val (_, solutionResults) = submission(primarySolution).let {
             if (!primarySolution.isDesignOnly()) {

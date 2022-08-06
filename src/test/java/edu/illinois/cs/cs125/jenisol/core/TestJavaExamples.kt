@@ -3,10 +3,7 @@ package edu.illinois.cs.cs125.jenisol.core
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.lang.IllegalStateException
 import kotlin.time.ExperimentalTime
 
@@ -377,26 +374,13 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.systemininterleaving.Correct::class.java.also {
+            "f: ${it.testName()}" { it.test() }
+        }
+        examples.java.noreceiver.systeminadd.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
-            "${it.testName()}" {
-                val runnable = object : Runnable {
-                    var results: TestResults? = null
-                    override fun run() {
-                        results = solution(it).submission(it).test()
-                    }
-                }
-                withContext(Dispatchers.Default) {
-                    Thread(runnable).apply {
-                        start()
-                        join(2048)
-                        interrupt()
-                        join(1024)
-                    }
-                }
-                runnable.results shouldNotBe null
-            }
+            "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.intargument.Correct::class.java.also {
             "${it.testName()} repeatability" {
@@ -422,7 +406,8 @@ class TestJavaExamples : StringSpec(
                 try {
                     it.test()
                     error("Should have failed")
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
             }
         }
         examples.java.noreceiver.fixedparametersusesrandom.first.Correct::class.java.also {

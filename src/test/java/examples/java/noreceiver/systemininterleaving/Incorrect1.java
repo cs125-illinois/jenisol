@@ -2,13 +2,13 @@ package examples.java.noreceiver.systemininterleaving;
 
 import java.util.Scanner;
 
-public class Incorrect0 {
+public class Incorrect1 {
   public static void echo() {
-    System.out.println("Hello");
     Scanner scanner = new Scanner(System.in);
     String first = scanner.nextLine();
-    String second = scanner.nextLine();
+    System.out.println("Hello!");
     System.out.println("First: " + first);
+    String second = scanner.nextLine();
     System.out.println("Second: " + second);
   }
 }

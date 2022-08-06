@@ -304,6 +304,12 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     "Error output has an extra newline, maybe use System.err.print instead of System.err.println?"
             }
         }
+        @Suppress("ComplexCondition")
+        if ((strictOutput || solution.stdout.isNotBlank() || solution.stderr.isNotBlank()) &&
+            solution.interleavedOutput != submission.interleavedOutput
+        ) {
+            result.differs.add(TestResult.Differs.INTERLEAVED_OUTPUT)
+        }
 
         if (result.existingReceiverMismatch) {
             result.differs.add(TestResult.Differs.RETURN)
