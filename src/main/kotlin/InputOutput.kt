@@ -2,28 +2,29 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.InputStream
 import java.io.PrintStream
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-typealias CaptureOutput = (run: () -> Any?) -> CapturedResult
+typealias CaptureOutputControlInput = (stdin: String, run: () -> Any?) -> CapturedResult
 
 data class CapturedResult(
     val returned: Any?,
     val threw: Throwable?,
     val stdout: String,
     val stderr: String,
+    val stdin: String,
     val tag: Any? = null
 )
 
 private val outputLock = ReentrantLock()
-fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock {
-    val original = Pair(System.out, System.err)
+fun defaultCaptureOutputControlInput(stdin: String = "", run: () -> Any?): CapturedResult = outputLock.withLock {
+    val original = Triple(System.out, System.err, System.`in`)
     val diverted = Pair(ByteArrayOutputStream(), ByteArrayOutputStream()).also {
         System.setOut(PrintStream(it.first))
         System.setErr(PrintStream(it.second))
     }
+    System.setIn(ByteArrayInputStream(stdin.toByteArray()))
 
     @Suppress("TooGenericExceptionCaught")
     val result: Pair<Any?, Throwable?> = try {
@@ -33,51 +34,11 @@ fun defaultCaptureOutput(run: () -> Any?): CapturedResult = outputLock.withLock 
     } catch (e: Throwable) {
         Pair(null, e)
     }
-    System.setOut(original.first)
-    System.setErr(original.second)
-    return CapturedResult(result.first, result.second, diverted.first.toString(), diverted.second.toString())
-}
 
-interface InputController {
-    fun open(input: String)
-    fun close()
-}
-typealias ControlInput<T> = (run: InputController.() -> T) -> T
+    val (originalStdout, originalStderr, originalStdin) = original
+    System.setOut(originalStdout)
+    System.setErr(originalStderr)
+    System.setIn(originalStdin)
 
-class ResettableStringInputStream : InputStream() {
-    private var inputStream = ByteArrayInputStream("".toByteArray())
-
-    var input: String = ""
-        set(value) {
-            inputStream = ByteArrayInputStream(value.toByteArray())
-            field = value
-        }
-
-    override fun read() = inputStream.read()
-}
-
-private val inputLock = ReentrantLock()
-fun <T> defaultControlInput(run: InputController.() -> T): T = inputLock.withLock {
-    val original = System.`in`
-    val inputStream = ResettableStringInputStream()
-    System.setIn(inputStream)
-
-    val inputController = object : InputController {
-        private var open = false
-        override fun open(input: String) {
-            inputStream.input = input
-            open = true
-        }
-
-        override fun close() {
-            check(open) { "System.in was never opened" }
-            System.`in`.close()
-            open = false
-        }
-    }
-    return try {
-        inputController.run()
-    } finally {
-        System.setIn(original)
-    }
+    return CapturedResult(result.first, result.second, diverted.first.toString(), diverted.second.toString(), stdin)
 }

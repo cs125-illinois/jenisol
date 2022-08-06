@@ -454,10 +454,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     @Suppress("LongMethod", "ComplexMethod", "ReturnCount", "NestedBlockDepth", "ThrowsCount")
     fun test(
         passedSettings: Settings = Settings(),
-        captureOutput: CaptureOutput = ::defaultCaptureOutput,
-        controlInput: ControlInput<TestResults> = ::defaultControlInput,
+        captureOutputControlInput: CaptureOutputControlInput = ::defaultCaptureOutputControlInput,
         followTrace: List<Int>? = null
-    ): TestResults = controlInput {
+    ): TestResults {
         if (solution.solution.isDesignOnly() || solution.solution.isAbstract()) {
             throw DesignOnlyTestingError(solution.solution)
         }
@@ -524,8 +523,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 this@Submission,
                 generators,
                 receiverGenerators,
-                captureOutput,
-                this,
+                captureOutputControlInput,
                 ExecutablePicker(random, solution.methodsToTest),
                 settings,
                 runners,
@@ -571,7 +569,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 val finishedReceivers = createdCount >= neededReceivers
 
                 if (Thread.interrupted()) {
-                    return@controlInput runners.toResults(
+                    return runners.toResults(
                         settings,
                         random,
                         timeout = true,
@@ -615,7 +613,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                             if ((!settings.shrink!! || it.lastComplexity!!.level <= Complexity.MIN) &&
                                 !settings.runAll
                             ) {
-                                return@controlInput runners.toResults(
+                                return runners.toResults(
                                     settings,
                                     random,
                                     finishedReceivers = finishedReceivers
@@ -646,7 +644,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     if ((!settings.shrink!! || currentRunner!!.lastComplexity!!.level <= Complexity.MIN) &&
                         !settings.runAll
                     ) {
-                        return@controlInput runners.toResults(settings, random, finishedReceivers = finishedReceivers)
+                        return runners.toResults(settings, random, finishedReceivers = finishedReceivers)
                     }
                 }
                 if (currentRunner!!.returnedReceivers != null) {
@@ -664,7 +662,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     nextRunner(false)
                 }
             }
-            return@controlInput runners.toResults(
+            return runners.toResults(
                 settings,
                 random,
                 completed = true,
@@ -676,7 +674,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             if (settings.testing!!) {
                 throw e
             }
-            return@controlInput runners.toResults(settings, random, threw = e)
+            return runners.toResults(settings, random, threw = e)
         }
     }
 }

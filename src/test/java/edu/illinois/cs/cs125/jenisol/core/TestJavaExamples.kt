@@ -377,7 +377,7 @@ class TestJavaExamples : StringSpec(
             "${it.testName()}" { it.test() }
         }
         examples.java.noreceiver.systemininterleaving.Correct::class.java.also {
-            "f: ${it.testName()}" { it.test() }
+            "${it.testName()}" { it.test() }
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" {

@@ -33,7 +33,6 @@ data class Result<T, P : ParameterGroup>(
     constructor(
         parameters: Array<Any?>,
         capturedResult: CapturedResult,
-        stdin: String,
         modifiedParameters: Boolean
     ) : this(
         parameters.toParameterGroup() as P,
@@ -41,7 +40,7 @@ data class Result<T, P : ParameterGroup>(
         capturedResult.threw,
         capturedResult.stdout,
         capturedResult.stderr,
-        stdin,
+        capturedResult.stdin,
         capturedResult.tag,
         modifiedParameters
     )
@@ -180,9 +179,9 @@ Submission returned: ${print(submission.returned)}
                     """
 Solution did not modify its parameters
 Submission did modify its parameters to ${
-                    print(
-                        submission.parameters.toArray()
-                    )
+                        print(
+                            submission.parameters.toArray()
+                        )
                     }
                     """.trim()
                 } else if (solution.modifiedParameters && !submission.modifiedParameters) {
@@ -194,9 +193,9 @@ Submission did not modify its parameters
                     """
 Solution modified its parameters to ${print(solution.parameters.toArray())}
 Submission modified its parameters to ${
-                    print(
-                        submission.parameters.toArray()
-                    )
+                        print(
+                            submission.parameters.toArray()
+                        )
                     }
                     """.trim()
                 }
@@ -279,7 +278,7 @@ class TestResults(
             result.apply {
                 println(
                     "${
-                    runnerID.toString().padStart(4, ' ')
+                        runnerID.toString().padStart(4, ' ')
                     }: $solutionReceiver $solutionMethodString -> ${solution.returned}" +
                         "\n${" ".repeat(4)}: $submissionReceiver $submissionMethodString -> ${submission.returned}"
                 )
@@ -294,8 +293,7 @@ class TestRunner(
     val submission: Submission,
     var generators: Generators,
     val receiverGenerators: Sequence<Executable>,
-    val captureOutput: CaptureOutput,
-    val inputController: InputController,
+    val captureOutputControlInput: CaptureOutputControlInput,
     val methodPicker: Submission.ExecutablePicker,
     val settings: Settings,
     val runners: List<TestRunner>,
@@ -373,26 +371,20 @@ class TestRunner(
         }
 
         val systemIn = systemInParameters?.input ?: ""
-        systemInParameters?.input?.let {
-            inputController.open(it)
-        }
-        return captureOutput {
+
+        return captureOutputControlInput(systemIn) {
             @Suppress("SpreadOperator")
             unwrap {
-                when (this) {
-                    is Method -> this.invoke(receiver, *parameters)
-                    is Constructor<*> -> this.newInstance(*parameters)
+                when (this@pairRun) {
+                    is Method -> this@pairRun.invoke(receiver, *parameters)
+                    is Constructor<*> -> this@pairRun.newInstance(*parameters)
                     else -> error("Unknown executable type")
                 }
             }
         }.let {
-            systemInParameters?.input?.also {
-                inputController.close()
-            }
             Result(
                 parameters,
                 it,
-                systemIn,
                 parametersCopy?.let { !submission.compare(parameters, parametersCopy) } ?: false
             )
         }
@@ -413,9 +405,9 @@ class TestRunner(
         val solutionClass = this@TestRunner.submission.solution.solution
         val solutionReturnedClass = solution.returned::class.java
         if (!(
-            solutionReturnedClass == solutionClass ||
-                (solutionReturnedClass.isArray && solutionReturnedClass.getArrayType() == solutionClass)
-            )
+                solutionReturnedClass == solutionClass ||
+                    (solutionReturnedClass.isArray && solutionReturnedClass.getArrayType() == solutionClass)
+                )
         ) {
             return false
         }
