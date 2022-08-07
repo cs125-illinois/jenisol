@@ -27,6 +27,7 @@ fun defaultCaptureOutputControlInput(stdin: List<String> = listOf(), run: () -> 
         val ioBytes = mutableListOf<Byte>()
 
         val originalStdin = System.`in`
+        val stdinBytes = mutableListOf<Byte>()
         val divertedStdin = object : InputStream() {
             private val inputs = stdin.map { "$it\n".toByteArray() }
             private var index = 0
@@ -46,6 +47,7 @@ fun defaultCaptureOutputControlInput(stdin: List<String> = listOf(), run: () -> 
                 val b = stream.read()
                 if (b != -1) {
                     ioBytes += b.toByte()
+                    stdinBytes += b.toByte()
                 }
                 return b
             }
@@ -91,7 +93,7 @@ fun defaultCaptureOutputControlInput(stdin: List<String> = listOf(), run: () -> 
             result.second,
             divertedStdout.stream.toString(),
             divertedStderr.stream.toString(),
-            stdin.joinToString("\n"),
+            stdinBytes.toByteArray().decodeToString(),
             ioBytes.toByteArray().decodeToString()
         )
     }
