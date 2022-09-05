@@ -42,9 +42,7 @@ suspend fun Submission.testWithTimeout(settings: Settings, followTrace: List<Int
             join(1024)
         }
     }
-    return runnable.results!!.also {
-        println(it.explain())
-    }
+    return runnable.results!!
 }
 
 fun Class<*>.testingClasses(): TestingClasses {
