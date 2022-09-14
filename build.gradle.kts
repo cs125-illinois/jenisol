@@ -4,14 +4,14 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.9.0"
+version = "2022.9.1"
 
 plugins {
     kotlin("jvm") version "1.7.10"
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.11.1"
+    id("org.jmailen.kotlinter") version "3.12.0"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 

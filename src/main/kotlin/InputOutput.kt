@@ -17,6 +17,7 @@ data class CapturedResult(
     val stderr: String,
     val stdin: String,
     val interleavedInputOutput: String,
+    val truncatedLines: Int,
     val tag: Any? = null
 )
 
@@ -94,6 +95,7 @@ fun defaultCaptureOutputControlInput(stdin: List<String> = listOf(), run: () -> 
             divertedStdout.stream.toString(),
             divertedStderr.stream.toString(),
             stdinBytes.toByteArray().decodeToString(),
-            ioBytes.toByteArray().decodeToString()
+            ioBytes.toByteArray().decodeToString(),
+            0
         )
     }

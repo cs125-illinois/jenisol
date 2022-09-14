@@ -27,6 +27,7 @@ data class Result<T, P : ParameterGroup>(
     @JvmField val stderr: String,
     @JvmField val stdin: String,
     @JvmField val interleavedOutput: String,
+    @JvmField val truncatedLines: Int,
     @JvmField val tag: Any?,
     @JvmField val modifiedParameters: Boolean
 ) {
@@ -43,6 +44,7 @@ data class Result<T, P : ParameterGroup>(
         capturedResult.stderr,
         capturedResult.stdin,
         capturedResult.interleavedInputOutput,
+        capturedResult.truncatedLines,
         capturedResult.tag,
         modifiedParameters
     )

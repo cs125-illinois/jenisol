@@ -68,6 +68,7 @@ class Solution(val solution: Class<*>) {
                         executable.returnType.getArrayDimension() == 1
                     )
                 )
+
             else -> designError("Unexpected executable type")
         }
     }.toSet()
@@ -284,39 +285,44 @@ class Solution(val solution: Class<*>) {
             } else if (settings.receiverCount != -1) {
                 val methodCount = settings.totalTestCount - (settings.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)
                 settings.copy(methodCount = methodCount)
-            } else if (settings.methodCount != -1) {
-                val receiverCount = (
-                    (settings.totalTestCount - settings.methodCount).toDouble() /
-                        Settings.DEFAULT_RECEIVER_RETRIES.toDouble()
-                    ).toInt()
-                settings.copy(receiverCount = receiverCount)
             } else {
-                val receiverCount = if (skipReceiver) {
-                    0
-                } else if (fauxStatic) {
-                    1
+                if (settings.methodCount != -1) {
+                    val receiverCount = (
+                        (settings.totalTestCount - settings.methodCount).toDouble() /
+                            Settings.DEFAULT_RECEIVER_RETRIES.toDouble()
+                        ).toInt()
+                    settings.copy(receiverCount = receiverCount)
                 } else {
-                    (
-                        (defaultReceiverCount.toDouble() / defaultTotalCount.toDouble()) *
-                            settings.totalTestCount
-                        ).toInt().coerceAtLeast(
-                        if (testingEquals) {
-                            defaultReceiverCount
-                        } else {
-                            2
-                        }
-                    )
-                }
-                val methodCount =
-                    (settings.totalTestCount - (receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)).coerceAtLeast(
-                        settings.totalTestCount / 2
-                    )
-                settings.copy(methodCount = methodCount, receiverCount = receiverCount)
-            }.let {
-                if (it.totalTestCount == -1) {
-                    it.copy(totalTestCount = it.methodCount + (it.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES))
-                } else {
-                    it
+                    val receiverCount = if (skipReceiver) {
+                        0
+                    } else if (fauxStatic) {
+                        1
+                    } else {
+                        (
+                            (defaultReceiverCount.toDouble() / defaultTotalCount.toDouble()) *
+                                settings.totalTestCount
+                            ).toInt().coerceAtLeast(
+                            if (testingEquals) {
+                                defaultReceiverCount
+                            } else {
+                                2
+                            }
+                        )
+                    }
+                    val methodCount =
+                        (settings.totalTestCount - (receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)).coerceAtLeast(
+                            settings.totalTestCount / 2
+                        )
+                    settings.copy(methodCount = methodCount, receiverCount = receiverCount)
+                }.let {
+                    if (it.totalTestCount == -1) {
+                        it.copy(
+                            totalTestCount =
+                            it.methodCount + (it.receiverCount * Settings.DEFAULT_RECEIVER_RETRIES)
+                        )
+                    } else {
+                        it
+                    }
                 }
             }
         }.also {
@@ -404,7 +410,8 @@ class Solution(val solution: Class<*>) {
                 "Couldn't find field ${field.name} on alternate solution"
             }
 
-            val (firstValue, secondValue) = @Suppress("TooGenericExceptionCaught") try {
+            val (firstValue, secondValue) = @Suppress("TooGenericExceptionCaught")
+            try {
                 Pair(field.get(null), otherField.get(null))
             } catch (e: Exception) {
                 error("Retrieving field ${field.name} failed: $e")
@@ -496,6 +503,7 @@ fun String.toKotlinType() = when {
         }
         name
     }
+
     else -> this
 }
 
@@ -619,8 +627,10 @@ fun compareReturn(
         submissionReturn.isArray &&
         submissionReturn.getArrayType() == submission &&
         solutionReturn.getArrayDimension() == submissionReturn.getArrayDimension() -> true
+
     solutionReturn is TypeVariable<*> && submissionReturn is TypeVariable<*> ->
         solutionReturn.bounds.contentEquals(submissionReturn.bounds)
+
     else -> false
 }
 
@@ -643,6 +653,7 @@ fun compareParameters(
                     submissionType.rawType == solutionType -> {
                     submissionType.actualTypeArguments.all { it is Any }
                 }
+
                 submission.isKotlin() && solutionType is ParameterizedType && submissionType is ParameterizedType &&
                     solutionType.rawType == submissionType.rawType -> {
                     var matches = true
@@ -666,6 +677,7 @@ fun compareParameters(
                     }
                     matches
                 }
+
                 else -> false
             }
         }
