@@ -541,8 +541,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 runners.add(runner)
             }
 
-            val startMultipleCount = solution.defaultMethodCount.coerceAtMost(solution.methodLimit)
-
             var currentRunner: TestRunner? = null
             if (solution.skipReceiver) {
                 addRunner(generators).also {
@@ -589,7 +587,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     currentRunner == null -> true
                     finishedReceivers -> false
                     solution.receiverAsParameter -> true
-                    testStepCount < startMultipleCount -> false
                     random.nextDouble() < receiverStepsLeft.toDouble() / stepsLeft.toDouble() -> true
                     else -> false
                 }
@@ -597,7 +594,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 val switchReceivers = when {
                     createReceiver -> false
                     solution.skipReceiver -> false
-                    testStepCount < startMultipleCount -> false
                     random.nextDouble() < readyLeft.toDouble() / ((stepsLeft - receiverStepsLeft).toDouble()) -> true
                     else -> false
                 }
