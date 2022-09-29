@@ -2,7 +2,6 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
-import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import java.lang.IllegalStateException
 import kotlin.time.ExperimentalTime
@@ -381,24 +380,6 @@ class TestJavaExamples : StringSpec(
         }
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" { it.test() }
-        }
-        examples.java.noreceiver.intargument.Correct::class.java.also {
-            "${it.testName()} repeatability" {
-                it.testingClasses().apply {
-                    solution(primarySolution).apply {
-                        val first = submission(primarySolution).test(Settings(seed = 0))
-                        val second = submission(primarySolution).test(Settings(seed = 0))
-                        first.size shouldBe second.size
-                        first.forEachIndexed { index, firstResult ->
-                            val secondResult = second[index]
-                            firstResult.allParameters.solutionCopy.toParameterGroup().toArray()
-                                .contentDeepEquals(
-                                    secondResult.allParameters.solutionCopy.toParameterGroup().toArray()
-                                ) shouldBe true
-                        }
-                    }
-                }
-            }
         }
         // Tests that should fail
         examples.java.noreceiver.filternotnullwithrandomgeneratesnull.Correct::class.java.also {

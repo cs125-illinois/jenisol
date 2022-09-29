@@ -473,13 +473,15 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             "Running all tests combined with test shrinking produces inconsistent results"
         }
 
+        /*
         if (!solution.skipReceiver) {
             if (solution.fauxStatic) {
                 check(settings.receiverCount == 1) { "Incorrect receiver count" }
             } else {
-                check(settings.receiverCount > 1) { "Incorrect receiver count" }
+                check(settings.receiverCount > 1) { "Incorrect receiver count: ${settings.receiverCount}" }
             }
         }
+        */
 
         val random = if (settings.seed == -1) {
             RecordingRandom(follow = followTrace)
@@ -549,7 +551,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
 
-            val neededReceivers = solution.defaultReceiverCount.coerceAtLeast(1) // settings.receiverCount.coerceAtLeast(1)
+            val neededReceivers = settings.receiverCount.coerceAtLeast(1)
 
             var totalCount = 0
             var receiverStepCount = 0
@@ -559,7 +561,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             val transitionProbability = if (solution.fauxStatic || solution.skipReceiver) {
                 0.0
             } else {
-                1.0 / (solution.defaultMethodCount.toDouble())
+                1.0 / (settings.methodCount.toDouble())
             }
 
             fun nextRunner(checkNull: Boolean = true) {
@@ -570,7 +572,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 receiverIndex = runners.indexOf(currentRunner)
             }
 
-            while (totalCount < settings.totalTestCount) {
+            while (totalCount < settings.testCount) {
                 val createdCount = runners.createdCount()
                 val finishedReceivers = createdCount >= neededReceivers
 
@@ -583,15 +585,10 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     )
                 }
 
-                val stepsLeft = settings.totalTestCount - totalCount
-                val receiverStepsLeft = (neededReceivers - createdCount + Settings.DEFAULT_RECEIVER_RETRIES)
-                    .coerceAtLeast(0)
-
                 val readyLeft = runners.filterIndexed { index, runner -> index > receiverIndex && runner.ready }.size
 
                 val createReceiver = when {
                     currentRunner == null -> true
-                    // finishedReceivers -> false
                     solution.receiverAsParameter && !finishedReceivers -> true
                     random.nextDouble() < transitionProbability -> true
                     else -> false

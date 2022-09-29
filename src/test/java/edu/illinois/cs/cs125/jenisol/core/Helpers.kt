@@ -81,6 +81,7 @@ suspend fun Solution.fullTest(
     solutionResults: TestResults? = null
 ): Pair<TestResults, TestResults> {
     val baseSettings = Settings(
+        shrink = true,
         seed = seed,
         testing = true,
         minTestCount = 64.coerceAtMost(maxCount),
@@ -136,8 +137,6 @@ suspend fun Solution.fullTest(
         if (!isCorrect) {
             first.indexOfFirst { it.failed } shouldBe first.size - 1
             failingTestCount = original.size
-            println(first.explain())
-            first.printTrace()
         }
 
         first.size shouldBe second.size
@@ -149,7 +148,7 @@ suspend fun Solution.fullTest(
     }
     if (!isCorrect) {
         check(failingTestCount != -1)
-        val reducedSettings = baseSettings.copy(totalTestCount = failingTestCount, minTestCount = -1, maxTestCount = -1)
+        val reducedSettings = baseSettings.copy(testCount = failingTestCount, minTestCount = -1, maxTestCount = -1)
         submissionKlass.testWithTimeout(reducedSettings).checkResults()
     }
     val testAllCounts = solutionResults?.size ?: 256.coerceAtLeast(original.size).coerceAtMost(maxCount)
@@ -157,7 +156,7 @@ suspend fun Solution.fullTest(
         baseSettings.copy(
             shrink = false,
             runAll = !isCorrect,
-            totalTestCount = testAllCounts,
+            testCount = testAllCounts,
             minTestCount = -1,
             maxTestCount = -1
         )
