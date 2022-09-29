@@ -296,7 +296,7 @@ class TestResults(
                     "${
                     runnerID.toString().padStart(4, ' ')
                     }: $solutionReceiver $solutionMethodString -> ${solution.returned}" +
-                        "\n${" ".repeat(4)}: $submissionReceiver $submissionMethodString -> ${submission.returned}"
+                        "\n${" ".repeat(4)}: $submissionReceiver $submissionMethodString -> ${submission.returned} ($succeeded)"
                 )
             }
         }

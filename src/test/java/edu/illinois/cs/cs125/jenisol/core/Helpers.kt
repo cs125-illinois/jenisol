@@ -73,7 +73,7 @@ fun Class<*>.testingClasses(): TestingClasses {
     return TestingClasses(testName, primarySolution, otherSolutions, incorrect, badReceivers, badDesign)
 }
 
-@Suppress("LongMethod")
+@Suppress("LongMethod", "ComplexMethod")
 suspend fun Solution.fullTest(
     klass: Class<*>,
     seed: Int,
@@ -126,6 +126,8 @@ suspend fun Solution.fullTest(
             firstResult.runnerID shouldBe secondResult.runnerID
         }
     }
+
+    var failingTestCount = -1
     run {
         val noShrinkSettings = baseSettings.copy(shrink = false)
         val first = submissionKlass.testWithTimeout(noShrinkSettings).checkResults()
@@ -133,6 +135,9 @@ suspend fun Solution.fullTest(
 
         if (!isCorrect) {
             first.indexOfFirst { it.failed } shouldBe first.size - 1
+            failingTestCount = original.size
+            println(first.explain())
+            first.printTrace()
         }
 
         first.size shouldBe second.size
@@ -141,6 +146,11 @@ suspend fun Solution.fullTest(
             submissionKlass.compare(firstResult.parameters, secondResult.parameters) shouldBe true
             firstResult.runnerID shouldBe secondResult.runnerID
         }
+    }
+    if (!isCorrect) {
+        check(failingTestCount != -1)
+        val reducedSettings = baseSettings.copy(totalTestCount = failingTestCount, minTestCount = -1, maxTestCount = -1)
+        submissionKlass.testWithTimeout(reducedSettings).checkResults()
     }
     val testAllCounts = solutionResults?.size ?: 256.coerceAtLeast(original.size).coerceAtMost(maxCount)
     val testAllSettings =

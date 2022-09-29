@@ -470,7 +470,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
         check(settings.runAll != null)
         check(!(settings.runAll && settings.shrink!!)) {
-            "Running all tests combined with test shrinking produce inconsistent results"
+            "Running all tests combined with test shrinking produces inconsistent results"
         }
 
         if (!solution.skipReceiver) {
@@ -549,12 +549,18 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 }
             }
 
-            val neededReceivers = settings.receiverCount.coerceAtLeast(1)
+            val neededReceivers = solution.defaultReceiverCount.coerceAtLeast(1) // settings.receiverCount.coerceAtLeast(1)
 
             var totalCount = 0
             var receiverStepCount = 0
             var testStepCount = 0
             var receiverIndex = 0
+
+            val transitionProbability = if (solution.fauxStatic || solution.skipReceiver) {
+                0.0
+            } else {
+                1.0 / (solution.defaultMethodCount.toDouble())
+            }
 
             fun nextRunner(checkNull: Boolean = true) {
                 currentRunner = runners.filterIndexed { index, _ -> index > receiverIndex }.find { it.ready }
@@ -587,14 +593,14 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                     currentRunner == null -> true
                     finishedReceivers -> false
                     solution.receiverAsParameter -> true
-                    random.nextDouble() < receiverStepsLeft.toDouble() / stepsLeft.toDouble() -> true
+                    random.nextDouble() < transitionProbability -> true
                     else -> false
                 }
 
                 val switchReceivers = when {
                     createReceiver -> false
                     solution.skipReceiver -> false
-                    random.nextDouble() < readyLeft.toDouble() / ((stepsLeft - receiverStepsLeft).toDouble()) -> true
+                    readyLeft > 0 && random.nextDouble() < transitionProbability -> true
                     else -> false
                 }
 

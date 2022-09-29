@@ -159,7 +159,7 @@ class Solution(val solution: Class<*>) {
 
     val generatorFactory: GeneratorFactory = GeneratorFactory(generatorExecutables, this)
 
-    private var defaultReceiverCount = if (skipReceiver) {
+    val defaultReceiverCount = if (skipReceiver) {
         0
     } else if (fauxStatic) {
         1
@@ -168,7 +168,7 @@ class Solution(val solution: Class<*>) {
             generatorFactory.get(Random, Cloner.shared())[it]!!.fixed.size
         } * 2
     }
-    var defaultMethodCount = (
+    val defaultMethodCount = (
         (allExecutables - receiverGenerators).sumOf {
             if (it.receiverParameter()) {
                 defaultReceiverCount
@@ -326,7 +326,7 @@ class Solution(val solution: Class<*>) {
                 }
             }
         }.also {
-            check(it.methodCount > 0) { "Invalid method count: $it" }
+//            check(it.methodCount > 0) { "Invalid method count: $it" }
             if (skipReceiver) {
                 check(it.receiverCount == 0) { "Invalid receiver count: ${it.receiverCount}" }
             } else if (fauxStatic) {
