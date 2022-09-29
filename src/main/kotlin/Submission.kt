@@ -591,8 +591,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
 
                 val createReceiver = when {
                     currentRunner == null -> true
-                    finishedReceivers -> false
-                    solution.receiverAsParameter -> true
+                    // finishedReceivers -> false
+                    solution.receiverAsParameter && !finishedReceivers -> true
                     random.nextDouble() < transitionProbability -> true
                     else -> false
                 }

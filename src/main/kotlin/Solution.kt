@@ -326,7 +326,7 @@ class Solution(val solution: Class<*>) {
                 }
             }
         }.also {
-//            check(it.methodCount > 0) { "Invalid method count: $it" }
+            // check(it.methodCount > 0) { "Invalid method count: $it" }
             if (skipReceiver) {
                 check(it.receiverCount == 0) { "Invalid receiver count: ${it.receiverCount}" }
             } else if (fauxStatic) {
