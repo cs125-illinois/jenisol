@@ -9,7 +9,6 @@ import edu.illinois.cs.cs125.jenisol.core.One
 import edu.illinois.cs.cs125.jenisol.core.ParameterGroup
 import edu.illinois.cs.cs125.jenisol.core.RandomParameters
 import edu.illinois.cs.cs125.jenisol.core.RandomType
-import edu.illinois.cs.cs125.jenisol.core.Settings
 import edu.illinois.cs.cs125.jenisol.core.SimpleType
 import edu.illinois.cs.cs125.jenisol.core.Solution
 import edu.illinois.cs.cs125.jenisol.core.TestRunner
@@ -428,7 +427,6 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
     fun get(
         random: Random = Random,
         cloner: Cloner,
-        settings: Settings,
         typeGeneratorOverrides: Map<Type, TypeGeneratorGenerator>? = null,
         forExecutables: Set<Executable> = executables
     ): Generators {
@@ -445,7 +443,6 @@ class GeneratorFactory(private val executables: Set<Executable>, val solution: S
                 executable to (
                     methodParameterGenerators[executable]?.generate(
                         parameterGenerator,
-                        settings,
                         random,
                         cloner
                     ) ?: error("Didn't find a method parameter generator that should exist: $executable")
@@ -548,12 +545,10 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
     val needsParameterGenerator = fixedParameters == null || randomParameters == null
     fun generate(
         parametersGenerator: ParametersGeneratorGenerator?,
-        settings: Settings,
         random: Random = Random,
         cloner: Cloner
     ) = ConfiguredParametersGenerator(
         parametersGenerator,
-        settings,
         random,
         cloner,
         fixedParameters,
@@ -565,8 +560,7 @@ class MethodParametersGeneratorGenerator(val target: Executable, val solution: C
 @Suppress("LongParameterList")
 class ConfiguredParametersGenerator(
     parametersGenerator: ParametersGeneratorGenerator?,
-    private val settings: Settings,
-    private val random: Random = Random,
+    random: Random = Random,
     private val cloner: Cloner,
     overrideFixed: Collection<ParameterGroup>?,
     private val overrideRandom: Method?,
@@ -590,12 +584,6 @@ class ConfiguredParametersGenerator(
         )
     }
 
-    private fun List<Parameters>.trim(count: Int) = if (this.size <= count) {
-        this
-    } else {
-        this.shuffled(random).take(count)
-    }
-
     override val fixed: List<Parameters> by lazy {
         if (overrideFixed != null) {
             overrideFixed.toFixedParameters().also { parameters ->
@@ -605,11 +593,9 @@ class ConfiguredParametersGenerator(
             }
         } else {
             check(generator != null) { "Automatic parameter generator was unexpectedly null" }
-            generator.let {
-                it.simple.trim(settings.simpleCount) +
-                    it.edge.trim(settings.edgeCount) +
-                    it.mixed.trim(settings.mixedCount)
-            }.filter { !it.filterNotNullParameters() }.trim(settings.fixedCount)
+            generator
+                .let { it.simple + it.edge + it.mixed }
+                .filter { !it.filterNotNullParameters() }
         }
     }
 

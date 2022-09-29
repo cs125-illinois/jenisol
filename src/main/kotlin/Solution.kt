@@ -165,7 +165,7 @@ class Solution(val solution: Class<*>) {
         1
     } else {
         receiverGenerators.sumOf {
-            generatorFactory.get(Random, Cloner.shared(), Settings.DEFAULTS)[it]!!.fixed.size
+            generatorFactory.get(Random, Cloner.shared())[it]!!.fixed.size
         } * 2
     }
     var defaultMethodCount = (
@@ -173,7 +173,7 @@ class Solution(val solution: Class<*>) {
             if (it.receiverParameter()) {
                 defaultReceiverCount
             } else {
-                generatorFactory.get(Random, Cloner.shared(), Settings.DEFAULTS)[it]!!.fixed.size.coerceAtLeast(1) +
+                generatorFactory.get(Random, Cloner.shared())[it]!!.fixed.size.coerceAtLeast(1) +
                     if (receiverGenerators.isNotEmpty() && it.objectParameter()) {
                         defaultReceiverCount
                     } else {
@@ -735,10 +735,6 @@ data class Settings(
     val methodCount: Int = -1,
     val receiverCount: Int = -1,
     val seed: Int = -1,
-    val simpleCount: Int = -1,
-    val edgeCount: Int = -1,
-    val mixedCount: Int = -1,
-    val fixedCount: Int = -1,
     val totalTestCount: Int = -1,
     val minTestCount: Int = -1,
     val maxTestCount: Int = -1,
@@ -750,10 +746,6 @@ data class Settings(
         val DEFAULTS = Settings(
             shrink = true,
             runAll = false,
-            simpleCount = Int.MAX_VALUE,
-            edgeCount = Int.MAX_VALUE,
-            mixedCount = Int.MAX_VALUE,
-            fixedCount = Int.MAX_VALUE,
             testing = false
         )
     }
@@ -777,26 +769,6 @@ data class Settings(
                 other.seed
             } else {
                 seed
-            },
-            if (other.simpleCount != -1) {
-                other.simpleCount
-            } else {
-                simpleCount
-            },
-            if (other.edgeCount != -1) {
-                other.edgeCount
-            } else {
-                edgeCount
-            },
-            if (other.mixedCount != -1) {
-                other.mixedCount
-            } else {
-                mixedCount
-            },
-            if (other.fixedCount != -1) {
-                other.fixedCount
-            } else {
-                fixedCount
             },
             if (other.totalTestCount != -1) {
                 other.totalTestCount

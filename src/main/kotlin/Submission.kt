@@ -359,7 +359,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         }
     }
 
-    @Suppress("UNCHECKED_CAST", "LongParameterList")
+    @Suppress("UNCHECKED_CAST", "LongParameterList", "MemberVisibilityCanBePrivate")
     fun List<TestRunner>.toResults(
         settings: Settings,
         recordingRandom: RecordingRandom,
@@ -517,7 +517,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             Pair<ReceiverGenerator?, Map<Type, TypeGeneratorGenerator>>(null, mapOf())
         }
 
-        val generators = solution.generatorFactory.get(random, cloner, settings, generatorOverrides)
+        val generators = solution.generatorFactory.get(random, cloner, generatorOverrides)
 
         @Suppress("TooGenericExceptionCaught")
         try {
