@@ -541,11 +541,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 runners.add(runner)
             }
 
-            val startMultipleCount = if (settings.startMultipleCount != -1) {
-                settings.startMultipleCount
-            } else {
-                solution.defaultMethodCount.coerceAtMost(solution.methodLimit)
-            }
+            val startMultipleCount = solution.defaultMethodCount.coerceAtMost(solution.methodLimit)
 
             var currentRunner: TestRunner? = null
             if (solution.skipReceiver) {

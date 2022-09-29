@@ -738,7 +738,6 @@ data class Settings(
     val totalTestCount: Int = -1,
     val minTestCount: Int = -1,
     val maxTestCount: Int = -1,
-    val startMultipleCount: Int = -1,
     val testing: Boolean? = null
 ) {
     companion object {
@@ -784,11 +783,6 @@ data class Settings(
                 other.maxTestCount
             } else {
                 maxTestCount
-            },
-            if (other.startMultipleCount != -1) {
-                other.startMultipleCount
-            } else {
-                startMultipleCount
             },
             other.testing ?: testing
         )
