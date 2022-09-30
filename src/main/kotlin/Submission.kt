@@ -378,6 +378,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             count { !it.tested },
             skippedSteps = map { it.skippedTests }.flatten().sorted(),
             randomTrace = recordingRandom.finish()
+            // randomCallers = recordingRandom.callers
         )
 
     inner class ExecutablePicker(private val random: Random, private val methods: Set<Executable>) {
@@ -395,6 +396,9 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             val methodsLeft = methods - finished
             executableChooser = TreeMap(
                 methodsLeft.associateWith { solution.defaultTestingWeight(it) }
+                    .toSortedMap { e1, e2 ->
+                        e1.fullName().compareTo(e2.fullName())
+                    }
                     .map { (executable, weight) ->
                         setTotal += weight
                         setTotal to executable
@@ -431,14 +435,25 @@ class Submission(val solution: Solution, val submission: Class<*>) {
     class RecordingRandom(seed: Long = Random.nextLong(), private val follow: List<Int>? = null) : Random() {
         private val random = Random(seed)
         private val trace = mutableListOf<Int>()
-        private var currentIndex = 0
+
+        // val callers = mutableListOf<String>()
+        var currentIndex = 0
+        var lastRandom = 0
+
+        @Suppress("ThrowingExceptionsWithoutMessageOrCause")
         override fun nextBits(bitCount: Int): Int {
+            /*
+            val e = Exception()
+            callers.add(e.stackTraceToString())
+            */
             return random.nextBits(bitCount).also {
                 trace += it
+                lastRandom = it
             }.also {
-                if (follow != null && (follow.getOrNull(currentIndex++) != it)) {
+                if (follow != null && (follow.getOrNull(currentIndex) != it)) {
                     throw FollowTraceException(currentIndex)
                 }
+                currentIndex++
             }
         }
 
@@ -472,16 +487,6 @@ class Submission(val solution: Solution, val submission: Class<*>) {
         check(!(settings.runAll && settings.shrink!!)) {
             "Running all tests combined with test shrinking produces inconsistent results"
         }
-
-        /*
-        if (!solution.skipReceiver) {
-            if (solution.fauxStatic) {
-                check(settings.receiverCount == 1) { "Incorrect receiver count" }
-            } else {
-                check(settings.receiverCount > 1) { "Incorrect receiver count: ${settings.receiverCount}" }
-            }
-        }
-        */
 
         val random = if (settings.seed == -1) {
             RecordingRandom(follow = followTrace)
@@ -535,7 +540,8 @@ class Submission(val solution: Solution, val submission: Class<*>) {
                 ExecutablePicker(random, solution.methodsToTest),
                 settings,
                 runners,
-                receivers
+                receivers,
+                random
             ).also { runner ->
                 if (receivers == null && !solution.skipReceiver) {
                     runner.next(stepCount++)

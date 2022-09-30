@@ -106,7 +106,9 @@ data class TestResult<T, P : ParameterGroup>(
     @JvmField val submissionIsKotlin: Boolean = submissionClass.isKotlin(),
     @JvmField val existingReceiverMismatch: Boolean = false,
     @JvmField val solutionMethodString: String,
-    @JvmField val submissionMethodString: String
+    @JvmField val submissionMethodString: String,
+    @JvmField val currentRandom: Int,
+    @JvmField val randomCount: Int
 ) {
     @Suppress("UNCHECKED_CAST")
     @JvmField
@@ -272,6 +274,7 @@ class TestResults(
     designOnly: Boolean? = null,
     val skippedSteps: List<Int>,
     val randomTrace: List<Int>? = null
+    // val randomCallers: List<String>? = null
 ) : List<TestResult<Any, ParameterGroup>> by results {
     val succeeded = designOnly ?: finishedReceivers && all { it.succeeded } && completed
     val failed = !succeeded
@@ -313,7 +316,8 @@ class TestRunner(
     val methodPicker: Submission.ExecutablePicker,
     val settings: Settings,
     val runners: List<TestRunner>,
-    var receivers: Value<Any?>?
+    var receivers: Value<Any?>?,
+    val random: Submission.RecordingRandom
 ) {
     val testResults: MutableList<TestResult<*, *>> = mutableListOf()
     val skippedTests: MutableList<Int> = mutableListOf()
@@ -557,50 +561,6 @@ class TestRunner(
             } ?: error("couldn't find a parameter generator that should exist: $solutionExecutable")
         }
 
-        /*
-        // Enable for debugging
-        check(
-            parameters.solution.filterNotNull().none {
-                it::class.java == submission.submission::class.java
-            }
-        )
-        check(
-            parameters.submission.filterNotNull().none {
-                it::class.java == submission.solution.solution::class.java
-            }
-        )
-        check(
-            parameters.submissionCopy.filterNotNull().none {
-                it::class.java == submission.solution.solution::class.java
-            }
-        )
-        check(
-            parameters.solutionCopy.filterNotNull().none {
-                it::class.java == submission.submission::class.java
-            }
-        )
-        check(
-            parameters.solution.zip(parameters.submission).filter { (solutionParameter, submissionParameter) ->
-                solutionParameter != null &&
-                    submissionParameter != null &&
-                    solutionParameter::class.java == submission.solution.solution::class.java &&
-                    submissionParameter::class.java == submission.submission::class.java
-            }.none { (solutionParameter, submissionParameter) ->
-                solutionParameter!!::class.java != submissionParameter!!::class.java
-            }
-        )
-        check(
-            parameters.solutionCopy.zip(parameters.submissionCopy).filter { (solutionParameter, submissionParameter) ->
-                solutionParameter != null &&
-                    submissionParameter != null &&
-                    solutionParameter::class.java == submission.solution.solution::class.java &&
-                    submissionParameter::class.java == submission.submission::class.java
-            }.none { (solutionParameter, submissionParameter) ->
-                solutionParameter!!::class.java != submissionParameter!!::class.java
-            }
-        )
-        */
-
         val stepType = type ?: if (!created) {
             when (solutionExecutable) {
                 is Constructor<*> -> TestResult.Type.CONSTRUCTOR
@@ -739,7 +699,9 @@ class TestRunner(
             stepReceivers.submission,
             existingReceiverMismatch = existingReceiverMismatch,
             solutionMethodString = solutionMethodString,
-            submissionMethodString = submissionMethodString
+            submissionMethodString = submissionMethodString,
+            currentRandom = random.lastRandom,
+            randomCount = random.currentIndex
         )
 
         val unmodifiedCopy = submissionExecutable.pairRun(

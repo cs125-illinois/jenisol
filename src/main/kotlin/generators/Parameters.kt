@@ -26,7 +26,6 @@ import edu.illinois.cs.cs125.jenisol.core.isSimpleType
 import edu.illinois.cs.cs125.jenisol.core.isStatic
 import edu.illinois.cs.cs125.jenisol.core.randomParametersMatchAll
 import edu.illinois.cs.cs125.jenisol.core.unwrap
-import java.lang.ClassCastException
 import java.lang.reflect.Constructor
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
@@ -566,6 +565,7 @@ class ConfiguredParametersGenerator(
     private val overrideRandom: Method?,
     private val notNullParameters: List<Boolean>
 ) : ExecutableGenerator {
+
     private val generator = if (overrideFixed != null && overrideRandom != null) {
         null
     } else {
