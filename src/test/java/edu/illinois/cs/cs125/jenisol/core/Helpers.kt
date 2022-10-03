@@ -137,7 +137,7 @@ suspend fun Solution.fullTest(
 
         if (!isCorrect) {
             first.indexOfFirst { it.failed } shouldBe first.size - 1
-            failingTestCount = original.size.coerceAtLeast(first.settings.receiverCount * 2)
+            failingTestCount = first.size
         }
 
         first.size shouldBe second.size

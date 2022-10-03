@@ -168,8 +168,8 @@ class Solution(val solution: Class<*>) {
         receiverGenerators.sumOf { generator ->
             generatorFactory.get(Random, Cloner.shared())[generator]!!.fixed.filter {
                 it.type == Parameters.Type.SIMPLE || it.type == Parameters.Type.FIXED_FIELD
-            }.size * 2
-        }
+            }.size
+        } * 2
     }
     private val defaultMethodCount = (
         (allExecutables - receiverGenerators).sumOf { generator ->
@@ -221,7 +221,7 @@ class Solution(val solution: Class<*>) {
         check(settings.shrink != null) {
             "shrink setting must be specified"
         }
-        var testCount = if (settings.testCount != -1) {
+        val testCount = if (settings.testCount != -1) {
             check(settings.minTestCount == -1 && settings.maxTestCount == -1) {
                 "Can't set testCount and minTestCount or maxTestCount"
             }
@@ -255,20 +255,6 @@ class Solution(val solution: Class<*>) {
             defaultReceiverCount
         } else {
             -1
-        }
-        if (receiverCount != -1) {
-            if (settings.testCount != -1) {
-                check(testCount >= receiverCount * 2) {
-                    "Not enough tests to test all receivers: ${settings.testCount}"
-                }
-            } else {
-                testCount = testCount.coerceAtLeast(receiverCount * 2)
-                if (settings.maxTestCount != -1) {
-                    check(testCount <= settings.maxTestCount) {
-                        "Can't test all receivers without exceeding maxTestCount: $testCount ${settings.maxTestCount}"
-                    }
-                }
-            }
         }
         return settings.copy(testCount = testCount, methodCount = methodCount, receiverCount = receiverCount)
     }

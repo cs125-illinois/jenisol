@@ -19,13 +19,14 @@ public class Correct {
     second = setSecond;
   }
 
-  @SimpleType private static final double[] SIMPLE_DOUBLES = new double[] {8.8};
+  @SimpleType private static final String[] SIMPLE_STRINGS = new String[] {"test", "me"};
+
+  @SimpleType
+  private static final double[] SIMPLE_DOUBLES = new double[] {-90.0, -89.9, 89.9, 90.0};
 
   @EdgeType
   private static final double[] EDGE_DOUBLES =
-      new double[] {
-        -180.1, -180.0, -179.9, -90.1, -90.0, -89.9, 89.9, 90.0, 90.1, 179.9, 180.0, 180.1
-      };
+      new double[] {-180.1, -180.0, -179.9, -90.1, 90.1, 179.9, 180.0, 180.1};
 
   @RandomType
   private static double randomPosition(Random random) {
