@@ -1,9 +1,5 @@
 package examples.java.receiver.completethreefields;
 
-import edu.illinois.cs.cs125.jenisol.core.FixedParameters;
-import edu.illinois.cs.cs125.jenisol.core.Three;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 public class Correct {
@@ -42,14 +38,4 @@ public class Correct {
     Correct correct = (Correct) o;
     return Objects.equals(name, correct.name) && Objects.equals(artist, correct.artist);
   }
-
-  @FixedParameters
-  private static final List<Three<String, String, Integer>> FIXED =
-      Arrays.asList(
-          new Three<>("Test", "Me", 1988),
-          new Three<>("Test", "Me", 1987),
-          new Three<>("Testing", "Me", 1988),
-          new Three<>("Test", "You", 1988),
-          new Three<>(null, "Me", 1988),
-          new Three<>("Test", null, 1988));
 }

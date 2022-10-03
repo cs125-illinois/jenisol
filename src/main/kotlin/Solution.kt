@@ -4,6 +4,7 @@ package edu.illinois.cs.cs125.jenisol.core
 
 import com.rits.cloning.Cloner
 import edu.illinois.cs.cs125.jenisol.core.generators.GeneratorFactory
+import edu.illinois.cs.cs125.jenisol.core.generators.Parameters
 import edu.illinois.cs.cs125.jenisol.core.generators.boxType
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayDimension
 import edu.illinois.cs.cs125.jenisol.core.generators.getArrayType
@@ -164,17 +165,19 @@ class Solution(val solution: Class<*>) {
     } else if (fauxStatic) {
         1
     } else {
-        receiverGenerators.sumOf {
-            generatorFactory.get(Random, Cloner.shared())[it]!!.fixed.size
-        } * 2
+        receiverGenerators.sumOf { generator ->
+            generatorFactory.get(Random, Cloner.shared())[generator]!!.fixed.filter {
+                it.type == Parameters.Type.SIMPLE || it.type == Parameters.Type.FIXED_FIELD
+            }.size * 2
+        }
     }
     private val defaultMethodCount = (
-        (allExecutables - receiverGenerators).sumOf {
-            if (it.receiverParameter()) {
+        (allExecutables - receiverGenerators).sumOf { generator ->
+            if (generator.receiverParameter()) {
                 defaultReceiverCount
             } else {
-                generatorFactory.get(Random, Cloner.shared())[it]!!.fixed.size.coerceAtLeast(1) +
-                    if (receiverGenerators.isNotEmpty() && it.objectParameter()) {
+                generatorFactory.get(Random, Cloner.shared())[generator]!!.fixed.size.coerceAtLeast(1) +
+                    if (receiverGenerators.isNotEmpty() && generator.objectParameter()) {
                         defaultReceiverCount
                     } else {
                         0
@@ -218,7 +221,7 @@ class Solution(val solution: Class<*>) {
         check(settings.shrink != null) {
             "shrink setting must be specified"
         }
-        val testCount = if (settings.testCount != -1) {
+        var testCount = if (settings.testCount != -1) {
             check(settings.minTestCount == -1 && settings.maxTestCount == -1) {
                 "Can't set testCount and minTestCount or maxTestCount"
             }
@@ -252,6 +255,20 @@ class Solution(val solution: Class<*>) {
             defaultReceiverCount
         } else {
             -1
+        }
+        if (receiverCount != -1) {
+            if (settings.testCount != -1) {
+                check(testCount >= receiverCount * 2) {
+                    "Not enough tests to test all receivers: ${settings.testCount}"
+                }
+            } else {
+                testCount = testCount.coerceAtLeast(receiverCount * 2)
+                if (settings.maxTestCount != -1) {
+                    check(testCount <= settings.maxTestCount) {
+                        "Can't test all receivers without exceeding maxTestCount: $testCount ${settings.maxTestCount}"
+                    }
+                }
+            }
         }
         return settings.copy(testCount = testCount, methodCount = methodCount, receiverCount = receiverCount)
     }

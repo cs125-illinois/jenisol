@@ -579,8 +579,7 @@ class Submission(val solution: Solution, val submission: Class<*>) {
             }
 
             while (totalCount < settings.testCount) {
-                val createdCount = runners.createdCount()
-                val finishedReceivers = createdCount >= neededReceivers
+                val finishedReceivers = runners.createdCount() >= neededReceivers
 
                 if (Thread.interrupted()) {
                     return runners.toResults(

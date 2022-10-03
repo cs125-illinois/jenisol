@@ -381,6 +381,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.timeouttest.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.tripleequalswithasserts.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         // Tests that should fail
         examples.java.noreceiver.filternotnullwithrandomgeneratesnull.Correct::class.java.also {
             "${it.testName()}" {

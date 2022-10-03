@@ -78,14 +78,15 @@ suspend fun Solution.fullTest(
     klass: Class<*>,
     seed: Int,
     isCorrect: Boolean,
-    solutionResults: TestResults? = null
+    solutionResults: TestResults? = null,
+    overrideMaxCount: Int = 0
 ): Pair<TestResults, TestResults> {
     val baseSettings = Settings(
         shrink = true,
         seed = seed,
         testing = true,
-        minTestCount = 64.coerceAtMost(maxCount),
-        maxTestCount = 1024.coerceAtMost(maxCount)
+        minTestCount = 64.coerceAtMost(maxCount).coerceAtLeast(overrideMaxCount),
+        maxTestCount = 1024.coerceAtMost(maxCount).coerceAtLeast(overrideMaxCount)
     )
 
     @Suppress("RethrowCaughtException")
@@ -136,7 +137,7 @@ suspend fun Solution.fullTest(
 
         if (!isCorrect) {
             first.indexOfFirst { it.failed } shouldBe first.size - 1
-            failingTestCount = original.size
+            failingTestCount = original.size.coerceAtLeast(first.settings.receiverCount * 2)
         }
 
         first.size shouldBe second.size
@@ -195,12 +196,17 @@ suspend fun Solution.fullTest(
     return Pair(original, first)
 }
 
-@Suppress("NestedBlockDepth", "ComplexMethod")
-suspend fun Class<*>.test() = this.testingClasses().apply {
+@Suppress("NestedBlockDepth", "ComplexMethod", "LongMethod")
+suspend fun Class<*>.test(overrideMaxCount: Int = 0) = this.testingClasses().apply {
     solution(primarySolution).apply {
         val (_, solutionResults) = submission(primarySolution).let {
             if (!primarySolution.isDesignOnly()) {
-                fullTest(primarySolution, seed = 124, isCorrect = true).also { (results) ->
+                fullTest(
+                    primarySolution,
+                    seed = 124,
+                    isCorrect = true,
+                    overrideMaxCount = overrideMaxCount
+                ).also { (results) ->
                     check(results.succeeded) { "Solution did not pass testing: ${results.explain()}" }
                 }
             } else {
@@ -214,7 +220,8 @@ suspend fun Class<*>.test() = this.testingClasses().apply {
                         correct,
                         seed = 124,
                         isCorrect = true,
-                        solutionResults = solutionResults
+                        solutionResults = solutionResults,
+                        overrideMaxCount = overrideMaxCount
                     ).first.also { results ->
                         check(!results.timeout)
                         check(results.succeeded) {
@@ -240,7 +247,8 @@ suspend fun Class<*>.test() = this.testingClasses().apply {
                         incorrect,
                         seed = 124,
                         isCorrect = false,
-                        solutionResults = solutionResults
+                        solutionResults = solutionResults,
+                        overrideMaxCount = overrideMaxCount
                     ).first.also { results ->
                         results.threw shouldBe null
                         results.timeout shouldBe false

@@ -26,15 +26,6 @@ class ReceiverGenerator(
     override val simple: Set<Value<Any>>
         get() = receivers
             .filter { it.complexity.level == 0 }
-            .onEach {
-                check(it.solution::class.java == submission.solution.solution)
-                check(it.solutionCopy::class.java == submission.solution.solution)
-                check(it.submission::class.java == submission.submission)
-                check(it.submissionCopy::class.java == submission.submission)
-                check(it.unmodifiedCopy::class.java == submission.submission)
-                check(it.solution !== it.solutionCopy)
-                check(it.submission !== it.submissionCopy)
-            }
             .toSet()
 
     override val edge: Set<Value<Any?>>
@@ -45,14 +36,6 @@ class ReceiverGenerator(
             simple.shuffled(random).first()
         } else {
             receivers.findWithComplexity(complexity, random)
-        }.also {
-            check(it.solution::class.java == submission.solution.solution)
-            check(it.solutionCopy::class.java == submission.solution.solution)
-            check(it.submission::class.java == submission.submission)
-            check(it.submissionCopy::class.java == submission.submission)
-            check(it.unmodifiedCopy::class.java == submission.submission)
-            check(it.solution !== it.solutionCopy)
-            check(it.submission !== it.submissionCopy)
         }
 }
 
