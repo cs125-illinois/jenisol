@@ -103,7 +103,7 @@ class Solution(val solution: Class<*>) {
                 (receiverGenerators.size == 1 && receiverGenerators.first().parameters.isEmpty())
             )
 
-    val fauxStatic = solution.superclass == Any::class.java &&
+    val fauxStatic = !skipReceiver && solution.superclass == Any::class.java &&
         solution.declaredFields.all { it.isJenisol() || it.isStatic() } &&
         solution.declaredMethods.all {
             it.isJenisol() ||
