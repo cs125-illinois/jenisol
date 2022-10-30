@@ -4,7 +4,7 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.10.1"
+version = "2022.10.2"
 
 plugins {
     kotlin("jvm") version "1.7.20"
@@ -15,7 +15,7 @@ plugins {
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
-    id("com.github.ben-manes.versions") version "0.42.0"
+    id("com.github.ben-manes.versions") version "0.43.0"
     id("io.gitlab.arturbosch.detekt") version "1.21.0"
 }
 repositories {
@@ -28,7 +28,7 @@ dependencies {
     implementation("io.github.classgraph:classgraph:4.8.149")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:5.5.1")
+    testImplementation("io.kotest:kotest-runner-junit5:5.5.3")
     testImplementation("org.slf4j:slf4j-simple:2.0.3")
 }
 tasks.withType<JavaCompile> {
