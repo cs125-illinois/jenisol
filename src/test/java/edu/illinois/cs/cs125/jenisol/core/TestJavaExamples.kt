@@ -288,6 +288,9 @@ class TestJavaExamples : StringSpec(
         examples.java.receiver.nonstaticparametergenerator.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
+        examples.java.receiver.nonstaticobjectparametergenerator.Correct::class.java.also {
+            "${it.testName()}" { it.test() }
+        }
         examples.java.noreceiver.customtypewithembeddedgenerators.Correct::class.java.also {
             "${it.testName()}" { it.test() }
         }
