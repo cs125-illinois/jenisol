@@ -4,10 +4,10 @@ import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 group = "com.github.cs125-illinois"
-version = "2022.10.5"
+version = "2022.12.0"
 
 plugins {
-    kotlin("jvm") version "1.7.20"
+    kotlin("jvm") version "1.7.22"
     java
     `maven-publish`
 
@@ -15,8 +15,8 @@ plugins {
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
-    id("com.github.ben-manes.versions") version "0.43.0"
-    id("io.gitlab.arturbosch.detekt") version "1.21.0"
+    id("com.github.ben-manes.versions") version "0.44.0"
+    id("io.gitlab.arturbosch.detekt") version "1.22.0"
 }
 repositories {
     mavenCentral()
@@ -24,12 +24,12 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.20")
-    implementation("io.github.classgraph:classgraph:4.8.149")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.22")
+    implementation("io.github.classgraph:classgraph:4.8.152")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
-    testImplementation("io.kotest:kotest-runner-junit5:5.5.3")
-    testImplementation("org.slf4j:slf4j-simple:2.0.3")
+    testImplementation("io.kotest:kotest-runner-junit5:5.5.4")
+    testImplementation("org.slf4j:slf4j-simple:2.0.6")
 }
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
