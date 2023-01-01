@@ -3,15 +3,15 @@ import java.io.StringWriter
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-group = "com.github.cs125-illinois"
-version = "2022.12.0"
+group = "com.github.cs124-illinois"
+version = "2023.1.0"
 
 plugins {
-    kotlin("jvm") version "1.7.22"
+    kotlin("jvm") version "1.8.0"
     java
     `maven-publish`
 
-    id("org.jmailen.kotlinter") version "3.12.0"
+    id("org.jmailen.kotlinter") version "3.13.0"
     checkstyle
     id("com.github.sherter.google-java-format") version "0.9"
 
@@ -24,8 +24,8 @@ repositories {
     maven("https://maven.pkg.jetbrains.space/public/p/kotlinx-html/maven")
 }
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect:1.7.22")
-    implementation("io.github.classgraph:classgraph:4.8.152")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.8.0")
+    implementation("io.github.classgraph:classgraph:4.8.153")
     implementation("io.github.kostaskougios:cloning:1.10.3")
 
     testImplementation("io.kotest:kotest-runner-junit5:5.5.4")
